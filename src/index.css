@@ -1,0 +1,229 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light theme colors */
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --primary: 221.2 83.2% 53.3%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222.2 84% 4.9%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222.2 84% 4.9%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 221.2 83.2% 53.3%;
+  --radius: 0.5rem;
+  
+  /* Toast colors */
+  --toast-bg: #ffffff;
+  --toast-color: #1f2937;
+  --toast-border: #e5e7eb;
+}
+
+.dark {
+  /* Dark theme colors */
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 217.2 91.2% 59.8%;
+  --primary-foreground: 222.2 84% 4.9%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 224.3 76.3% 94.1%;
+  
+  /* Toast colors */
+  --toast-bg: #1f2937;
+  --toast-color: #f9fafb;
+  --toast-border: #374151;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground font-pos;
+  }
+  
+  html {
+    @apply h-full;
+  }
+  
+  #root {
+    @apply h-full;
+  }
+}
+
+@layer components {
+  .pos-button {
+    @apply inline-flex items-center justify-center rounded-lg border border-transparent px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background;
+  }
+  
+  .pos-button-primary {
+    @apply pos-button bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800;
+  }
+  
+  .pos-button-secondary {
+    @apply pos-button bg-gray-100 text-gray-900 hover:bg-gray-200 active:bg-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700 dark:active:bg-gray-600;
+  }
+  
+  .pos-button-success {
+    @apply pos-button bg-success-600 text-white hover:bg-success-700 active:bg-success-800;
+  }
+  
+  .pos-button-warning {
+    @apply pos-button bg-warning-600 text-white hover:bg-warning-700 active:bg-warning-800;
+  }
+  
+  .pos-button-danger {
+    @apply pos-button bg-danger-600 text-white hover:bg-danger-700 active:bg-danger-800;
+  }
+  
+  .pos-input {
+    @apply flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:placeholder:text-gray-400 dark:focus-visible:ring-primary-400;
+  }
+  
+  .pos-card {
+    @apply rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800;
+  }
+  
+  .pos-card-header {
+    @apply flex flex-col space-y-1.5 pb-4;
+  }
+  
+  .pos-card-title {
+    @apply text-2xl font-semibold leading-none tracking-tight text-gray-900 dark:text-gray-100;
+  }
+  
+  .pos-card-description {
+    @apply text-sm text-gray-500 dark:text-gray-400;
+  }
+  
+  .pos-card-content {
+    @apply pt-0;
+  }
+  
+  .pos-card-footer {
+    @apply flex items-center pt-4;
+  }
+  
+  .pos-badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  
+  .pos-badge-primary {
+    @apply pos-badge bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-300;
+  }
+  
+  .pos-badge-success {
+    @apply pos-badge bg-success-100 text-success-800 dark:bg-success-900 dark:text-success-300;
+  }
+  
+  .pos-badge-warning {
+    @apply pos-badge bg-warning-100 text-warning-800 dark:bg-warning-900 dark:text-warning-300;
+  }
+  
+  .pos-badge-danger {
+    @apply pos-badge bg-danger-100 text-danger-800 dark:bg-danger-900 dark:text-danger-300;
+  }
+  
+  .pos-table {
+    @apply w-full caption-bottom text-sm;
+  }
+  
+  .pos-table-header {
+    @apply [&_tr]:border-b;
+  }
+  
+  .pos-table-body {
+    @apply [&_tr:last-child]:border-0;
+  }
+  
+  .pos-table-footer {
+    @apply border-t bg-gray-50/50 font-medium [&>tr]:last:border-b-0 dark:bg-gray-800/50;
+  }
+  
+  .pos-table-row {
+    @apply border-b transition-colors hover:bg-gray-50/50 data-[state=selected]:bg-gray-50 dark:hover:bg-gray-800/50 dark:data-[state=selected]:bg-gray-800;
+  }
+  
+  .pos-table-head {
+    @apply h-12 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0 dark:text-gray-400;
+  }
+  
+  .pos-table-cell {
+    @apply p-4 align-middle [&:has([role=checkbox])]:pr-0;
+  }
+  
+  .pos-focus {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+  
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background;
+  }
+  
+  .pos-keyboard-shortcut {
+    @apply inline-flex items-center gap-1 rounded border border-gray-200 bg-gray-100 px-2 py-1 text-xs font-mono text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
+}
+
+/* Print styles for receipts */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-receipt {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+}

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear POS Settings</title>
+</head>
+<body>
+    <h1>Clear Grocery POS Settings</h1>
+    <p>This will clear all stored settings and reload with defaults.</p>
+    <button onclick="clearSettings()">Clear Settings</button>
+    <div id="result"></div>
+    
+    <script>
+        function clearSettings() {
+            try {
+                // Clear all localStorage data
+                localStorage.clear();
+                
+                // Also clear sessionStorage
+                sessionStorage.clear();
+                
+                // Clear IndexedDB if any
+                if (window.indexedDB) {
+                    indexedDB.databases().then(databases => {
+                        databases.forEach(db => {
+                            indexedDB.deleteDatabase(db.name);
+                        });
+                    });
+                }
+                
+                document.getElementById('result').innerHTML = '<p style="color: green;">Settings cleared successfully! Please refresh the main application.</p>';
+                
+                // Optionally redirect to main app after 2 seconds
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+                
+            } catch (error) {
+                document.getElementById('result').innerHTML = '<p style="color: red;">Error clearing settings: ' + error.message + '</p>';
+            }
+        }
+    </script>
+</body>
+</html>
+
+

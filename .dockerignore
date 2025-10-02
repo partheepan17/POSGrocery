@@ -1,0 +1,181 @@
+# ===========================================
+# Docker Ignore File - Grocery POS
+# ===========================================
+
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+dist/
+build/
+.vite/
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.staging
+.env.production
+
+# Testing
+coverage/
+test-results/
+playwright-report/
+.nyc_output/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation (keep only essential docs)
+docs/
+*.md
+!README.md
+
+# Scripts (not needed in container)
+scripts/
+tests/
+e2e/
+
+# Config files (not needed in runtime)
+.eslintrc.*
+.prettierrc.*
+tsconfig*.json
+vite.config.ts
+vitest.config.ts
+playwright.config.ts
+tailwind.config.js
+postcss.config.js
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env.test
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# Temporary folders
+tmp/
+temp/
+
+# Application specific
+data/
+backups/
+uploads/
+
+# Docker files (not needed inside container)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# CI/CD files
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Package manager files (keep package.json but not lock files in some cases)
+# Uncomment if you want to exclude lock files
+# package-lock.json
+# yarn.lock
+
+# ===========================================
+# Notes
+# ===========================================
+#
+# This .dockerignore file excludes files that are not needed
+# in the Docker image to keep the image size small and secure.
+#
+# Key exclusions:
+# 1. Development dependencies and tools
+# 2. Source code (only built artifacts needed)
+# 3. Documentation and configuration files
+# 4. Test files and test results
+# 5. IDE and OS specific files
+# 6. Environment files (should be mounted or injected)
+#
+# The Docker build will copy the built application (dist/)
+# and necessary configuration files only.
+#
+# ===========================================
+
+
+

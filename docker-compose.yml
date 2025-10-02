@@ -1,0 +1,272 @@
+# ===========================================
+# Grocery POS - Docker Compose Configuration
+# ===========================================
+
+version: '3.8'
+
+services:
+  grocery-pos:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: grocery-pos
+    ports:
+      - "8080:80"
+    env_file:
+      - .env
+    environment:
+      - NGINX_PORT=80
+      - NGINX_WORKER_PROCESSES=auto
+      - NGINX_WORKER_CONNECTIONS=1024
+    volumes:
+      # Mount data directory for persistence
+      - ./data:/data
+      # Mount backup directory
+      - ./backups:/backups
+      # Mount logs directory
+      - ./logs:/var/log/nginx
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grocery-pos.rule=Host(`grocery-pos.local`)"
+      - "traefik.http.services.grocery-pos.loadbalancer.server.port=80"
+    networks:
+      - grocery-pos-network
+
+networks:
+  grocery-pos-network:
+    driver: bridge
+    name: grocery-pos-network
+
+volumes:
+  grocery-pos-data:
+    name: grocery-pos-data
+    driver: local
+  grocery-pos-backups:
+    name: grocery-pos-backups
+    driver: local
+  grocery-pos-logs:
+    name: grocery-pos-logs
+    driver: local
+
+# ===========================================
+# Alternative Configurations
+# ===========================================
+
+# Development configuration with hot reload
+# Uncomment the section below for development use
+
+# services:
+#   grocery-pos-dev:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile.dev  # Create this for dev builds
+#     container_name: grocery-pos-dev
+#     ports:
+#       - "8100:8100"  # Vite dev server port
+#     env_file:
+#       - .env.development
+#     volumes:
+#       - .:/app
+#       - /app/node_modules
+#     command: npm run dev
+#     restart: unless-stopped
+
+# ===========================================
+# Production with Reverse Proxy (Traefik)
+# ===========================================
+
+# version: '3.8'
+# 
+# services:
+#   traefik:
+#     image: traefik:v2.10
+#     container_name: traefik
+#     command:
+#       - "--api.insecure=true"
+#       - "--providers.docker=true"
+#       - "--providers.docker.exposedbydefault=false"
+#       - "--entrypoints.web.address=:80"
+#       - "--entrypoints.websecure.address=:443"
+#       - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+#       - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+#       - "--certificatesresolvers.myresolver.acme.email=your-email@example.com"
+#       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+#     ports:
+#       - "80:80"
+#       - "443:443"
+#       - "8080:8080"  # Traefik dashboard
+#     volumes:
+#       - /var/run/docker.sock:/var/run/docker.sock:ro
+#       - ./letsencrypt:/letsencrypt
+#     networks:
+#       - grocery-pos-network
+# 
+#   grocery-pos:
+#     build: .
+#     container_name: grocery-pos
+#     env_file:
+#       - .env
+#     volumes:
+#       - ./data:/data
+#       - ./backups:/backups
+#     restart: unless-stopped
+#     labels:
+#       - "traefik.enable=true"
+#       - "traefik.http.routers.grocery-pos.rule=Host(`your-domain.com`)"
+#       - "traefik.http.routers.grocery-pos.entrypoints=websecure"
+#       - "traefik.http.routers.grocery-pos.tls.certresolver=myresolver"
+#       - "traefik.http.services.grocery-pos.loadbalancer.server.port=80"
+#     networks:
+#       - grocery-pos-network
+
+# ===========================================
+# Multi-Instance Setup (Load Balancing)
+# ===========================================
+
+# version: '3.8'
+# 
+# services:
+#   grocery-pos-1:
+#     build: .
+#     container_name: grocery-pos-1
+#     env_file:
+#       - .env
+#     environment:
+#       - INSTANCE_ID=1
+#     volumes:
+#       - grocery-pos-data:/data
+#       - grocery-pos-backups:/backups
+#     restart: unless-stopped
+#     networks:
+#       - grocery-pos-network
+# 
+#   grocery-pos-2:
+#     build: .
+#     container_name: grocery-pos-2
+#     env_file:
+#       - .env
+#     environment:
+#       - INSTANCE_ID=2
+#     volumes:
+#       - grocery-pos-data:/data
+#       - grocery-pos-backups:/backups
+#     restart: unless-stopped
+#     networks:
+#       - grocery-pos-network
+# 
+#   nginx-lb:
+#     image: nginx:alpine
+#     container_name: grocery-pos-lb
+#     ports:
+#       - "8080:80"
+#     volumes:
+#       - ./nginx-lb.conf:/etc/nginx/nginx.conf
+#     depends_on:
+#       - grocery-pos-1
+#       - grocery-pos-2
+#     restart: unless-stopped
+#     networks:
+#       - grocery-pos-network
+
+# ===========================================
+# Database Service (Future Enhancement)
+# ===========================================
+
+# For future database separation:
+# 
+# services:
+#   database:
+#     image: postgres:15-alpine
+#     container_name: grocery-pos-db
+#     environment:
+#       - POSTGRES_DB=grocery_pos
+#       - POSTGRES_USER=grocery_pos
+#       - POSTGRES_PASSWORD=secure_password
+#     volumes:
+#       - grocery-pos-db-data:/var/lib/postgresql/data
+#       - ./database/init:/docker-entrypoint-initdb.d
+#     restart: unless-stopped
+#     healthcheck:
+#       test: ["CMD-SHELL", "pg_isready -U grocery_pos"]
+#       interval: 30s
+#       timeout: 10s
+#       retries: 3
+#     networks:
+#       - grocery-pos-network
+# 
+#   grocery-pos:
+#     build: .
+#     container_name: grocery-pos
+#     ports:
+#       - "8080:80"
+#     env_file:
+#       - .env
+#     environment:
+#       - DATABASE_URL=postgresql://grocery_pos:secure_password@database:5432/grocery_pos
+#     depends_on:
+#       database:
+#         condition: service_healthy
+#     volumes:
+#       - ./backups:/backups
+#     restart: unless-stopped
+#     networks:
+#       - grocery-pos-network
+
+# ===========================================
+# Usage Instructions
+# ===========================================
+
+# Basic usage:
+#   docker compose up -d                 # Start in background
+#   docker compose down                  # Stop and remove containers
+#   docker compose logs -f grocery-pos   # View logs
+#   docker compose exec grocery-pos sh   # Access container shell
+
+# Development:
+#   docker compose -f docker-compose.dev.yml up
+
+# Production with custom config:
+#   docker compose -f docker-compose.prod.yml up -d
+
+# Scaling (if using load balancer setup):
+#   docker compose up -d --scale grocery-pos=3
+
+# Health check:
+#   docker compose ps                    # Check container status
+#   curl http://localhost:8080/health    # Test health endpoint
+
+# ===========================================
+# Environment Variables
+# ===========================================
+
+# Create .env file with required variables:
+# VITE_APP_NAME=Grocery POS
+# VITE_APP_ENV=production
+# VITE_CURRENCY=LKR
+# VITE_BACKUP_PROVIDER=local
+# VITE_BACKUP_ENCRYPTION_KEY=your-secure-key
+# VITE_MANAGER_PIN=1234
+
+# ===========================================
+# Security Notes
+# ===========================================
+
+# 1. Change default ports in production
+# 2. Use Docker secrets for sensitive data
+# 3. Enable firewall rules
+# 4. Regular security updates
+# 5. Monitor container logs
+# 6. Use non-root user in containers
+# 7. Scan images for vulnerabilities
+
+# ===========================================
+
+
+
