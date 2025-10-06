@@ -267,7 +267,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
 
           {/* Field Configuration */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900">Label Fields</h3>
+          <h3 className="text-lg font-medium text-gray-900">Label Fields</h3>
             
             <div className="space-y-3">
               <div>
@@ -518,6 +518,11 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Section Order Help */}
+            <div className="text-xs text-gray-500">
+              Available sections: store, name_en, name_si, name_ta, barcode, price, mrp, batch, dates, desc
             </div>
           </div>
 

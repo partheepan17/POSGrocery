@@ -290,6 +290,8 @@ export class LabelService {
       qty: overrides.qty !== undefined ? overrides.qty : (item.qty || preset.defaults.qty),
       price_tier: overrides.priceTier || item.price_tier || preset.fields.price.source,
       language: overrides.language || item.language || preset.defaults.language,
+      // Normalize description length to 50 chars if provided
+      description: item.description ? (item.description.length > 50 ? item.description.slice(0, 49) + '…' : item.description) : item.description,
     }));
   }
 
@@ -410,11 +412,11 @@ export class LabelService {
           },
           // New fields for extended functionality
           languageMode: 'preset',
-          showPackedDate: false,
-          showExpiryDate: false,
+          showPackedDate: true,
+          showExpiryDate: true,
           showMRP: false,
           showBatch: false,
-          dateFormat: 'YYYY-MM-DD',
+          dateFormat: 'DD/MM/YYYY',
           mrpLabel: 'MRP',
           batchLabel: 'Batch',
           packedLabel: 'Packed',
@@ -425,7 +427,7 @@ export class LabelService {
           bold_name: true,
           align: 'center',
           show_store_logo: false,
-          sectionOrder: ['name', 'barcode', 'price', 'mrp', 'batch', 'dates']
+          sectionOrder: ['store', 'name_en', 'name_si', 'name_ta', 'barcode', 'price', 'dates', 'desc']
         },
         defaults: {
           qty: 1,
@@ -455,11 +457,11 @@ export class LabelService {
           weight_hint: true,
           // New fields for extended functionality
           languageMode: 'preset',
-          showPackedDate: false,
-          showExpiryDate: false,
+          showPackedDate: true,
+          showExpiryDate: true,
           showMRP: false,
           showBatch: false,
-          dateFormat: 'YYYY-MM-DD',
+          dateFormat: 'DD/MM/YYYY',
           mrpLabel: 'MRP',
           batchLabel: 'Batch',
           packedLabel: 'Packed',
@@ -470,7 +472,7 @@ export class LabelService {
           bold_name: true,
           align: 'left',
           show_store_logo: true,
-          sectionOrder: ['name', 'barcode', 'price', 'mrp', 'batch', 'dates']
+          sectionOrder: ['store', 'name_en', 'name_si', 'name_ta', 'barcode', 'price', 'dates', 'desc']
         },
         defaults: {
           qty: 1,
@@ -506,11 +508,11 @@ export class LabelService {
           },
           // New fields for extended functionality
           languageMode: 'preset',
-          showPackedDate: false,
-          showExpiryDate: false,
+          showPackedDate: true,
+          showExpiryDate: true,
           showMRP: false,
           showBatch: false,
-          dateFormat: 'YYYY-MM-DD',
+          dateFormat: 'DD/MM/YYYY',
           mrpLabel: 'MRP',
           batchLabel: 'Batch',
           packedLabel: 'Packed',
@@ -521,7 +523,7 @@ export class LabelService {
           bold_name: true,
           align: 'center',
           show_store_logo: false,
-          sectionOrder: ['name', 'barcode', 'price', 'mrp', 'batch', 'dates']
+          sectionOrder: ['store', 'name_en', 'name_si', 'name_ta', 'barcode', 'price', 'dates', 'desc']
         },
         defaults: {
           qty: 1,

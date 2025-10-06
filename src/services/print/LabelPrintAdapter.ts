@@ -199,30 +199,57 @@ export class LabelPrintAdapter {
     preset: LabelPreset, 
     barcodeHtml: string
   ): string {
-    const sectionOrder = preset.style.sectionOrder || ['name', 'barcode', 'price', 'mrp', 'batch', 'dates'];
+    const sectionOrder = preset.style.sectionOrder || [
+      'store', 'name_en', 'name_si', 'name_ta', 'barcode', 'price', 'mrp', 'batch', 'dates', 'desc'
+    ];
     let html = '';
     
     for (const section of sectionOrder) {
       switch (section) {
-        case 'name':
-          if (fieldValues.line1) {
-            html += `<div class="line1" style="
+        case 'store':
+          if (fieldValues.storeName) {
+            html += `<div class="store-name" style="
+              font-weight: bold;
+              font-size: ${Math.round(9 * preset.style.font_scale)}px;
+              margin-bottom: 1px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            ">${this.escapeHtml(fieldValues.storeName)}</div>`;
+          }
+          break;
+        case 'name_en':
+          if (fieldValues.name_en) {
+            html += `<div class="name-en" style="
               font-weight: ${preset.style.bold_name ? 'bold' : 'normal'};
               font-size: ${Math.round(11 * preset.style.font_scale)}px;
               margin-bottom: 1px;
               white-space: nowrap;
               overflow: hidden;
               text-overflow: ellipsis;
-            ">${this.escapeHtml(fieldValues.line1)}</div>`;
+            ">${this.escapeHtml(fieldValues.name_en)}</div>`;
           }
-          if (fieldValues.line2) {
-            html += `<div class="line2" style="
-              font-size: ${Math.round(8 * preset.style.font_scale)}px;
+          break;
+        case 'name_si':
+          if (fieldValues.name_si) {
+            html += `<div class="name-si" style="
+              font-size: ${Math.round(9 * preset.style.font_scale)}px;
               margin-bottom: 1px;
               white-space: nowrap;
               overflow: hidden;
               text-overflow: ellipsis;
-            ">${this.escapeHtml(fieldValues.line2)}</div>`;
+            ">${this.escapeHtml(fieldValues.name_si)}</div>`;
+          }
+          break;
+        case 'name_ta':
+          if (fieldValues.name_ta) {
+            html += `<div class="name-ta" style="
+              font-size: ${Math.round(9 * preset.style.font_scale)}px;
+              margin-bottom: 1px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            ">${this.escapeHtml(fieldValues.name_ta)}</div>`;
           }
           break;
           
@@ -282,6 +309,39 @@ export class LabelPrintAdapter {
               overflow: hidden;
               text-overflow: ellipsis;
             ">${this.escapeHtml(fieldValues.expiryDate)}</div>`;
+          }
+          break;
+        case 'desc':
+          if (fieldValues.description) {
+            html += `<div class="desc" style="
+              font-size: ${Math.round(7 * preset.style.font_scale)}px;
+              margin-top: 1px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            ">${this.escapeHtml(fieldValues.description)}</div>`;
+          }
+          break;
+        // Backward compatibility for older presets using 'name' and 'line2'
+        case 'name':
+          if (fieldValues.line1) {
+            html += `<div class=\"line1\" style=\"
+              font-weight: ${preset.style.bold_name ? 'bold' : 'normal'};
+              font-size: ${Math.round(11 * preset.style.font_scale)}px;
+              margin-bottom: 1px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            \">${this.escapeHtml(fieldValues.line1)}</div>`;
+          }
+          if (fieldValues.line2) {
+            html += `<div class=\"line2\" style=\"
+              font-size: ${Math.round(8 * preset.style.font_scale)}px;
+              margin-bottom: 1px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            \">${this.escapeHtml(fieldValues.line2)}</div>`;
           }
           break;
       }
@@ -385,6 +445,13 @@ export class LabelPrintAdapter {
    * Extract field values from label item based on preset configuration
    */
   private extractFieldValues(item: LabelItem, preset: LabelPreset): {
+    // New explicit fields
+    storeName?: string;
+    name_en?: string;
+    name_si?: string;
+    name_ta?: string;
+    description?: string;
+    // Back-compat fields
     line1?: string;
     line2?: string;
     price?: string;
@@ -393,9 +460,14 @@ export class LabelPrintAdapter {
     packedDate?: string;
     expiryDate?: string;
   } {
-    const values: { 
-      line1?: string; 
-      line2?: string; 
+    const values: {
+      storeName?: string;
+      name_en?: string;
+      name_si?: string;
+      name_ta?: string;
+      description?: string;
+      line1?: string;
+      line2?: string;
       price?: string;
       mrp?: string;
       batch?: string;
@@ -421,7 +493,13 @@ export class LabelPrintAdapter {
       }
     }
     
-    // Line 1 - use determined language
+    // Store/Outlet name
+    try {
+      const settings = useAppStore.getState().settings;
+      values.storeName = settings?.storeInfo?.name || '';
+    } catch {}
+
+    // Line 1 - use determined language (legacy)
     if (productLanguage === 'SI') {
       values.line1 = item.name_si || item.name_en;
     } else if (productLanguage === 'TA') {
@@ -435,6 +513,11 @@ export class LabelPrintAdapter {
       values.line1 = item.custom_line1;
     }
     
+    // Explicit names for multilingual rendering
+    values.name_en = item.name_en;
+    values.name_si = item.name_si || '';
+    values.name_ta = item.name_ta || '';
+
     // Line 2
     if (preset.fields.line2) {
       switch (preset.fields.line2) {
@@ -517,6 +600,12 @@ export class LabelPrintAdapter {
       values.expiryDate = `${expiryLabel}: ${this.formatDate(item.expiryDate, dateFormat)}`;
     }
     
+    // Description (truncate to 50 characters)
+    if (item.description || item.custom_line2 || item.category) {
+      const descSource = (item.description || item.custom_line2 || item.category || '').toString();
+      values.description = this.truncateText(descSource, 50);
+    }
+
     return values;
   }
 
@@ -539,6 +628,14 @@ export class LabelPrintAdapter {
       default:
         return `${year}-${month}-${day}`;
     }
+  }
+
+  /**
+   * Truncate text to a maximum length with ellipsis
+   */
+  private truncateText(text: string, maxLength: number): string {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, Math.max(0, maxLength - 1)).trimEnd() + '…';
   }
 
   /**
