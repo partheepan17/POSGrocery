@@ -6,6 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "npm --prefix server start",
+    "dev:client": "cross-env VITE_API_BASE_URL=http://localhost:8250 vite --host --port 5173",
+    "dev:all": "concurrently -k -n server,client -c green,blue \"npm --prefix server start\" \"cross-env VITE_API_BASE_URL=http://localhost:8250 vite --host --port 5173\"",
     "build": "tsc && vite build",
     "build:prod": "vite build",
     "preview": "vite preview",
@@ -63,6 +66,8 @@
     "@vitest/coverage-v8": "^0.34.6",
     "@vitest/ui": "^0.34.6",
     "autoprefixer": "^10.4.16",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "eslint": "^8.53.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.4",

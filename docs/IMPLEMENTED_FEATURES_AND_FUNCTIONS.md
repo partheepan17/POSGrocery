@@ -1,3 +1,161 @@
+### Virtual POS — Implemented Features and Functions
+
+This document summarizes the current implementation of the Virtual POS system across the frontend, backend, and database layers, including how to run the project locally.
+
+---
+
+## Overview
+
+- Frontend: React 18 (Vite) + TypeScript + Tailwind + Zustand state
+- Backend: Node.js (Express) + TypeScript
+- Database: SQLite (better-sqlite3)
+- Tooling: ESLint/Prettier, Vitest, Playwright, concurrently, cross-env
+
+---
+
+## How to Run
+
+- Start both backend and frontend together from the project root:
+  - `npm run dev:all`
+  - Frontend served at `http://localhost:5173` (or the next free port)
+  - Backend API at `http://localhost:8250`
+
+Common scripts (root `package.json`):
+- `dev:server`: starts backend in `server/`
+- `dev:client`: starts frontend with `VITE_API_BASE_URL=http://localhost:8250`
+- `dev:all`: runs both concurrently
+- `type-check`: strict TS type check (frontend)
+
+---
+
+## Backend
+
+Express server (port 8250 by default). Middleware: helmet, cors, compression, morgan, JSON body parser.
+
+### Health
+- `GET /health` — Basic heartbeat
+- `GET /api/health` — JSON health payload (env, mock DB/printer info)
+
+### Catalog
+- Categories
+  - `GET /api/categories` — list
+  - `POST /api/categories` — create
+- Suppliers
+  - `GET /api/suppliers?active=true|false` — list with active filter
+- Products
+  - `GET /api/products` — list all
+  - `GET /api/products/search?q=&limit=` — search (name/sku/barcode)
+  - `POST /api/products` — create
+- Discount Rules
+  - `GET /api/discount-rules?active=true|false` — list with active filter
+
+### Sales / Invoices
+- `GET /api/invoices` — recent invoices (for reprinting)
+- `GET /api/invoices?date=YYYY-MM-DD` — by date
+
+### Returns
+- `POST /api/returns` — create return
+- `GET /api/returns` — list recent returns
+
+### Shifts
+- `GET /api/shifts` — list shifts
+- `POST /api/shifts/open` — open shift
+- `POST /api/shifts/close` — close shift
+
+### Printing
+- `POST /api/print` — accepts payload, returns queued job id
+
+---
+
+## Database
+
+SQLite file under `server/data/pos.db`. Managed via better-sqlite3 with pragmas enabled for WAL, FK, etc.
+
+Tables currently initialized:
+- `categories (id, name)`
+- `suppliers (id, supplier_name, contact_phone, contact_email, address, tax_id, active, created_at)`
+- `products (id, sku, name_en, unit, category_id, price_retail, price_wholesale, price_credit, price_other, barcode, is_active, created_at)`
+- `discount_rules (id, name, applies_to, target_id, type, value, priority, active_from, active_to, active)`
+- `invoices (id, receipt_no, created_at, grand_total, payment_type, customer_id)`
+- `returns (id, receipt_no_return, original_invoice_id, created_at, total_refund, reason, operator_id)`
+- `return_items (id, return_id, item_id, qty, refund_amount, restock_flag, reason)`
+- `shifts (id, operator_id, opened_at, closed_at, starting_cash, ending_cash)`
+
+---
+
+## Frontend
+
+React 18 + Vite + TypeScript, Tailwind CSS for styling, Zustand for state management, React Router for navigation.
+
+### State & Utilities
+- Cart Store
+  - Items with line discounts, manual discount, tax, net/gross totals
+  - Tiered pricing support (Retail/Wholesale/Credit/Other)
+  - Discount engine integration to recompute automatic discounts
+- DataService
+  - Aligned to backend endpoints for products, categories, suppliers, discount rules, invoices
+  - Added Returns (`getReturns`, `createReturn`), Shifts (`getShifts`, `openShift`, `closeShift`), Print (`print`)
+- Keyboard shortcuts (navigation, actions)
+- i18n files present and structured for future expansion
+
+### Screens/Routes
+- Operations
+  - Sales: `/`, `/sales`
+  - Returns: `/returns`
+  - Shifts: `/shifts`, `/shifts/new`, `/shifts/:id`
+- Catalog
+  - Products: `/products`
+  - Pricing: `/pricing`
+  - Suppliers: `/suppliers`
+  - Customers: `/customers`
+  - Discounts: `/discounts`
+- Inventory
+  - Stocktake: `/stocktake`, `/stocktake/session/:id`
+  - GRN List/New/Receive: `/grn`, `/grn/new`, `/grn/:id`
+  - Labels: `/labels`
+- Reports/Administration
+  - Reports: `/reports`
+  - Settings: `/settings`
+  - Users: `/users`
+  - Health Check: `/health`
+  - About: `/about`
+- Tools & Misc
+  - Receipt Test: `/tools/receipt-test`
+  - Navigation Test: `/tools/navigation-test`
+  - Simple Test: `/tools/simple-test`
+  - Search: `/search`
+  - NotFound: `/404` (component present)
+
+### Printing
+- Print Preview and Reprint modals
+- Server print endpoint wired (`/api/print`)
+
+---
+
+## Quality & Testing
+
+- TypeScript strict mode: frontend now passes `npm run type-check`
+- Unit tests: Vitest setup; discount engine and hold service tests updated to current types
+- E2E scaffolding: Playwright configuration present
+- Linting: ESLint + Prettier configured
+
+---
+
+## Deployment Notes
+
+- Backend port: 8250 (configure with `PORT` environment variable if needed)
+- Frontend API base: use `VITE_API_BASE_URL` (dev scripts set to `http://localhost:8250`)
+- Concurrency: use `npm run dev:all` to run both services simultaneously
+
+---
+
+## Roadmap (Suggested)
+
+- Replace stubbed/missing customer CRUD with real endpoints
+- Expand invoice creation to full server-side transaction and printing payload
+- Harden returns (validation against invoice lines, stock effects)
+- Add authentication & permissions backed by DB
+- Add migrations + seed flows for production
 ## Implemented Features and Functions
 
 This document summarizes the end-to-end work completed to fix UI/UX and functionality issues, unify data across the app, and enable efficient POS operations with barcode scanning and a real backend.
