@@ -10,7 +10,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 8100,
+    port: 8103,
     host: true
   },
   build: {

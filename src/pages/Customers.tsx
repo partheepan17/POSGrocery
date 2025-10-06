@@ -276,7 +276,7 @@ export function Customers() {
               placeholder="Search by name or phone... (/)"
               value={filters.search}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500"
             />
           </div>
 
@@ -284,7 +284,7 @@ export function Customers() {
           <select
             value={filters.customer_type}
             onChange={(e) => handleFilterChange('customer_type', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
           >
             <option value="all">All Types</option>
             <option value="Retail">Retail</option>
@@ -297,7 +297,7 @@ export function Customers() {
           <select
             value={filters.status_filter}
             onChange={(e) => handleFilterChange('status_filter', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>

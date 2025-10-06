@@ -3,7 +3,7 @@
  * Modal for creating a new hold with name, customer, note, and expiry options
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Clock, User, FileText, Save } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { holdService } from '@/services/holdService';
@@ -58,7 +58,7 @@ const HoldCreateModal: React.FC<HoldCreateModalProps> = ({
   }, [isOpen, suggestedName]);
 
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     
     const newErrors: Record<string, string> = {};
@@ -83,7 +83,7 @@ const HoldCreateModal: React.FC<HoldCreateModalProps> = ({
       note: formData.note.trim() || undefined,
       expiry_minutes: formData.expiry_minutes ? parseInt(formData.expiry_minutes) : undefined
     });
-  };
+  }, [formData, onConfirm]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -97,13 +97,14 @@ const HoldCreateModal: React.FC<HoldCreateModalProps> = ({
       
       if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
         event.preventDefault();
-        handleSubmit(event as any);
+        // Create a synthetic form event for the submit handler
+        handleSubmit({ preventDefault: () => {} } as unknown as React.FormEvent);
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose, formData]);
+  }, [isOpen, onClose, formData, handleSubmit]);
 
   if (!isOpen) return null;
 
@@ -221,13 +222,13 @@ const HoldCreateModal: React.FC<HoldCreateModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="flex-1 px-4 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500 transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-gray-500/50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-200 flex items-center justify-center gap-2 font-medium shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 transform hover:scale-[1.02] active:scale-[0.98]"
             >
               <Save className="h-4 w-4" />
               Create Hold (Ctrl+Enter)
@@ -258,5 +259,10 @@ const HoldCreateModal: React.FC<HoldCreateModalProps> = ({
 };
 
 export default HoldCreateModal;
+
+
+
+
+
 
 

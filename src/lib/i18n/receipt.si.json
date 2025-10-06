@@ -1,0 +1,45 @@
+{
+  "store": {
+    "name": "ගෘහස්ථ භාණ්ඩ POS ගබඩාව",
+    "address": "ප්‍රධාන වීදිය 123, කොළඹ 01",
+    "phone": "011-1234567",
+    "taxId": "123456789V"
+  },
+  "receipt": {
+    "title": "රිසිට්පත",
+    "receiptNo": "රිසිට් අංකය",
+    "date": "දිනය",
+    "time": "වේලාව",
+    "operator": "ක්‍රියාකරු",
+    "terminal": "ටර්මිනල්",
+    "customer": "පාරිභෝගික"
+  },
+  "items": {
+    "header": {
+      "qty": "ප්‍රමාණය",
+      "description": "විස්තරය",
+      "price": "මිල",
+      "total": "එකතුව"
+    }
+  },
+  "totals": {
+    "subtotal": "අතරමැදි එකතුව",
+    "itemDiscounts": "අයිතම වට්ටම්",
+    "manualDiscount": "අතින් වට්ටම්",
+    "tax": "බද්ද",
+    "total": "එකතුව"
+  },
+  "payment": {
+    "method": "ගෙවීමේ ක්‍රමය",
+    "reference": "යොමු අංකය",
+    "tendered": "ගෙවූ මුදල",
+    "change": "ඉතිරි මුදල"
+  },
+  "footer": {
+    "thankYou": "ඔබගේ ව්‍යාපාරයට ස්තූතියි!",
+    "warranty": "වගකීම: දින 7",
+    "hotline": "දුරකථන: 011-1234567",
+    "returnPolicy": "ආපසු ගැනීමේ ප්‍රතිපත්තිය: රිසිට්පත සමඟ දින 7"
+  }
+}
+

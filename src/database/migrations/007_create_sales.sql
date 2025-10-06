@@ -26,3 +26,8 @@ CREATE INDEX IF NOT EXISTS idx_sales_terminal_name ON sales(terminal_name);
 
 
 
+
+
+
+
+

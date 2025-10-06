@@ -1,5 +1,6 @@
 import { LabelPreset, LabelItem, LabelJob, LabelBatch, LabelSource } from '@/types';
 import { dataService, Product } from '@/services/dataService';
+import { grnService } from '@/services/grnService';
 import { useAppStore } from '@/store/appStore';
 
 export interface GenerateLabelOptions {
@@ -12,6 +13,75 @@ export interface GenerateLabelOptions {
     qty?: number;
     priceTier?: 'retail' | 'wholesale' | 'credit' | 'other';
     language?: 'EN' | 'SI' | 'TA';
+  };
+}
+
+/**
+ * Validate label item dates
+ */
+export function validateLabelItemDates(
+  item: LabelItem, 
+  fmt: 'YYYY-MM-DD' | 'DD/MM/YYYY' | 'MM/DD/YYYY'
+): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  
+  // Helper to parse date based on format
+  const parseDate = (dateStr: string): Date | null => {
+    if (!dateStr) return null;
+    
+    let parsedDate: Date | null = null;
+    
+    switch (fmt) {
+      case 'YYYY-MM-DD':
+        // ISO format - preferred
+        parsedDate = new Date(dateStr);
+        break;
+      case 'DD/MM/YYYY':
+        const [day, month, year] = dateStr.split('/');
+        if (day && month && year) {
+          parsedDate = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+        }
+        break;
+      case 'MM/DD/YYYY':
+        const [monthUS, dayUS, yearUS] = dateStr.split('/');
+        if (monthUS && dayUS && yearUS) {
+          parsedDate = new Date(`${yearUS}-${monthUS.padStart(2, '0')}-${dayUS.padStart(2, '0')}`);
+        }
+        break;
+    }
+    
+    return parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : null;
+  };
+  
+  // Validate packed date
+  if (item.packedDate) {
+    const packedDate = parseDate(item.packedDate);
+    if (!packedDate) {
+      errors.push(`Invalid packed date format. Expected ${fmt}: ${item.packedDate}`);
+    }
+  }
+  
+  // Validate expiry date
+  if (item.expiryDate) {
+    const expiryDate = parseDate(item.expiryDate);
+    if (!expiryDate) {
+      errors.push(`Invalid expiry date format. Expected ${fmt}: ${item.expiryDate}`);
+    }
+  }
+  
+  // Validate date relationship
+  if (item.packedDate && item.expiryDate) {
+    const packedDate = parseDate(item.packedDate);
+    const expiryDate = parseDate(item.expiryDate);
+    
+    if (packedDate && expiryDate && expiryDate < packedDate) {
+      errors.push('Expiry date cannot be before packed date');
+    }
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors
   };
 }
 
@@ -145,6 +215,11 @@ export class LabelService {
         qty: overrides.qty || preset.defaults.qty,
         price_tier: overrides.priceTier || preset.fields.price.source,
         language: overrides.language || preset.defaults.language,
+        // New fields - initially null, can be set by user
+        packedDate: null,
+        expiryDate: null,
+        mrp: null,
+        batchNo: null,
       };
     });
   }
@@ -158,9 +233,10 @@ export class LabelService {
     overrides: GenerateLabelOptions['overrides'] = {}
   ): Promise<LabelItem[]> {
     try {
-      // Get GRN details and lines
-      const grn = await dataService.getGrnHeader(parseInt(grnId));
-      const lines = await dataService.getGrnLines(parseInt(grnId));
+      // Get GRN details and lines from GRN service
+      const grnData = await grnService.getGRN(parseInt(grnId));
+      const grn = grnData.header;
+      const lines = grnData.lines;
       
       if (!grn || !lines) {
         throw new Error('GRN not found');
@@ -168,7 +244,7 @@ export class LabelService {
 
       const categories = await dataService.getCategories();
       
-      return lines.map(line => {
+      return lines.map((line: any) => {
         const category = categories.find(c => c.id === line.product_category_id);
         
         return {
@@ -187,6 +263,11 @@ export class LabelService {
           qty: overrides.qty !== undefined ? overrides.qty : line.qty, // Default to received qty
           price_tier: overrides.priceTier || preset.fields.price.source,
           language: overrides.language || preset.defaults.language,
+          // New fields from GRN data if available
+          packedDate: line.packed_date || null,
+          expiryDate: line.expiry_date || null,
+          mrp: line.mrp || null,
+          batchNo: line.batch_no || null,
         };
       });
     } catch (error) {
@@ -326,13 +407,25 @@ export class LabelService {
             source: 'retail',
             currency: 'LKR',
             show_label: true
-          }
+          },
+          // New fields for extended functionality
+          languageMode: 'preset',
+          showPackedDate: false,
+          showExpiryDate: false,
+          showMRP: false,
+          showBatch: false,
+          dateFormat: 'YYYY-MM-DD',
+          mrpLabel: 'MRP',
+          batchLabel: 'Batch',
+          packedLabel: 'Packed',
+          expiryLabel: 'Expiry'
         },
         style: {
           font_scale: 1.0,
           bold_name: true,
           align: 'center',
-          show_store_logo: false
+          show_store_logo: false,
+          sectionOrder: ['name', 'barcode', 'price', 'mrp', 'batch', 'dates']
         },
         defaults: {
           qty: 1,
@@ -359,13 +452,25 @@ export class LabelService {
             currency: 'LKR',
             show_label: true
           },
-          weight_hint: true
+          weight_hint: true,
+          // New fields for extended functionality
+          languageMode: 'preset',
+          showPackedDate: false,
+          showExpiryDate: false,
+          showMRP: false,
+          showBatch: false,
+          dateFormat: 'YYYY-MM-DD',
+          mrpLabel: 'MRP',
+          batchLabel: 'Batch',
+          packedLabel: 'Packed',
+          expiryLabel: 'Expiry'
         },
         style: {
           font_scale: 1.2,
           bold_name: true,
           align: 'left',
-          show_store_logo: true
+          show_store_logo: true,
+          sectionOrder: ['name', 'barcode', 'price', 'mrp', 'batch', 'dates']
         },
         defaults: {
           qty: 1,
@@ -398,13 +503,25 @@ export class LabelService {
             source: 'retail',
             currency: 'LKR',
             show_label: false
-          }
+          },
+          // New fields for extended functionality
+          languageMode: 'preset',
+          showPackedDate: false,
+          showExpiryDate: false,
+          showMRP: false,
+          showBatch: false,
+          dateFormat: 'YYYY-MM-DD',
+          mrpLabel: 'MRP',
+          batchLabel: 'Batch',
+          packedLabel: 'Packed',
+          expiryLabel: 'Expiry'
         },
         style: {
           font_scale: 0.9,
           bold_name: true,
           align: 'center',
-          show_store_logo: false
+          show_store_logo: false,
+          sectionOrder: ['name', 'barcode', 'price', 'mrp', 'batch', 'dates']
         },
         defaults: {
           qty: 1,

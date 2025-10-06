@@ -29,3 +29,8 @@ UPDATE users SET role = 'MANAGER' WHERE name = 'Manager' AND role IS NULL;
 UPDATE users SET role = 'CASHIER' WHERE name LIKE 'Cashier%' AND role IS NULL;
 
 
+
+
+
+
+

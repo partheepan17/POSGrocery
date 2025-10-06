@@ -86,7 +86,7 @@ class HoldService {
   private defaultSettings: HoldSettings = {
     enabled: true,
     maxHoldsPerTerminal: 10,
-    expiryMinutes: 120, // 2 hours
+    expiryMinutes: 720, // 12 hours
     purgeOnOpen: true,
     lockPricesDefault: false,
     requireCustomerForHold: false,
@@ -155,7 +155,7 @@ class HoldService {
         ]
       );
 
-      const holdId = holdResult.lastInsertRowid;
+      const holdId = holdResult.lastInsertRowid || Date.now();
 
       // Create hold line items
       for (const line of input.lines) {
@@ -278,72 +278,89 @@ class HoldService {
    */
   async listHolds(filters: HoldFilters = {}): Promise<HoldSale[]> {
     try {
-      let query = `
-        SELECT 
-          s.id, s.hold_name, s.customer_id, s.cashier_id, s.terminal_name,
-          s.price_tier, s.created_at, s.expires_at, s.hold_note,
-          s.total_amount as net, s.tax_amount, s.discount_amount,
-          c.customer_name, u.name as cashier_name,
-          COUNT(si.id) as items_count,
-          SUM(si.quantity * si.unit_price) as subtotal
-        FROM sales s
-        LEFT JOIN customers c ON s.customer_id = c.id
-        LEFT JOIN users u ON s.cashier_id = u.id
-        LEFT JOIN sale_items si ON s.id = si.sale_id
-        WHERE s.status = 'HELD'
-      `;
+      // Get all sales with status 'HELD'
+      const sales = await dataService.query<any>('SELECT * FROM sales WHERE status = ?', ['HELD']);
+      
+      // Get all customers and users for lookup
+      const customers = await dataService.query<any>('SELECT * FROM customers');
+      const users = await dataService.query<any>('SELECT * FROM users');
+      const saleItems = await dataService.query<any>('SELECT * FROM sale_items');
 
-      const params: any[] = [];
+      // Create lookup maps
+      const customerMap = new Map(customers.map(c => [c.id, c]));
+      const userMap = new Map(users.map(u => [u.id, u]));
+      const saleItemsMap = new Map<number, any[]>();
+      
+      // Group sale items by sale_id
+      saleItems.forEach(item => {
+        if (!saleItemsMap.has(item.sale_id)) {
+          saleItemsMap.set(item.sale_id, []);
+        }
+        saleItemsMap.get(item.sale_id)!.push(item);
+      });
+
+      // Filter and process holds
+      let filteredSales = sales;
 
       if (filters.terminal) {
-        query += ' AND s.terminal_name = ?';
-        params.push(filters.terminal);
+        filteredSales = filteredSales.filter(sale => sale.terminal_name === filters.terminal);
       }
 
       if (filters.cashier_id) {
-        query += ' AND s.cashier_id = ?';
-        params.push(filters.cashier_id);
+        filteredSales = filteredSales.filter(sale => sale.cashier_id === filters.cashier_id);
       }
 
       if (filters.customer_id) {
-        query += ' AND s.customer_id = ?';
-        params.push(filters.customer_id);
+        filteredSales = filteredSales.filter(sale => sale.customer_id === filters.customer_id);
       }
 
       if (filters.search) {
-        query += ` AND (
-          s.hold_name LIKE ? OR 
-          c.customer_name LIKE ? OR 
-          u.name LIKE ?
-        )`;
-        const searchTerm = `%${filters.search}%`;
-        params.push(searchTerm, searchTerm, searchTerm);
+        const searchTerm = filters.search.toLowerCase();
+        filteredSales = filteredSales.filter(sale => {
+          const customer = customerMap.get(sale.customer_id);
+          const user = userMap.get(sale.cashier_id);
+          return (
+            sale.hold_name?.toLowerCase().includes(searchTerm) ||
+            customer?.customer_name?.toLowerCase().includes(searchTerm) ||
+            user?.name?.toLowerCase().includes(searchTerm)
+          );
+        });
       }
-
-      query += ' GROUP BY s.id ORDER BY s.created_at DESC';
-
-      const results = await dataService.query<any>(query, params);
 
       // Process results and check expiry
       const now = new Date();
-      return results.map(row => ({
-        id: row.id,
-        hold_name: row.hold_name,
-        customer_id: row.customer_id,
-        customer_name: row.customer_name,
-        cashier_id: row.cashier_id,
-        cashier_name: row.cashier_name,
-        terminal_name: row.terminal_name,
-        price_tier: row.price_tier,
-        created_at: row.created_at,
-        expires_at: row.expires_at,
-        hold_note: row.hold_note,
-        status: (row.expires_at && new Date(row.expires_at) < now) ? 'EXPIRED' : 'HELD',
-        items_count: row.items_count || 0,
-        subtotal: row.subtotal || 0,
-        discount: row.discount_amount || 0,
-        net: row.net || 0
-      }));
+      const holds: HoldSale[] = filteredSales.map(sale => {
+        const customer = customerMap.get(sale.customer_id);
+        const user = userMap.get(sale.cashier_id);
+        const items = saleItemsMap.get(sale.id) || [];
+        
+        const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+        const isExpired = sale.expires_at && new Date(sale.expires_at) < now;
+
+        return {
+          id: sale.id,
+          hold_name: sale.hold_name,
+          customer_id: sale.customer_id,
+          customer_name: customer?.customer_name,
+          cashier_id: sale.cashier_id,
+          cashier_name: user?.name,
+          terminal_name: sale.terminal_name,
+          price_tier: sale.price_tier,
+          created_at: sale.created_at,
+          expires_at: sale.expires_at,
+          hold_note: sale.hold_note,
+          status: isExpired ? 'EXPIRED' : 'HELD',
+          items_count: items.length,
+          subtotal: subtotal,
+          discount: sale.discount_amount || 0,
+          net: sale.total_amount || 0
+        };
+      });
+
+      // Sort by created_at DESC
+      holds.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      return holds;
 
     } catch (error) {
       console.error('Failed to list holds:', error);
@@ -356,15 +373,8 @@ class HoldService {
    */
   async getHoldById(holdId: number): Promise<HoldSale | null> {
     try {
-      const holds = await dataService.query<any>(
-        `SELECT 
-          s.*, c.customer_name, u.name as cashier_name
-        FROM sales s
-        LEFT JOIN customers c ON s.customer_id = c.id
-        LEFT JOIN users u ON s.cashier_id = u.id
-        WHERE s.id = ? AND s.status = 'HELD'`,
-        [holdId]
-      );
+      // Get the hold sale
+      const holds = await dataService.query<any>('SELECT * FROM sales WHERE id = ? AND status = ?', [holdId, 'HELD']);
 
       if (holds.length === 0) {
         return null;
@@ -372,16 +382,32 @@ class HoldService {
 
       const hold = holds[0];
 
+      // Get customer and user info
+      const customers = await dataService.query<any>('SELECT * FROM customers WHERE id = ?', [hold.customer_id]);
+      const users = await dataService.query<any>('SELECT * FROM users WHERE id = ?', [hold.cashier_id]);
+      const customer = customers[0];
+      const user = users[0];
+
       // Get line items
-      const lines = await dataService.query<any>(
-        `SELECT 
-          si.*, p.sku as product_sku, p.name_en as product_name
-        FROM sale_items si
-        JOIN products p ON si.product_id = p.id
-        WHERE si.sale_id = ?
-        ORDER BY si.id`,
-        [holdId]
-      );
+      const saleItems = await dataService.query<any>('SELECT * FROM sale_items WHERE sale_id = ?', [holdId]);
+      
+      // Get product info for each line item
+      const lines = await Promise.all(saleItems.map(async (item: any) => {
+        const products = await dataService.query<any>('SELECT * FROM products WHERE id = ?', [item.product_id]);
+        const product = products[0];
+        
+        return {
+          id: item.id,
+          product_id: item.product_id,
+          product_sku: product?.sku || 'Unknown',
+          product_name: product?.name_en || 'Unknown Product',
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_amount: item.discount_amount || 0,
+          tax_amount: item.tax_amount || 0,
+          total_amount: item.total_amount
+        };
+      }));
 
       // Check if expired
       const now = new Date();
@@ -391,9 +417,9 @@ class HoldService {
         id: hold.id,
         hold_name: hold.hold_name,
         customer_id: hold.customer_id,
-        customer_name: hold.customer_name,
+        customer_name: customer?.customer_name,
         cashier_id: hold.cashier_id,
-        cashier_name: hold.cashier_name,
+        cashier_name: user?.name,
         terminal_name: hold.terminal_name,
         price_tier: hold.price_tier,
         created_at: hold.created_at,
@@ -404,17 +430,7 @@ class HoldService {
         subtotal: lines.reduce((sum: number, line: any) => sum + (line.quantity * line.unit_price), 0),
         discount: hold.discount_amount || 0,
         net: hold.total_amount || 0,
-        lines: lines.map((line: any) => ({
-          id: line.id,
-          product_id: line.product_id,
-          product_sku: line.product_sku,
-          product_name: line.product_name,
-          quantity: line.quantity,
-          unit_price: line.unit_price,
-          discount_amount: line.discount_amount || 0,
-          tax_amount: line.tax_amount || 0,
-          total_amount: line.total_amount
-        }))
+        lines: lines
       };
 
     } catch (error) {
@@ -622,5 +638,10 @@ class HoldService {
 
 // Export singleton instance
 export const holdService = new HoldService();
+
+
+
+
+
 
 

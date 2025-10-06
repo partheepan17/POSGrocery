@@ -4,7 +4,7 @@
  * Supports both 58mm and 80mm thermal printers
  */
 
-import { XReport, ZReport, CashEvent } from '../shiftService';
+import { XReport, ZReport, CashEvent } from '../../types';
 
 export interface PrintOptions {
   printerWidth: '58mm' | '80mm';
@@ -122,8 +122,8 @@ class ShiftPrintAdapter {
     if (xReport.cashEvents.length > 0) {
       content.push(this.centerText('CASH EVENT DETAILS', lineWidth));
       content.push(dashLine);
-      xReport.cashEvents.forEach(event => {
-        const sign = event.type === 'IN' ? '+' : '-';
+      xReport.cashEvents.forEach((event: CashEvent) => {
+        const sign = event.type === 'CASH_IN' ? '+' : '-';
         content.push(
           this.formatLine(
             `${event.type} - ${event.reason}:`,
@@ -202,8 +202,8 @@ class ShiftPrintAdapter {
     if (zReport.cashEvents.length > 0) {
       content.push(this.centerText('CASH EVENT DETAILS', lineWidth));
       content.push(dashLine);
-      zReport.cashEvents.forEach(event => {
-        const sign = event.type === 'IN' ? '+' : '-';
+      zReport.cashEvents.forEach((event: CashEvent) => {
+        const sign = event.type === 'CASH_IN' ? '+' : '-';
         content.push(
           this.formatLine(
             `${event.type} - ${event.reason}:`,
@@ -410,5 +410,8 @@ class ShiftPrintAdapter {
 
 // Export singleton instance
 export const shiftPrintAdapter = new ShiftPrintAdapter();
+
+
+
 
 

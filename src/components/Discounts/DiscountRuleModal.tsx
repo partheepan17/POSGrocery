@@ -618,3 +618,8 @@ export function DiscountRuleModal({ rule, products, categories, onClose, onSave 
 
 
 
+
+
+
+
+

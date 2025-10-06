@@ -12,7 +12,8 @@ import {
   CreditCard,
   Percent,
   Database,
-  Shield
+  Shield,
+  Tag
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -27,6 +28,7 @@ const navigation = [
   { name: 'Pricing', href: '/pricing', icon: CreditCard },
   { name: 'Discounts', href: '/discounts', icon: Percent },
   { name: 'Inventory', href: '/inventory', icon: Database },
+  { name: 'Labels', href: '/labels', icon: Tag },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];

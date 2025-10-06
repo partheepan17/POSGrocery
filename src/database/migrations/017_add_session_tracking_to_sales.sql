@@ -9,3 +9,8 @@ CREATE INDEX IF NOT EXISTS idx_sales_session_id ON sales(session_id);
 CREATE INDEX IF NOT EXISTS idx_sales_terminal_name ON sales(terminal_name);
 
 
+
+
+
+
+

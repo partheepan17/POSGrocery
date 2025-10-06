@@ -285,7 +285,7 @@ export function Reports() {
                 type="date"
                 value={filters.from.toISOString().split('T')[0]}
                 onChange={(e) => setFilters(prev => ({ ...prev, from: new Date(e.target.value) }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               />
             </div>
             <div>
@@ -294,7 +294,7 @@ export function Reports() {
                 type="date"
                 value={filters.to.toISOString().split('T')[0]}
                 onChange={(e) => setFilters(prev => ({ ...prev, to: new Date(e.target.value) }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               />
             </div>
 
@@ -304,7 +304,7 @@ export function Reports() {
               <select
                 value={filters.tier || ''}
                 onChange={(e) => setFilters(prev => ({ ...prev, tier: e.target.value as any || undefined }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               >
                 <option value="">All</option>
                 <option value="Retail">Retail</option>
@@ -327,7 +327,7 @@ export function Reports() {
               <button
                 key={range.value}
                 onClick={() => handleDateRangeChange(range.value as any)}
-                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
+                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors text-gray-900 bg-white"
               >
                 {range.label}
               </button>

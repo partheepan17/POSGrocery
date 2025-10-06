@@ -261,3 +261,8 @@ class HoldSlipAdapter {
 export const holdSlipAdapter = new HoldSlipAdapter();
 
 
+
+
+
+
+

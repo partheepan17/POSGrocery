@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Eye } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Eye, AlertTriangle, Calendar, DollarSign } from 'lucide-react';
 import { LabelBatch, LabelPreset, LabelItem } from '@/types';
 import { labelPrintAdapter, RenderedLabel, RenderedPage } from '@/services/print/LabelPrintAdapter';
+import { validateLabelItemDates } from '@/services/labelService';
 import { cn } from '@/utils/cn';
 
 interface LabelPreviewProps {
@@ -18,6 +19,51 @@ export function LabelPreview({ batch, className }: LabelPreviewProps) {
     thermal: RenderedLabel[];
     a4: RenderedPage[];
   }>({ thermal: [], a4: [] });
+
+  // Validation warnings for the batch
+  const validationWarnings = useMemo(() => {
+    if (!batch.items || !batch.preset) return [];
+    
+    const warnings: Array<{ type: 'date' | 'mrp' | 'format'; message: string; count: number }> = [];
+    
+    let dateErrors = 0;
+    let missingMrp = 0;
+    
+    // Check each item for validation issues
+    batch.items.forEach(item => {
+      // Date validation
+      if (item.packedDate || item.expiryDate) {
+        const dateFormat = batch.preset?.fields.dateFormat || 'YYYY-MM-DD';
+        const validation = validateLabelItemDates(item, dateFormat);
+        if (!validation.valid) {
+          dateErrors++;
+        }
+      }
+      
+      // MRP validation - only warn if preset shows MRP but item has no MRP
+      if (batch.preset?.fields.showMRP && (item.mrp === null || item.mrp === undefined)) {
+        missingMrp++;
+      }
+    });
+    
+    if (dateErrors > 0) {
+      warnings.push({
+        type: 'date',
+        message: `${dateErrors} item(s) have invalid date relationships (expiry before packed date)`,
+        count: dateErrors
+      });
+    }
+    
+    if (missingMrp > 0) {
+      warnings.push({
+        type: 'mrp',
+        message: `${missingMrp} item(s) missing MRP while template shows MRP field`,
+        count: missingMrp
+      });
+    }
+    
+    return warnings;
+  }, [batch.items, batch.preset]);
 
   useEffect(() => {
     generatePreview();
@@ -107,6 +153,30 @@ export function LabelPreview({ batch, className }: LabelPreviewProps) {
 
   return (
     <div className={cn("bg-white rounded-lg border border-gray-200", className)}>
+      {/* Validation Warnings */}
+      {validationWarnings.length > 0 && (
+        <div className="p-4 bg-amber-50 border-b border-amber-200">
+          <div className="flex items-start space-x-2">
+            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <h4 className="text-sm font-medium text-amber-800 mb-1">Validation Warnings</h4>
+              <ul className="text-sm text-amber-700 space-y-1">
+                {validationWarnings.map((warning, index) => (
+                  <li key={index} className="flex items-center space-x-2">
+                    {warning.type === 'date' && <Calendar className="w-4 h-4" />}
+                    {warning.type === 'mrp' && <DollarSign className="w-4 h-4" />}
+                    <span>{warning.message}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-amber-600 mt-2">
+                These issues won't prevent printing but may affect label quality. Review items in the batch editor.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header Controls */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center space-x-4">
@@ -116,6 +186,12 @@ export function LabelPreview({ batch, className }: LabelPreviewProps) {
           <div className="text-sm text-gray-500">
             {totalLabels} label{totalLabels !== 1 ? 's' : ''} ({batch.items.length} unique)
           </div>
+          {validationWarnings.length > 0 && (
+            <div className="flex items-center text-amber-600">
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              <span className="text-sm font-medium">{validationWarnings.length} warning{validationWarnings.length !== 1 ? 's' : ''}</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center space-x-2">

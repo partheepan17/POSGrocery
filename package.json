@@ -1,7 +1,7 @@
 {
-  "name": "grocery-pos",
+  "name": "virtual-pos",
   "version": "1.0.0",
-  "description": "Lightweight Grocery/FMCG POS application",
+  "description": "viRtual POS - Visual Interface Resource Technology Unified Analytics Labs",
   "private": true,
   "type": "module",
   "scripts": {
@@ -32,12 +32,12 @@
     "release:check": "tsx scripts/healthcheck.ts",
     "release:notes": "tsx scripts/changelog.generate.ts",
     "version:bump": "tsx scripts/version.bump.ts",
-    "docker:build": "docker build -t grocery-pos:latest .",
-    "docker:run": "docker run -p 8080:80 --env-file .env --name grocery-pos grocery-pos:latest",
-    "docker:stop": "docker stop grocery-pos && docker rm grocery-pos",
+    "docker:build": "docker build -t virtual-pos:latest .",
+    "docker:run": "docker run -p 8080:80 --env-file .env --name virtual-pos virtual-pos:latest",
+    "docker:stop": "docker stop virtual-pos && docker rm virtual-pos",
     "compose:up": "docker compose up -d",
     "compose:down": "docker compose down",
-    "compose:logs": "docker compose logs -f grocery-pos"
+    "compose:logs": "docker compose logs -f virtual-pos"
   },
   "dependencies": {
     "clsx": "^2.0.0",
@@ -46,6 +46,7 @@
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.4.1",
     "react-router-dom": "^6.20.1",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^2.0.0",
     "zustand": "^4.4.7"
   },

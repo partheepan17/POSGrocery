@@ -340,7 +340,7 @@ export function Discounts() {
               placeholder="Search by name or target... (/)"
               value={filters.search}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500"
             />
           </div>
 
@@ -348,7 +348,7 @@ export function Discounts() {
           <select
             value={filters.type_filter}
             onChange={(e) => handleFilterChange('type_filter', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
           >
             <option value="all">All Types</option>
             <option value="PERCENT">Percent</option>
@@ -359,7 +359,7 @@ export function Discounts() {
           <select
             value={filters.applies_to_filter}
             onChange={(e) => handleFilterChange('applies_to_filter', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
           >
             <option value="all">All Targets</option>
             <option value="PRODUCT">Product</option>
@@ -370,7 +370,7 @@ export function Discounts() {
           <select
             value={filters.status_filter}
             onChange={(e) => handleFilterChange('status_filter', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
@@ -382,7 +382,7 @@ export function Discounts() {
             type="date"
             value={filters.date_from}
             onChange={(e) => handleFilterChange('date_from', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
             placeholder="From Date"
           />
 
@@ -391,7 +391,7 @@ export function Discounts() {
             type="date"
             value={filters.date_to}
             onChange={(e) => handleFilterChange('date_to', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
             placeholder="To Date"
           />
         </div>

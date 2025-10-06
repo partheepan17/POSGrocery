@@ -1018,3 +1018,8 @@ The system is ready for immediate deployment in grocery stores, FMCG businesses,
 **Documentation**: **Complete**
 
 
+
+
+
+
+

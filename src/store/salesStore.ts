@@ -98,9 +98,9 @@ export const useSalesStore = create<SalesState>()(
             productId: product.id,
             product,
             quantity,
-            unitPrice: product.price,
+            unitPrice: product.price || 0,
             discount: 0,
-            total: product.price * quantity,
+            total: (product.price || 0) * quantity,
           };
           set({ saleItems: [...saleItems, newItem] });
         }

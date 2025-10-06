@@ -301,10 +301,646 @@ class ReportService {
       cashiers: cashiers || []
     };
   }
+
+  // Returns & Refunds Reporting Methods
+  async getReturnsSummary(filters: {
+    date_from: Date;
+    date_to: Date;
+    cashier?: number;
+    terminal?: string;
+  }): Promise<{
+    totalReturns: number;
+    totalRefundAmount: number;
+    refundByMethod: {
+      cash: number;
+      card: number;
+      wallet: number;
+      store_credit: number;
+    };
+    returnsByReason: Array<{
+      reason_code: string;
+      count: number;
+      amount: number;
+    }>;
+    dailyReturns: Array<{
+      date: string;
+      count: number;
+      amount: number;
+    }>;
+  }> {
+    const whereClause = this.buildReturnsWhereClause(filters);
+    const params = this.buildReturnsParams(filters);
+
+    // Total returns and refund amount
+    const summaryQuery = `
+      SELECT 
+        COUNT(*) as total_returns,
+        COALESCE(SUM(refund_cash + refund_card + refund_wallet + refund_store_credit), 0) as total_refund_amount,
+        COALESCE(SUM(refund_cash), 0) as refund_cash,
+        COALESCE(SUM(refund_card), 0) as refund_card,
+        COALESCE(SUM(refund_wallet), 0) as refund_wallet,
+        COALESCE(SUM(refund_store_credit), 0) as refund_store_credit
+      FROM returns r
+      ${whereClause}
+    `;
+
+    const summaryResult = await db.query(summaryQuery, params);
+    const summary = summaryResult[0];
+
+    // Returns by reason
+    const reasonQuery = `
+      SELECT 
+        rl.reason_code,
+        COUNT(*) as count,
+        COALESCE(SUM(rl.line_refund), 0) as amount
+      FROM returns r
+      JOIN return_lines rl ON r.id = rl.return_id
+      ${whereClause}
+      GROUP BY rl.reason_code
+      ORDER BY count DESC
+    `;
+
+    const returnsByReason = await db.query<any>(reasonQuery, params);
+
+    // Daily returns
+    const dailyQuery = `
+      SELECT 
+        DATE(r.datetime) as date,
+        COUNT(*) as count,
+        COALESCE(SUM(r.refund_cash + r.refund_card + r.refund_wallet + r.refund_store_credit), 0) as amount
+      FROM returns r
+      ${whereClause}
+      GROUP BY DATE(r.datetime)
+      ORDER BY date
+    `;
+
+    const dailyReturns = await db.query<any>(dailyQuery, params);
+
+    return {
+      totalReturns: summary?.total_returns || 0,
+      totalRefundAmount: summary?.total_refund_amount || 0,
+      refundByMethod: {
+        cash: summary?.refund_cash || 0,
+        card: summary?.refund_card || 0,
+        wallet: summary?.refund_wallet || 0,
+        store_credit: summary?.refund_store_credit || 0,
+      },
+      returnsByReason: returnsByReason || [],
+      dailyReturns: dailyReturns || []
+    };
+  }
+
+  async getReturnsByReason(filters: {
+    date_from: Date;
+    date_to: Date;
+    cashier?: number;
+    terminal?: string;
+  }): Promise<Array<{
+    reason_code: string;
+    reason_name: string;
+    count: number;
+    total_amount: number;
+    percentage: number;
+  }>> {
+    const whereClause = this.buildReturnsWhereClause(filters);
+    const params = this.buildReturnsParams(filters);
+
+    const query = `
+      SELECT 
+        rl.reason_code,
+        CASE rl.reason_code
+          WHEN 'DAMAGED' THEN 'Damaged'
+          WHEN 'EXPIRED' THEN 'Expired'
+          WHEN 'WRONG_ITEM' THEN 'Wrong Item'
+          WHEN 'CUSTOMER_CHANGE' THEN 'Customer Change'
+          WHEN 'OTHER' THEN 'Other'
+          ELSE rl.reason_code
+        END as reason_name,
+        COUNT(*) as count,
+        COALESCE(SUM(rl.line_refund), 0) as total_amount
+      FROM returns r
+      JOIN return_lines rl ON r.id = rl.return_id
+      ${whereClause}
+      GROUP BY rl.reason_code
+      ORDER BY count DESC
+    `;
+
+    const results = await db.query<any>(query, params);
+    const totalCount = results.reduce((sum, row) => sum + row.count, 0);
+
+    return results.map(row => ({
+      ...row,
+      percentage: totalCount > 0 ? (row.count / totalCount) * 100 : 0
+    }));
+  }
+
+  async exportReturnsCSV(filters: {
+    date_from: Date;
+    date_to: Date;
+    cashier?: number;
+    terminal?: string;
+  }): Promise<string> {
+    const whereClause = this.buildReturnsWhereClause(filters);
+    const params = this.buildReturnsParams(filters);
+
+    const query = `
+      SELECT 
+        r.id as return_id,
+        r.datetime,
+        r.sale_id,
+        u1.name as cashier_name,
+        u2.name as manager_name,
+        r.refund_cash,
+        r.refund_card,
+        r.refund_wallet,
+        r.refund_store_credit,
+        r.reason_summary,
+        r.language,
+        r.terminal_name,
+        p.name_en as product_name,
+        rl.qty,
+        rl.unit_price,
+        rl.line_refund,
+        rl.reason_code
+      FROM returns r
+      LEFT JOIN users u1 ON r.cashier_id = u1.id
+      LEFT JOIN users u2 ON r.manager_id = u2.id
+      JOIN return_lines rl ON r.id = rl.return_id
+      JOIN products p ON rl.product_id = p.id
+      ${whereClause}
+      ORDER BY r.datetime DESC
+    `;
+
+    const results = await db.query<any>(query, params);
+
+    // Convert to CSV format
+    const headers = [
+      'Return ID', 'Date', 'Sale ID', 'Cashier', 'Manager', 'Refund Cash',
+      'Refund Card', 'Refund Wallet', 'Refund Store Credit', 'Reason Summary',
+      'Language', 'Terminal', 'Product', 'Quantity', 'Unit Price', 'Line Refund', 'Reason Code'
+    ];
+
+    const csvRows = [headers.join(',')];
+    
+    for (const row of results) {
+      const csvRow = [
+        row.return_id,
+        row.datetime,
+        row.sale_id,
+        `"${row.cashier_name || ''}"`,
+        `"${row.manager_name || ''}"`,
+        row.refund_cash,
+        row.refund_card,
+        row.refund_wallet,
+        row.refund_store_credit,
+        `"${row.reason_summary || ''}"`,
+        row.language,
+        `"${row.terminal_name || ''}"`,
+        `"${row.product_name}"`,
+        row.qty,
+        row.unit_price,
+        row.line_refund,
+        row.reason_code
+      ];
+      csvRows.push(csvRow.join(','));
+    }
+
+    return csvRows.join('\n');
+  }
+
+  private buildReturnsWhereClause(filters: {
+    date_from: Date;
+    date_to: Date;
+    cashier?: number;
+    terminal?: string;
+  }): string {
+    let whereClause = 'WHERE r.datetime >= ? AND r.datetime <= ?';
+    
+    if (filters.cashier) {
+      whereClause += ' AND r.cashier_id = ?';
+    }
+    
+    if (filters.terminal) {
+      whereClause += ' AND r.terminal_name = ?';
+    }
+    
+    return whereClause;
+  }
+
+  private buildReturnsParams(filters: {
+    date_from: Date;
+    date_to: Date;
+    cashier?: number;
+    terminal?: string;
+  }): any[] {
+    const params = [filters.date_from, filters.date_to];
+    
+    if (filters.cashier) {
+      params.push(filters.cashier as any);
+    }
+    
+    if (filters.terminal) {
+      params.push(filters.terminal as any);
+    }
+    
+    return params;
+  }
+
+  // GRN Reporting Methods
+  async getGrnSummary(filters: {
+    date_from: Date;
+    date_to: Date;
+    supplier_id?: number;
+  }): Promise<{
+    totalGRNs: number;
+    totalValue: number;
+    grnsByStatus: Array<{
+      status: string;
+      count: number;
+      value: number;
+    }>;
+    topSuppliers: Array<{
+      supplier_id: number;
+      supplier_name: string;
+      grn_count: number;
+      total_value: number;
+    }>;
+    dailyGRNs: Array<{
+      date: string;
+      count: number;
+      value: number;
+    }>;
+  }> {
+    try {
+      // Use db from imports
+      
+      const whereClause = this.buildGrnWhereClause(filters);
+      const params = this.buildGrnParams(filters);
+      
+      // Total GRNs and value
+      const totalsQuery = `
+        SELECT 
+          COUNT(*) as total_grns,
+          COALESCE(SUM(total), 0) as total_value
+        FROM grn g
+        LEFT JOIN suppliers s ON g.supplier_id = s.id
+        ${whereClause}
+      `;
+      
+      const totalsResult = await db.query(totalsQuery, params);
+      const totals = totalsResult[0] || {};
+      
+      // GRNs by status
+      const statusQuery = `
+        SELECT 
+          status,
+          COUNT(*) as count,
+          COALESCE(SUM(total), 0) as value
+        FROM grn g
+        LEFT JOIN suppliers s ON g.supplier_id = s.id
+        ${whereClause}
+        GROUP BY status
+        ORDER BY count DESC
+      `;
+      
+      const grnsByStatus = await db.query(statusQuery, params);
+      
+      // Top suppliers
+      const suppliersQuery = `
+        SELECT 
+          g.supplier_id,
+          s.supplier_name,
+          COUNT(*) as grn_count,
+          COALESCE(SUM(g.total), 0) as total_value
+        FROM grn g
+        LEFT JOIN suppliers s ON g.supplier_id = s.id
+        ${whereClause}
+        GROUP BY g.supplier_id, s.supplier_name
+        ORDER BY total_value DESC
+        LIMIT 10
+      `;
+      
+      const topSuppliers = await db.query(suppliersQuery, params);
+      
+      // Daily GRNs
+      const dailyQuery = `
+        SELECT 
+          DATE(datetime) as date,
+          COUNT(*) as count,
+          COALESCE(SUM(total), 0) as value
+        FROM grn g
+        LEFT JOIN suppliers s ON g.supplier_id = s.id
+        ${whereClause}
+        GROUP BY DATE(datetime)
+        ORDER BY date DESC
+        LIMIT 30
+      `;
+      
+      const dailyGRNs = await db.query(dailyQuery, params);
+      
+      return {
+        totalGRNs: totals.total_grns || 0,
+        totalValue: totals.total_value || 0,
+        grnsByStatus: grnsByStatus.map((row: any) => ({
+          status: row.status,
+          count: row.count,
+          value: row.value
+        })),
+        topSuppliers: topSuppliers.map((row: any) => ({
+          supplier_id: row.supplier_id,
+          supplier_name: row.supplier_name || 'Unknown',
+          grn_count: row.grn_count,
+          total_value: row.total_value
+        })),
+        dailyGRNs: dailyGRNs.map((row: any) => ({
+          date: row.date,
+          count: row.count,
+          value: row.value
+        }))
+      };
+    } catch (error) {
+      console.error('Error getting GRN summary:', error);
+      throw new Error('Failed to get GRN summary');
+    }
+  }
+
+  async getIncomingByProduct(filters: {
+    date_from: Date;
+    date_to: Date;
+    supplier_id?: number;
+  }): Promise<Array<{
+    product_id: number;
+    product_name: string;
+    sku: string;
+    total_qty: number;
+    total_value: number;
+    grn_count: number;
+    avg_cost: number;
+  }>> {
+    try {
+      // Use db from imports
+      
+      const whereClause = this.buildGrnWhereClause(filters);
+      const params = this.buildGrnParams(filters);
+      
+      const query = `
+        SELECT 
+          gl.product_id,
+          p.name as product_name,
+          p.sku,
+          SUM(gl.qty) as total_qty,
+          SUM(gl.line_total) as total_value,
+          COUNT(DISTINCT gl.grn_id) as grn_count,
+          AVG(gl.unit_cost) as avg_cost
+        FROM grn_lines gl
+        JOIN grn g ON gl.grn_id = g.id
+        JOIN products p ON gl.product_id = p.id
+        LEFT JOIN suppliers s ON g.supplier_id = s.id
+        ${whereClause.replace('grn g', 'grn g').replace('suppliers s', 'suppliers s')}
+        GROUP BY gl.product_id, p.name, p.sku
+        ORDER BY total_qty DESC
+        LIMIT 50
+      `;
+      
+      const results = await db.query(query, params);
+      
+      return results.map((row: any) => ({
+        product_id: row.product_id,
+        product_name: row.product_name,
+        sku: row.sku,
+        total_qty: row.total_qty,
+        total_value: row.total_value,
+        grn_count: row.grn_count,
+        avg_cost: row.avg_cost
+      }));
+    } catch (error) {
+      console.error('Error getting incoming by product:', error);
+      throw new Error('Failed to get incoming by product');
+    }
+  }
+
+  async exportGrnCSV(filters: {
+    date_from: Date;
+    date_to: Date;
+    supplier_id?: number;
+  }): Promise<string> {
+    try {
+      const summary = await this.getGrnSummary(filters);
+      const byProduct = await this.getIncomingByProduct(filters);
+      
+      const csvData = [
+        {
+          'Total GRNs': summary.totalGRNs,
+          'Total Value': summary.totalValue,
+          'Date From': filters.date_from.toISOString().split('T')[0],
+          'Date To': filters.date_to.toISOString().split('T')[0]
+        },
+        ...summary.grnsByStatus.map(status => ({
+          'Status': status.status,
+          'Count': status.count,
+          'Value': status.value
+        })),
+        ...byProduct.map(product => ({
+          'Product': product.product_name,
+          'SKU': product.sku,
+          'Total Qty': product.total_qty,
+          'Total Value': product.total_value,
+          'GRN Count': product.grn_count,
+          'Avg Cost': product.avg_cost
+        }))
+      ];
+      
+      return csvData.join('\n');
+    } catch (error) {
+      console.error('Error exporting GRN CSV:', error);
+      throw new Error('Failed to export GRN CSV');
+    }
+  }
+
+  private buildGrnWhereClause(filters: {
+    date_from: Date;
+    date_to: Date;
+    supplier_id?: number;
+  }): string {
+    let whereClause = 'WHERE 1=1';
+    
+    if (filters.date_from) {
+      whereClause += ' AND DATE(g.datetime) >= ?';
+    }
+    
+    if (filters.date_to) {
+      whereClause += ' AND DATE(g.datetime) <= ?';
+    }
+    
+    if (filters.supplier_id) {
+      whereClause += ' AND g.supplier_id = ?';
+    }
+    
+    return whereClause;
+  }
+
+  private buildGrnParams(filters: {
+    date_from: Date;
+    date_to: Date;
+    supplier_id?: number;
+  }): any[] {
+    const params: any[] = [];
+    
+    if (filters.date_from) {
+      params.push(filters.date_from.toISOString().split('T')[0]);
+    }
+    
+    if (filters.date_to) {
+      params.push(filters.date_to.toISOString().split('T')[0]);
+    }
+    
+    if (filters.supplier_id) {
+      params.push(filters.supplier_id);
+    }
+    
+    return params;
+  }
+
+  // Shift Reporting Methods
+  async getShiftDailySummary(params: {
+    date_from: Date;
+    date_to: Date;
+    terminal?: string;
+    cashier_id?: number;
+  }): Promise<any[]> {
+    try {
+      // Use db from imports
+      
+      let whereClause = 'WHERE DATE(s.opened_at) BETWEEN ? AND ?';
+      const queryParams: any[] = [params.date_from, params.date_to];
+      
+      if (params.terminal) {
+        whereClause += ' AND s.terminal_name = ?';
+        queryParams.push(params.terminal);
+      }
+      
+      if (params.cashier_id) {
+        whereClause += ' AND s.cashier_id = ?';
+        queryParams.push(params.cashier_id);
+      }
+      
+      const query = `
+        SELECT 
+          DATE(s.opened_at) as date,
+          s.terminal_name,
+          s.cashier_id,
+          COUNT(s.id) as total_shifts,
+          SUM(CASE WHEN s.status = 'OPEN' THEN 1 ELSE 0 END) as open_shifts,
+          SUM(CASE WHEN s.status = 'CLOSED' THEN 1 ELSE 0 END) as closed_shifts,
+          SUM(CASE WHEN s.status = 'VOID' THEN 1 ELSE 0 END) as void_shifts,
+          COALESCE(SUM(sales.invoices), 0) as total_invoices,
+          COALESCE(SUM(sales.gross), 0) as total_gross,
+          COALESCE(SUM(sales.discount), 0) as total_discount,
+          COALESCE(SUM(sales.tax), 0) as total_tax,
+          COALESCE(SUM(sales.net), 0) as total_net,
+          COALESCE(SUM(payments.cash), 0) as total_cash,
+          COALESCE(SUM(payments.card), 0) as total_card,
+          COALESCE(SUM(payments.wallet), 0) as total_wallet,
+          COALESCE(SUM(payments.other), 0) as total_other,
+          COALESCE(SUM(movements.cash_in), 0) as total_cash_in,
+          COALESCE(SUM(movements.cash_out), 0) as total_cash_out,
+          COALESCE(SUM(movements.drops), 0) as total_drops,
+          COALESCE(SUM(movements.petty), 0) as total_petty,
+          COALESCE(SUM(s.declared_cash), 0) as total_declared,
+          COALESCE(SUM(s.variance_cash), 0) as total_variance
+        FROM shifts s
+        LEFT JOIN (
+          SELECT 
+            shift_id,
+            COUNT(*) as invoices,
+            SUM(subtotal) as gross,
+            SUM(discount) as discount,
+            SUM(tax) as tax,
+            SUM(total) as net
+          FROM sales 
+          WHERE shift_id IS NOT NULL
+          GROUP BY shift_id
+        ) sales ON s.id = sales.shift_id
+        LEFT JOIN (
+          SELECT 
+            shift_id,
+            SUM(CASE WHEN payment_method = 'cash' THEN total ELSE 0 END) as cash,
+            SUM(CASE WHEN payment_method = 'card' THEN total ELSE 0 END) as card,
+            SUM(CASE WHEN payment_method = 'wallet' THEN total ELSE 0 END) as wallet,
+            SUM(CASE WHEN payment_method NOT IN ('cash', 'card', 'wallet') THEN total ELSE 0 END) as other
+          FROM sales 
+          WHERE shift_id IS NOT NULL
+          GROUP BY shift_id
+        ) payments ON s.id = payments.shift_id
+        LEFT JOIN (
+          SELECT 
+            shift_id,
+            SUM(CASE WHEN type = 'CASH_IN' THEN amount ELSE 0 END) as cash_in,
+            SUM(CASE WHEN type = 'CASH_OUT' THEN amount ELSE 0 END) as cash_out,
+            SUM(CASE WHEN type = 'DROP' THEN amount ELSE 0 END) as drops,
+            SUM(CASE WHEN type = 'PETTY' THEN amount ELSE 0 END) as petty
+          FROM shift_movements
+          GROUP BY shift_id
+        ) movements ON s.id = movements.shift_id
+        ${whereClause}
+        GROUP BY DATE(s.opened_at), s.terminal_name, s.cashier_id
+        ORDER BY DATE(s.opened_at) DESC, s.terminal_name, s.cashier_id
+      `;
+      
+      return await db.query(query, queryParams);
+    } catch (error) {
+      console.error('Error getting shift daily summary:', error);
+      throw new Error('Failed to get shift daily summary');
+    }
+  }
+
+  async exportShiftSummaryCSV(params: {
+    date_from: Date;
+    date_to: Date;
+    terminal?: string;
+    cashier_id?: number;
+  }): Promise<string> {
+    try {
+      const data = await this.getShiftDailySummary(params);
+      
+      const csvData = data.map(row => ({
+        date: row.date,
+        terminal: row.terminal_name,
+        cashier_id: row.cashier_id,
+        total_shifts: row.total_shifts,
+        open_shifts: row.open_shifts,
+        closed_shifts: row.closed_shifts,
+        void_shifts: row.void_shifts,
+        invoices: row.total_invoices,
+        gross: row.total_gross,
+        discount: row.total_discount,
+        tax: row.total_tax,
+        net: row.total_net,
+        cash: row.total_cash,
+        card: row.total_card,
+        wallet: row.total_wallet,
+        other: row.total_other,
+        cash_in: row.total_cash_in,
+        cash_out: row.total_cash_out,
+        drops: row.total_drops,
+        petty: row.total_petty,
+        declared_cash: row.total_declared,
+        variance: row.total_variance
+      }));
+      
+      return csvData.join('\n');
+    } catch (error) {
+      console.error('Error exporting shift summary CSV:', error);
+      throw new Error('Failed to export shift summary CSV');
+    }
+  }
 }
 
 // Singleton instance
 export const reportService = new ReportService();
+
+
+
 
 
 

@@ -183,35 +183,111 @@ export class LabelPrintAdapter {
         ${preset.style.show_store_logo ? this.renderStoreLogo() : ''}
         
         <div class="content" style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
-          ${fieldValues.line1 ? `<div class="line1" style="
-            font-weight: ${preset.style.bold_name ? 'bold' : 'normal'};
-            font-size: ${Math.round(11 * preset.style.font_scale)}px;
-            margin-bottom: 1px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          ">${this.escapeHtml(fieldValues.line1)}</div>` : ''}
-          
-          ${fieldValues.line2 ? `<div class="line2" style="
-            font-size: ${Math.round(8 * preset.style.font_scale)}px;
-            margin-bottom: 1px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          ">${this.escapeHtml(fieldValues.line2)}</div>` : ''}
-          
-          ${barcodeHtml}
-          
-          ${fieldValues.price ? `<div class="price" style="
-            font-weight: bold;
-            font-size: ${Math.round(12 * preset.style.font_scale)}px;
-            margin-top: 1px;
-          ">${fieldValues.price}</div>` : ''}
+          ${this.renderSections(fieldValues, preset, barcodeHtml)}
         </div>
       </div>
     `;
     
     return { html, width, height };
+  }
+
+  /**
+   * Render sections according to preset order
+   */
+  private renderSections(
+    fieldValues: any, 
+    preset: LabelPreset, 
+    barcodeHtml: string
+  ): string {
+    const sectionOrder = preset.style.sectionOrder || ['name', 'barcode', 'price', 'mrp', 'batch', 'dates'];
+    let html = '';
+    
+    for (const section of sectionOrder) {
+      switch (section) {
+        case 'name':
+          if (fieldValues.line1) {
+            html += `<div class="line1" style="
+              font-weight: ${preset.style.bold_name ? 'bold' : 'normal'};
+              font-size: ${Math.round(11 * preset.style.font_scale)}px;
+              margin-bottom: 1px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            ">${this.escapeHtml(fieldValues.line1)}</div>`;
+          }
+          if (fieldValues.line2) {
+            html += `<div class="line2" style="
+              font-size: ${Math.round(8 * preset.style.font_scale)}px;
+              margin-bottom: 1px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            ">${this.escapeHtml(fieldValues.line2)}</div>`;
+          }
+          break;
+          
+        case 'barcode':
+          html += barcodeHtml;
+          break;
+          
+        case 'price':
+          if (fieldValues.price) {
+            html += `<div class="price" style="
+              font-weight: bold;
+              font-size: ${Math.round(12 * preset.style.font_scale)}px;
+              margin-top: 1px;
+            ">${fieldValues.price}</div>`;
+          }
+          break;
+          
+        case 'mrp':
+          if (fieldValues.mrp) {
+            html += `<div class="mrp" style="
+              font-size: ${Math.round(9 * preset.style.font_scale)}px;
+              margin-top: 1px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            ">${this.escapeHtml(fieldValues.mrp)}</div>`;
+          }
+          break;
+          
+        case 'batch':
+          if (fieldValues.batch) {
+            html += `<div class="batch" style="
+              font-size: ${Math.round(8 * preset.style.font_scale)}px;
+              margin-top: 1px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            ">${this.escapeHtml(fieldValues.batch)}</div>`;
+          }
+          break;
+          
+        case 'dates':
+          if (fieldValues.packedDate) {
+            html += `<div class="packed-date" style="
+              font-size: ${Math.round(7 * preset.style.font_scale)}px;
+              margin-top: 1px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            ">${this.escapeHtml(fieldValues.packedDate)}</div>`;
+          }
+          if (fieldValues.expiryDate) {
+            html += `<div class="expiry-date" style="
+              font-size: ${Math.round(7 * preset.style.font_scale)}px;
+              margin-top: 1px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            ">${this.escapeHtml(fieldValues.expiryDate)}</div>`;
+          }
+          break;
+      }
+    }
+    
+    return html;
   }
 
   /**
@@ -312,23 +388,51 @@ export class LabelPrintAdapter {
     line1?: string;
     line2?: string;
     price?: string;
+    mrp?: string;
+    batch?: string;
+    packedDate?: string;
+    expiryDate?: string;
   } {
-    const values: { line1?: string; line2?: string; price?: string } = {};
+    const values: { 
+      line1?: string; 
+      line2?: string; 
+      price?: string;
+      mrp?: string;
+      batch?: string;
+      packedDate?: string;
+      expiryDate?: string;
+    } = {};
     
-    // Line 1
-    switch (preset.fields.line1) {
-      case 'name_en':
-        values.line1 = item.name_en;
-        break;
-      case 'name_si':
-        values.line1 = item.name_si || item.name_en;
-        break;
-      case 'name_ta':
-        values.line1 = item.name_ta || item.name_en;
-        break;
-      case 'custom':
-        values.line1 = item.custom_line1;
-        break;
+    // Determine language for product name
+    let productLanguage: 'EN' | 'SI' | 'TA' = 'EN';
+    if (preset.fields.languageMode === 'per_item' && item.language) {
+      productLanguage = item.language;
+    } else {
+      // Use preset default language based on line1 setting
+      switch (preset.fields.line1) {
+        case 'name_si':
+          productLanguage = 'SI';
+          break;
+        case 'name_ta':
+          productLanguage = 'TA';
+          break;
+        default:
+          productLanguage = 'EN';
+      }
+    }
+    
+    // Line 1 - use determined language
+    if (productLanguage === 'SI') {
+      values.line1 = item.name_si || item.name_en;
+    } else if (productLanguage === 'TA') {
+      values.line1 = item.name_ta || item.name_en;
+    } else {
+      values.line1 = item.name_en;
+    }
+    
+    // Override with custom if specified
+    if (preset.fields.line1 === 'custom') {
+      values.line1 = item.custom_line1;
     }
     
     // Line 2
@@ -383,7 +487,58 @@ export class LabelPrintAdapter {
       values.price = priceText;
     }
     
+    // MRP
+    if (preset.fields.showMRP && item.mrp !== null && item.mrp !== undefined) {
+      const mrpLabel = preset.fields.mrpLabel || 'MRP';
+      const formattedMRP = new Intl.NumberFormat('en-LK', {
+        style: 'currency',
+        currency: 'LKR',
+        minimumFractionDigits: 2
+      }).format(item.mrp);
+      values.mrp = `${mrpLabel}: ${formattedMRP}`;
+    }
+    
+    // Batch Number
+    if (preset.fields.showBatch && item.batchNo) {
+      const batchLabel = preset.fields.batchLabel || 'Batch';
+      values.batch = `${batchLabel}: ${item.batchNo}`;
+    }
+    
+    // Dates
+    const dateFormat = preset.fields.dateFormat || useAppStore.getState().labelSettings.defaultDateFormat;
+    
+    if (preset.fields.showPackedDate && item.packedDate) {
+      const packedLabel = preset.fields.packedLabel || 'Packed';
+      values.packedDate = `${packedLabel}: ${this.formatDate(item.packedDate, dateFormat)}`;
+    }
+    
+    if (preset.fields.showExpiryDate && item.expiryDate) {
+      const expiryLabel = preset.fields.expiryLabel || 'Expiry';
+      values.expiryDate = `${expiryLabel}: ${this.formatDate(item.expiryDate, dateFormat)}`;
+    }
+    
     return values;
+  }
+
+  /**
+   * Format date according to specified format
+   */
+  private formatDate(dateStr: string, format: 'YYYY-MM-DD' | 'DD/MM/YYYY' | 'MM/DD/YYYY'): string {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr; // Return original if invalid
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    switch (format) {
+      case 'DD/MM/YYYY':
+        return `${day}/${month}/${year}`;
+      case 'MM/DD/YYYY':
+        return `${month}/${day}/${year}`;
+      default:
+        return `${year}-${month}-${day}`;
+    }
   }
 
   /**

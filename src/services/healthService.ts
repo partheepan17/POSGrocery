@@ -1029,6 +1029,259 @@ class HealthService {
 
     return items;
   }
+
+  /**
+   * Check Label System health
+   */
+  private async checkLabelSystem(): Promise<HealthItem[]> {
+    const items: HealthItem[] = [];
+
+    try {
+      // Check barcode encoder
+      try {
+        const testEan13 = barcodeService.encodeEAN13('123456789012');
+        const testCode128 = barcodeService.encodeCode128('TEST123');
+        
+        if (testEan13.data && testCode128.data) {
+          items.push({
+            key: 'barcode-encoder',
+            label: 'Barcode Encoder',
+            status: 'OK',
+            details: 'EAN-13 and Code128 encoding working correctly'
+          });
+        } else {
+          items.push({
+            key: 'barcode-encoder',
+            label: 'Barcode Encoder',
+            status: 'WARN',
+            details: 'Barcode generation may not be working correctly',
+            suggestion: 'Check barcode service configuration'
+          });
+        }
+      } catch (error) {
+        items.push({
+          key: 'barcode-encoder',
+          label: 'Barcode Encoder',
+          status: 'FAIL',
+          details: `Barcode encoding failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          suggestion: 'Check barcode service implementation'
+        });
+      }
+
+      // Check label presets
+      try {
+        const presets = await labelService.listPresets();
+        
+        if (presets.length > 0) {
+          items.push({
+            key: 'label-presets',
+            label: 'Label Presets',
+            status: 'OK',
+            details: `${presets.length} label preset${presets.length === 1 ? '' : 's'} available`,
+            metrics: { preset_count: presets.length }
+          });
+        } else {
+          items.push({
+            key: 'label-presets',
+            label: 'Label Presets',
+            status: 'WARN',
+            details: 'No label presets configured',
+            suggestion: 'Create at least one label preset for printing'
+          });
+        }
+      } catch (error) {
+        items.push({
+          key: 'label-presets',
+          label: 'Label Presets',
+          status: 'FAIL',
+          details: `Failed to load label presets: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          suggestion: 'Check label service configuration'
+        });
+      }
+
+      // Check default preset configuration
+      const appStore = useAppStore.getState();
+      const labelSettings = appStore.labelSettings;
+      
+      if (labelSettings?.defaultPresetId) {
+        try {
+          const defaultPreset = await labelService.getPreset(labelSettings.defaultPresetId);
+          if (defaultPreset) {
+            items.push({
+              key: 'default-preset',
+              label: 'Default Label Preset',
+              status: 'OK',
+              details: `Default preset: ${defaultPreset.name}`,
+              metrics: { default_preset: defaultPreset.name }
+            });
+          } else {
+            items.push({
+              key: 'default-preset',
+              label: 'Default Label Preset',
+              status: 'WARN',
+              details: 'Configured default preset not found',
+              suggestion: 'Update default preset in label settings'
+            });
+          }
+        } catch (error) {
+          items.push({
+            key: 'default-preset',
+            label: 'Default Label Preset',
+            status: 'FAIL',
+            details: `Failed to validate default preset: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            suggestion: 'Check label service and settings configuration'
+          });
+        }
+      } else {
+        items.push({
+          key: 'default-preset',
+          label: 'Default Label Preset',
+          status: 'WARN',
+          details: 'No default label preset configured',
+          suggestion: 'Set a default preset in label settings for faster workflow'
+        });
+      }
+
+      // Check label jobs history
+      try {
+        const recentJobs = await labelService.listJobs({ limit: 10 });
+        
+        items.push({
+          key: 'label-history',
+          label: 'Label Print History',
+          status: 'OK',
+          details: `${recentJobs.length} recent print job${recentJobs.length === 1 ? '' : 's'} recorded`,
+          metrics: { recent_jobs: recentJobs.length }
+        });
+      } catch (error) {
+        items.push({
+          key: 'label-history',
+          label: 'Label Print History',
+          status: 'WARN',
+          details: `Failed to load print history: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          suggestion: 'History functionality may be impaired'
+        });
+      }
+
+      // Check DPI settings
+      if (labelSettings) {
+        const dpi = labelSettings.defaultDPI;
+        if (dpi === 203 || dpi === 300) {
+          items.push({
+            key: 'dpi-settings',
+            label: 'Label DPI Configuration',
+            status: 'OK',
+            details: `Default DPI: ${dpi}`,
+            metrics: { default_dpi: dpi }
+          });
+        } else {
+          items.push({
+            key: 'dpi-settings',
+            label: 'Label DPI Configuration',
+            status: 'WARN',
+            details: `Unusual DPI setting: ${dpi}`,
+            suggestion: 'Standard thermal printers use 203 or 300 DPI'
+          });
+        }
+
+        // Check default date format
+        const dateFormat = labelSettings.defaultDateFormat;
+        if (dateFormat && ['YYYY-MM-DD', 'DD/MM/YYYY', 'MM/DD/YYYY'].includes(dateFormat)) {
+          items.push({
+            key: 'date-format',
+            label: 'Label Date Format',
+            status: 'OK',
+            details: `Default date format: ${dateFormat}`,
+            metrics: { date_format: dateFormat }
+          });
+        } else {
+          items.push({
+            key: 'date-format',
+            label: 'Label Date Format',
+            status: 'WARN',
+            details: `Invalid or missing date format: ${dateFormat}`,
+            suggestion: 'Set defaultDateFormat to YYYY-MM-DD, DD/MM/YYYY, or MM/DD/YYYY'
+          });
+        }
+      }
+
+      // Check preset configurations for new fields
+      try {
+        const presets = await labelService.listPresets();
+        let presetsWithDateFields = 0;
+        let presetsWithMissingDateFormat = 0;
+        let presetsWithLanguageMode = 0;
+
+        for (const preset of presets) {
+          const hasDateFields = preset.fields.showPackedDate || preset.fields.showExpiryDate;
+          if (hasDateFields) {
+            presetsWithDateFields++;
+            if (!preset.fields.dateFormat) {
+              presetsWithMissingDateFormat++;
+            }
+          }
+
+          if (preset.fields.languageMode === 'per_item') {
+            presetsWithLanguageMode++;
+          }
+        }
+
+        // Check for presets with date fields but missing date format
+        if (presetsWithMissingDateFormat > 0) {
+          items.push({
+            key: 'preset-date-format',
+            label: 'Preset Date Format Configuration',
+            status: 'WARN',
+            details: `${presetsWithMissingDateFormat} preset(s) have date fields enabled but no date format specified`,
+            suggestion: 'Configure dateFormat for presets that show packed/expiry dates',
+            metrics: { 
+              presets_with_dates: presetsWithDateFields,
+              missing_date_format: presetsWithMissingDateFormat 
+            }
+          });
+        } else if (presetsWithDateFields > 0) {
+          items.push({
+            key: 'preset-date-format',
+            label: 'Preset Date Format Configuration',
+            status: 'OK',
+            details: `${presetsWithDateFields} preset(s) with date fields properly configured`,
+            metrics: { presets_with_dates: presetsWithDateFields }
+          });
+        }
+
+        // Check language mode configuration
+        if (presetsWithLanguageMode > 0) {
+          items.push({
+            key: 'preset-language-mode',
+            label: 'Preset Language Configuration',
+            status: 'OK',
+            details: `${presetsWithLanguageMode} preset(s) configured for per-item language selection`,
+            metrics: { per_item_language_presets: presetsWithLanguageMode }
+          });
+        }
+
+      } catch (error) {
+        items.push({
+          key: 'preset-validation',
+          label: 'Preset Configuration Validation',
+          status: 'WARN',
+          details: `Failed to validate preset configurations: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          suggestion: 'Check preset configuration and ensure proper field settings'
+        });
+      }
+
+    } catch (error) {
+      items.push({
+        key: 'label-system-error',
+        label: 'Label System Check',
+        status: 'FAIL',
+        details: `Label system check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        suggestion: 'Check label system components and configuration'
+      });
+    }
+
+    return items;
+  }
 }
 
 // Export singleton instance

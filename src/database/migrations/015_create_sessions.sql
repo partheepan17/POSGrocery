@@ -22,3 +22,8 @@ CREATE INDEX IF NOT EXISTS idx_sessions_cashier_terminal ON sessions(cashier_id,
 CREATE INDEX IF NOT EXISTS idx_sessions_open ON sessions(status) WHERE status = 'OPEN';
 
 
+
+
+
+
+

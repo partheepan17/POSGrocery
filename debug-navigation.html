@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Navigation Debug Test</h1>
+    
+    <div class="test info">
+        <h3>Test Instructions:</h3>
+        <ol>
+            <li>Open the main app at <a href="http://localhost:8103" target="_blank">http://localhost:8103</a></li>
+            <li>Open browser console (F12 → Console tab)</li>
+            <li>Try the following tests and report results:</li>
+        </ol>
+    </div>
+
+    <div class="test">
+        <h3>Test 1: Keyboard Shortcuts</h3>
+        <p><strong>Press Ctrl+1</strong> - Should navigate to Sales page</p>
+        <p><strong>Press Ctrl+2</strong> - Should navigate to Products page</p>
+        <p><strong>Press Ctrl+7</strong> - Should navigate to Inventory page</p>
+        <p><strong>Press Ctrl+A</strong> - Should navigate to Audit page</p>
+        <p><strong>Result:</strong> <span id="keyboard-result">Not tested yet</span></p>
+    </div>
+
+    <div class="test">
+        <h3>Test 2: Sidebar Navigation</h3>
+        <p><strong>Click "Sales"</strong> in left sidebar - Should go to Sales page</p>
+        <p><strong>Click "Products"</strong> in left sidebar - Should go to Products page</p>
+        <p><strong>Click "Stock Levels"</strong> in left sidebar - Should go to Inventory page</p>
+        <p><strong>Click "Audit Trail"</strong> in left sidebar - Should go to Audit page</p>
+        <p><strong>Result:</strong> <span id="sidebar-result">Not tested yet</span></p>
+    </div>
+
+    <div class="test">
+        <h3>Test 3: Direct URL Navigation</h3>
+        <p><strong>Navigate to:</strong> <a href="http://localhost:8103/" target="_blank">http://localhost:8103/</a> (Sales)</p>
+        <p><strong>Navigate to:</strong> <a href="http://localhost:8103/products" target="_blank">http://localhost:8103/products</a> (Products)</p>
+        <p><strong>Navigate to:</strong> <a href="http://localhost:8103/inventory" target="_blank">http://localhost:8103/inventory</a> (Inventory)</p>
+        <p><strong>Navigate to:</strong> <a href="http://localhost:8103/audit" target="_blank">http://localhost:8103/audit</a> (Audit)</p>
+        <p><strong>Result:</strong> <span id="url-result">Not tested yet</span></p>
+    </div>
+
+    <div class="test">
+        <h3>Test 4: Console Errors</h3>
+        <p><strong>Check browser console for:</strong></p>
+        <ul>
+            <li>Red error messages</li>
+            <li>JavaScript errors</li>
+            <li>React errors</li>
+            <li>Router errors</li>
+        </ul>
+        <p><strong>Result:</strong> <span id="console-result">Not tested yet</span></p>
+    </div>
+
+    <div class="test">
+        <h3>Test 5: Authentication Status</h3>
+        <p><strong>Check if you're logged in:</strong></p>
+        <ul>
+            <li>Look for user name in top-right corner</li>
+            <li>Check if you see "Admin User" or similar</li>
+            <li>If not logged in, go to <a href="http://localhost:8103/login" target="_blank">http://localhost:8103/login</a></li>
+        </ul>
+        <p><strong>Result:</strong> <span id="auth-result">Not tested yet</span></p>
+    </div>
+
+    <div class="test">
+        <h3>Test 6: Page Loading</h3>
+        <p><strong>Check if pages load:</strong></p>
+        <ul>
+            <li>Do you see the page content?</li>
+            <li>Do you see a loading spinner?</li>
+            <li>Do you see an error message?</li>
+            <li>Do you see a blank page?</li>
+        </ul>
+        <p><strong>Result:</strong> <span id="loading-result">Not tested yet</span></p>
+    </div>
+
+    <script>
+        // Auto-update results based on URL changes
+        function updateResults() {
+            const url = window.location.href;
+            console.log('Current URL:', url);
+            
+            // Update results based on current page
+            if (url.includes('localhost:8103')) {
+                document.getElementById('url-result').textContent = '✅ App is accessible';
+                document.getElementById('url-result').parentElement.className = 'test success';
+            }
+        }
+        
+        // Update on page load
+        updateResults();
+        
+        // Listen for URL changes
+        window.addEventListener('popstate', updateResults);
+    </script>
+</body>
+</html>
+
+

@@ -225,3 +225,8 @@ const LockScreen: React.FC<LockScreenProps> = ({ isLocked, onUnlock }) => {
 export default LockScreen;
 
 
+
+
+
+
+

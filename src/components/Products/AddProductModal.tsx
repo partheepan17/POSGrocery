@@ -9,6 +9,7 @@ interface AddProductModalProps {
   suppliers: Supplier[];
   onClose: () => void;
   onSave: () => void;
+  product?: any; // Product to edit (optional)
 }
 
 interface NewCategoryData {
@@ -42,31 +43,55 @@ interface ProductFormData {
   is_active: boolean;
 }
 
-export function AddProductModal({ categories, suppliers, onClose, onSave }: AddProductModalProps) {
+export function AddProductModal({ categories, suppliers, onClose, onSave, product }: AddProductModalProps) {
   const { settings } = useAppStore();
   const [formData, setFormData] = useState<ProductFormData>({
-    sku: '',
-    barcode: '',
-    name_en: '',
-    name_si: '',
-    name_ta: '',
-    unit: 'pc',
-    category_id: '',
-    price_retail: 0,
-    price_wholesale: 0,
-    price_credit: 0,
-    price_other: 0,
-    tax_code: '',
-    reorder_level: 0,
-    preferred_supplier_id: '',
-    is_scale_item: false,
-    is_active: true
+    sku: product?.sku || '',
+    barcode: product?.barcode || '',
+    name_en: product?.name_en || '',
+    name_si: product?.name_si || '',
+    name_ta: product?.name_ta || '',
+    unit: product?.unit || 'pc',
+    category_id: product?.category_id || '',
+    price_retail: product?.price_retail || 0,
+    price_wholesale: product?.price_wholesale || 0,
+    price_credit: product?.price_credit || 0,
+    price_other: product?.price_other || 0,
+    tax_code: product?.tax_code || '',
+    reorder_level: product?.reorder_level || 0,
+    preferred_supplier_id: product?.preferred_supplier_id || '',
+    is_scale_item: product?.is_scale_item || false,
+    is_active: product?.is_active !== undefined ? product.is_active : true
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [showNewSupplier, setShowNewSupplier] = useState(false);
+
+  // Keep form data in sync when editing a different product
+  useEffect(() => {
+    if (product) {
+      setFormData({
+        sku: product.sku || '',
+        barcode: product.barcode || '',
+        name_en: product.name_en || '',
+        name_si: product.name_si || '',
+        name_ta: product.name_ta || '',
+        unit: (product.unit as any) || 'pc',
+        category_id: (product.category_id as any) || '',
+        price_retail: product.price_retail || 0,
+        price_wholesale: product.price_wholesale || 0,
+        price_credit: product.price_credit || 0,
+        price_other: product.price_other || 0,
+        tax_code: product.tax_code || '',
+        reorder_level: (product.reorder_level as any) || 0,
+        preferred_supplier_id: (product.preferred_supplier_id as any) || '',
+        is_scale_item: !!product.is_scale_item,
+        is_active: product.is_active !== undefined ? product.is_active : true
+      });
+    }
+  }, [product]);
   const [newCategoryData, setNewCategoryData] = useState<NewCategoryData>({ name: '' });
   const [newSupplierData, setNewSupplierData] = useState<NewSupplierData>({
     supplier_name: '',
@@ -238,12 +263,14 @@ export function AddProductModal({ categories, suppliers, onClose, onSave }: AddP
 
     setSaving(true);
     try {
-      // Check if SKU already exists
-      const existingProduct = await dataService.getProductBySku(formData.sku);
-      if (existingProduct) {
-        setErrors(prev => ({ ...prev, sku: 'SKU already exists' }));
-        setSaving(false);
-        return;
+      // Check if SKU already exists (only for new products or when SKU is changed)
+      if (!product || product.sku !== formData.sku) {
+        const existingProduct = await dataService.getProductBySku(formData.sku);
+        if (existingProduct) {
+          setErrors(prev => ({ ...prev, sku: 'SKU already exists' }));
+          setSaving(false);
+          return;
+        }
       }
 
       const productData = {
@@ -252,12 +279,19 @@ export function AddProductModal({ categories, suppliers, onClose, onSave }: AddP
         preferred_supplier_id: formData.preferred_supplier_id ? parseInt(formData.preferred_supplier_id) : undefined
       };
       
-      await dataService.createProduct(productData);
-      toast.success('Product created successfully');
+      if (product) {
+        // Update existing product
+        await dataService.updateProduct(product.id, productData);
+        toast.success('Product updated successfully');
+      } else {
+        // Create new product
+        await dataService.createProduct(productData);
+        toast.success('Product created successfully');
+      }
       onSave();
     } catch (error) {
-      console.error('Failed to create product:', error);
-      toast.error(`Failed to create product: ${(error as Error).message}`);
+      console.error(`Failed to ${product ? 'update' : 'create'} product:`, error);
+      toast.error(`Failed to ${product ? 'update' : 'create'} product: ${(error as Error).message}`);
     } finally {
       setSaving(false);
     }
@@ -267,7 +301,9 @@ export function AddProductModal({ categories, suppliers, onClose, onSave }: AddP
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Add New Product</h2>
+          <h2 className="text-xl font-semibold text-gray-900">
+            {product ? 'Edit Product' : 'Add New Product'}
+          </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
@@ -309,7 +345,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave }: AddP
                   type="text"
                   value={formData.sku}
                   onChange={(e) => handleInputChange('sku', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white ${
                     errors.sku ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="e.g., RICE5"
@@ -325,7 +361,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave }: AddP
                   type="text"
                   value={formData.barcode}
                   onChange={(e) => handleInputChange('barcode', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white"
                   placeholder="e.g., 4791234567890"
                 />
               </div>
@@ -338,7 +374,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave }: AddP
                   type="text"
                   value={formData.name_en}
                   onChange={(e) => handleInputChange('name_en', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white ${
                     errors.name_en ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="e.g., Rice 5kg"
@@ -354,7 +390,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave }: AddP
                   type="text"
                   value={formData.name_si}
                   onChange={(e) => handleInputChange('name_si', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white"
                   placeholder="e.g., හාල් 5kg"
                 />
               </div>
@@ -367,7 +403,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave }: AddP
                   type="text"
                   value={formData.name_ta}
                   onChange={(e) => handleInputChange('name_ta', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white"
                   placeholder="e.g., அரிசி 5kg"
                 />
               </div>
@@ -435,7 +471,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave }: AddP
                   min="0"
                   value={formData.price_retail}
                   onChange={(e) => handleInputChange('price_retail', parseFloat(e.target.value) || 0)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white ${
                     errors.price_retail ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="0.00"
@@ -453,7 +489,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave }: AddP
                   min="0"
                   value={formData.price_wholesale}
                   onChange={(e) => handleInputChange('price_wholesale', parseFloat(e.target.value) || 0)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white ${
                     errors.price_wholesale ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="0.00"
@@ -471,7 +507,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave }: AddP
                   min="0"
                   value={formData.price_credit}
                   onChange={(e) => handleInputChange('price_credit', parseFloat(e.target.value) || 0)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white ${
                     errors.price_credit ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="0.00"
@@ -489,7 +525,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave }: AddP
                   min="0"
                   value={formData.price_other}
                   onChange={(e) => handleInputChange('price_other', parseFloat(e.target.value) || 0)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white ${
                     errors.price_other ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="0.00"
@@ -505,7 +541,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave }: AddP
                   type="text"
                   value={formData.tax_code}
                   onChange={(e) => handleInputChange('tax_code', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white"
                   placeholder="e.g., TAX001"
                 />
               </div>
@@ -519,7 +555,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave }: AddP
                   min="0"
                   value={formData.reorder_level}
                   onChange={(e) => handleInputChange('reorder_level', parseInt(e.target.value) || 0)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white ${
                     errors.reorder_level ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="0"
@@ -535,7 +571,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave }: AddP
                   <select
                     value={formData.preferred_supplier_id}
                     onChange={(e) => handleInputChange('preferred_supplier_id', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                   >
                     <option value="">Select Supplier</option>
                     {localSuppliers.map(supplier => (
@@ -598,7 +634,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave }: AddP
               disabled={saving}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {saving ? 'Creating...' : 'Create Product (Ctrl+Enter)'}
+              {saving ? (product ? 'Saving...' : 'Creating...') : (product ? 'Save Changes (Ctrl+Enter)' : 'Create Product (Ctrl+Enter)')}
             </button>
           </div>
         </form>

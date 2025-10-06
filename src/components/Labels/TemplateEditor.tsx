@@ -40,13 +40,25 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
             source: 'retail',
             currency: 'LKR',
             show_label: true
-          }
+          },
+          // New fields for extended functionality
+          languageMode: 'preset',
+          showPackedDate: false,
+          showExpiryDate: false,
+          showMRP: false,
+          showBatch: false,
+          dateFormat: 'YYYY-MM-DD',
+          mrpLabel: 'MRP',
+          batchLabel: 'Batch',
+          packedLabel: 'Packed',
+          expiryLabel: 'Expiry'
         },
         style: {
           font_scale: 1.0,
           bold_name: true,
           align: 'center',
-          show_store_logo: false
+          show_store_logo: false,
+          sectionOrder: ['name', 'barcode', 'price', 'mrp', 'batch', 'dates']
         },
         defaults: {
           qty: 1,
@@ -280,7 +292,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                 </label>
                 <select
                   value={editedPreset.fields.line2 || ''}
-                  onChange={(e) => updateFields({ line2: e.target.value || undefined })}
+                  onChange={(e) => updateFields({ line2: (e.target.value as 'sku' | 'category' | 'custom') || undefined })}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">None</option>
@@ -352,6 +364,161 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                 </label>
               </div>
             )}
+
+            {/* Language Mode */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-gray-900">Language Settings</h4>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Language Mode
+                </label>
+                <select
+                  value={editedPreset.fields.languageMode || 'preset'}
+                  onChange={(e) => updateFields({ languageMode: e.target.value as 'preset' | 'per_item' })}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="preset">Use preset default language</option>
+                  <option value="per_item">Allow per-item language selection</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Per-item mode allows each label to have its own language setting
+                </p>
+              </div>
+            </div>
+
+            {/* Additional Fields */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-gray-900">Additional Fields</h4>
+              
+              {/* Date Fields */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={editedPreset.fields.showPackedDate || false}
+                    onChange={(e) => updateFields({ showPackedDate: e.target.checked })}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label className="ml-2 text-sm text-gray-700">
+                    Show Packed Date
+                  </label>
+                </div>
+                
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={editedPreset.fields.showExpiryDate || false}
+                    onChange={(e) => updateFields({ showExpiryDate: e.target.checked })}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label className="ml-2 text-sm text-gray-700">
+                    Show Expiry Date
+                  </label>
+                </div>
+              </div>
+
+              {/* MRP and Batch */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={editedPreset.fields.showMRP || false}
+                    onChange={(e) => updateFields({ showMRP: e.target.checked })}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label className="ml-2 text-sm text-gray-700">
+                    Show MRP
+                  </label>
+                </div>
+                
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={editedPreset.fields.showBatch || false}
+                    onChange={(e) => updateFields({ showBatch: e.target.checked })}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label className="ml-2 text-sm text-gray-700">
+                    Show Batch Number
+                  </label>
+                </div>
+              </div>
+
+              {/* Date Format */}
+              {(editedPreset.fields.showPackedDate || editedPreset.fields.showExpiryDate) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Date Format
+                  </label>
+                  <select
+                    value={editedPreset.fields.dateFormat || 'YYYY-MM-DD'}
+                    onChange={(e) => updateFields({ dateFormat: e.target.value as any })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="YYYY-MM-DD">YYYY-MM-DD (2024-03-15)</option>
+                    <option value="DD/MM/YYYY">DD/MM/YYYY (15/03/2024)</option>
+                    <option value="MM/DD/YYYY">MM/DD/YYYY (03/15/2024)</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Field Labels */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    MRP Label
+                  </label>
+                  <input
+                    type="text"
+                    value={editedPreset.fields.mrpLabel || 'MRP'}
+                    onChange={(e) => updateFields({ mrpLabel: e.target.value })}
+                    placeholder="MRP"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Batch Label
+                  </label>
+                  <input
+                    type="text"
+                    value={editedPreset.fields.batchLabel || 'Batch'}
+                    onChange={(e) => updateFields({ batchLabel: e.target.value })}
+                    placeholder="Batch"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Packed Label
+                  </label>
+                  <input
+                    type="text"
+                    value={editedPreset.fields.packedLabel || 'Packed'}
+                    onChange={(e) => updateFields({ packedLabel: e.target.value })}
+                    placeholder="Packed"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Expiry Label
+                  </label>
+                  <input
+                    type="text"
+                    value={editedPreset.fields.expiryLabel || 'Expiry'}
+                    onChange={(e) => updateFields({ expiryLabel: e.target.value })}
+                    placeholder="Expiry"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Style Settings */}

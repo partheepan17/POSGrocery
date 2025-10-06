@@ -14,3 +14,8 @@ CREATE INDEX IF NOT EXISTS idx_terminals_is_server ON terminals(is_server);
 
 
 
+
+
+
+
+

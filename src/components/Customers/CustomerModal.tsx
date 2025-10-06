@@ -132,7 +132,7 @@ export function CustomerModal({ customer, onClose, onSave }: CustomerModalProps)
               type="text"
               value={formData.customer_name}
               onChange={(e) => handleInputChange('customer_name', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500 ${
                 errors.customer_name ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="Enter customer name"
@@ -152,7 +152,7 @@ export function CustomerModal({ customer, onClose, onSave }: CustomerModalProps)
               type="tel"
               value={formData.phone}
               onChange={(e) => handleInputChange('phone', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500"
               placeholder="Enter phone number"
             />
           </div>
@@ -165,7 +165,7 @@ export function CustomerModal({ customer, onClose, onSave }: CustomerModalProps)
             <select
               value={formData.customer_type}
               onChange={(e) => handleInputChange('customer_type', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
             >
               <option value="Retail">Retail</option>
               <option value="Wholesale">Wholesale</option>
@@ -186,7 +186,7 @@ export function CustomerModal({ customer, onClose, onSave }: CustomerModalProps)
               value={formData.note}
               onChange={(e) => handleInputChange('note', e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500"
               placeholder="Enter any additional notes about the customer"
             />
           </div>
@@ -230,6 +230,11 @@ export function CustomerModal({ customer, onClose, onSave }: CustomerModalProps)
     </div>
   );
 }
+
+
+
+
+
 
 
 

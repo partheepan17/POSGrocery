@@ -18,3 +18,8 @@ CREATE INDEX IF NOT EXISTS idx_sale_lines_sale_product ON sale_lines(sale_id, pr
 
 
 
+
+
+
+
+

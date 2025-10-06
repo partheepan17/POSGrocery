@@ -28,3 +28,8 @@ const StocktakeSession: React.FC = () => {
 export default StocktakeSession;
 
 
+
+
+
+
+

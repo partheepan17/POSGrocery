@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Search, Download, Upload, RefreshCw, Edit3, Copy, Eye, EyeOff } from 'lucide-react';
+import { Plus, Search, Download, Upload, RefreshCw, Edit3, Copy, Eye, EyeOff, Trash2, Printer } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { dataService, Product, Category, Supplier } from '@/services/dataService';
 import { csvService } from '@/services/csvService';
 import { AddProductModal } from '@/components/Products/AddProductModal';
 import { CSVImportModal } from '@/components/Products/CSVImportModal';
+import { labelPrintAdapter } from '@/services/print/LabelPrintAdapter';
+import { labelService } from '@/services/labelService';
 
 interface ProductWithRelations extends Product {
   category?: Category;
@@ -41,6 +43,8 @@ export function Products() {
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [printingBarcode, setPrintingBarcode] = useState<number | null>(null);
 
   // Refs
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -159,6 +163,133 @@ export function Products() {
     setShowImportModal(false); // Close the modal
   };
 
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+  };
+
+  const handleDuplicateProduct = async (product: Product) => {
+    try {
+      const duplicatedProduct = {
+        ...product,
+        id: Date.now(), // New ID
+        sku: `${product.sku}-COPY-${Date.now()}`,
+        barcode: product.barcode ? `${product.barcode}-${Date.now()}` : undefined,
+        name_en: `${product.name_en} (Copy)`,
+        name_si: product.name_si ? `${product.name_si} (පිටපත)` : undefined,
+        name_ta: product.name_ta ? `${product.name_ta} (நகல்)` : undefined,
+        created_at: new Date(),
+        updated_at: new Date()
+      };
+
+      await dataService.createProduct(duplicatedProduct);
+      toast.success('Product duplicated successfully');
+      loadData(); // Refresh the data
+    } catch (error) {
+      console.error('Failed to duplicate product:', error);
+      toast.error('Failed to duplicate product');
+    }
+  };
+
+  const handleToggleActive = async (product: Product) => {
+    try {
+      const updatedProduct = {
+        ...product,
+        is_active: !product.is_active,
+        updated_at: new Date()
+      };
+
+      await dataService.updateProduct(product.id, updatedProduct);
+      toast.success(`Product ${updatedProduct.is_active ? 'activated' : 'deactivated'} successfully`);
+      loadData(); // Refresh the data
+    } catch (error) {
+      console.error('Failed to toggle product status:', error);
+      toast.error('Failed to update product status');
+    }
+  };
+
+  const handleDeleteProduct = async (product: Product) => {
+    const confirmDelete = window.confirm(`Delete product "${product.name_en}"? This cannot be undone.`);
+    if (!confirmDelete) return;
+
+    try {
+      await dataService.deleteProduct(product.id);
+      toast.success('Product deleted');
+      loadData();
+    } catch (error) {
+      console.error('Failed to delete product:', error);
+      toast.error('Failed to delete product');
+    }
+  };
+
+  const handleEditSaved = () => {
+    setEditingProduct(null);
+    loadData(); // Refresh the data
+  };
+
+  const handlePrintBarcode = async (product: Product) => {
+    if (!product.barcode && !product.sku) {
+      toast.error('No barcode or SKU available for this product');
+      return;
+    }
+
+    setPrintingBarcode(product.id);
+    try {
+      // Get default product label preset
+      const productPreset = labelService.getPreset
+        ? await labelService.getPreset('product')
+        : (await labelService.getPreset('default')) || null;
+      
+      if (!productPreset) {
+        toast.error('No label presets available');
+        return;
+      }
+
+      // Get category name
+      const category = categories.find(c => c.id === product.category_id);
+      const categoryName = category?.name || 'General';
+
+      // Create label item
+      const labelItem = {
+        id: product.id,
+        name_en: product.name_en,
+        name_si: product.name_si || product.name_en,
+        name_ta: product.name_ta || product.name_en,
+        sku: product.sku,
+        barcode: product.barcode || product.sku,
+        price_retail: product.price_retail,
+        price_wholesale: product.price_wholesale,
+        price_credit: product.price_credit,
+        price_other: product.price_other,
+        unit: product.unit,
+        category_name: categoryName,
+        packedDate: new Date().toISOString().split('T')[0],
+        expiryDate: null,
+        language: 'EN' as const
+      };
+
+      // Create batch with single item
+      const batch: any = {
+        preset: productPreset,
+        items: [{ ...labelItem, id: String(product.id), qty: 1, price_tier: 'retail' }],
+        qty: 1
+      };
+
+      // Print the label
+      if (productPreset.paper === 'THERMAL') {
+        await labelPrintAdapter.printThermal(batch);
+      } else {
+        await labelPrintAdapter.printA4(batch);
+      }
+
+      toast.success(`Barcode label printed for ${product.name_en}`);
+    } catch (error) {
+      console.error('Failed to print barcode:', error);
+      toast.error('Failed to print barcode label');
+    } finally {
+      setPrintingBarcode(null);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* Header */}
@@ -236,7 +367,7 @@ export function Products() {
               placeholder="Search SKU, barcode, name... (/)"
               value={filters.search}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white"
             />
           </div>
 
@@ -244,7 +375,7 @@ export function Products() {
           <select
             value={filters.category_id}
             onChange={(e) => handleFilterChange('category_id', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
           >
             <option value="">All Categories</option>
             {categories.map(category => (
@@ -269,7 +400,7 @@ export function Products() {
           <select
             value={filters.active_filter}
             onChange={(e) => handleFilterChange('active_filter', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
           >
             <option value="all">All Status</option>
             <option value="active">Active Only</option>
@@ -370,25 +501,44 @@ export function Products() {
                       <td className="px-4 py-3 text-sm text-gray-900">
                         <div className="flex items-center space-x-2">
                           <button
-                            onClick={() => {/* TODO: Implement edit */}}
-                            className="text-blue-600 hover:text-blue-900"
+                            onClick={() => handleEditProduct(product)}
+                            className="text-blue-600 hover:text-blue-900 transition-colors"
                             title="Edit"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => {/* TODO: Implement duplicate */}}
-                            className="text-green-600 hover:text-green-900"
+                            onClick={() => handleDuplicateProduct(product)}
+                            className="text-green-600 hover:text-green-900 transition-colors"
                             title="Duplicate"
                           >
                             <Copy className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => {/* TODO: Implement toggle active */}}
-                            className={`${product.is_active ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}`}
+                            onClick={() => handleToggleActive(product)}
+                            className={`${product.is_active ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'} transition-colors`}
                             title={product.is_active ? 'Deactivate' : 'Activate'}
                           >
                             {product.is_active ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                          <button
+                            onClick={() => handlePrintBarcode(product)}
+                            disabled={printingBarcode === product.id || (!product.barcode && !product.sku)}
+                            className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            title="Print Barcode"
+                          >
+                            {printingBarcode === product.id ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                            ) : (
+                              <Printer className="w-4 h-4" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteProduct(product)}
+                            className="text-gray-500 hover:text-red-700 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -408,6 +558,16 @@ export function Products() {
           suppliers={suppliers}
           onClose={() => setShowAddModal(false)}
           onSave={handleProductSaved}
+        />
+      )}
+
+      {editingProduct && (
+        <AddProductModal
+          categories={categories}
+          suppliers={suppliers}
+          product={editingProduct}
+          onClose={() => setEditingProduct(null)}
+          onSave={handleEditSaved}
         />
       )}
 

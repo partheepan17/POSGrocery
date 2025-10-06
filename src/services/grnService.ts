@@ -1,571 +1,537 @@
-/**
- * GRN (Goods Received Note) Service
- * Manages supplier deliveries, receiving, and inventory updates
- */
+import { database } from './database';
+import { 
+  GRN, 
+  GRNLine, 
+  GRNWithDetails, 
+  GRNStatus, 
+  GRNLabelItem,
+  Product,
+  Supplier
+} from '../types';
 
-import { dataService } from './dataService';
-import { authService } from './authService';
-
-export interface GrnHeader {
-  id: number;
-  supplier_id: number;
-  supplier_name?: string;
-  ref_no: string;
-  note?: string;
-  status: 'DRAFT' | 'POSTED';
-  grn_date: string;
-  posted_at?: string;
-  by_user: number;
-  approval_user?: number;
-  by_user_name?: string;
-  approval_user_name?: string;
-  created_at: string;
-  updated_at: string;
-  line_count?: number;
-  total_qty?: number;
-  total_cost?: number;
-}
-
-export interface GrnLine {
-  id: number;
-  grn_id: number;
-  product_id: number;
-  product_sku: string;
-  product_barcode?: string;
-  product_name: string;
-  product_unit: string;
-  qty: number;
-  cost: number;
-  line_total: number;
-  created_at: string;
-}
-
-export interface GrnFilters {
-  dateFrom?: string;
-  dateTo?: string;
-  status?: 'DRAFT' | 'POSTED' | 'ALL';
-  supplierId?: number;
-  search?: string;
-}
-
-export interface GrnCreateInput {
-  supplierId: number;
-  refNo: string;
-  note?: string;
-  date: string;
-}
-
-export interface GrnLineInput {
-  productId: number;
-  qty: number;
-  cost: number;
-}
-
-export interface BulkGrnLineInput {
-  barcode?: string;
-  sku?: string;
-  qty: number;
-  cost: number;
-}
-
-export interface PostGrnOptions {
-  approvalPin?: string;
-  updateProductCost?: boolean;
-}
-
-class GrnService {
+export class GRNService {
   /**
-   * Create new GRN
+   * Generate next GRN number
    */
-  async createGrn(input: GrnCreateInput): Promise<GrnHeader> {
+  async getNextGRNNo(): Promise<string> {
     try {
-      const currentUser = authService.getCurrentUser();
-      if (!currentUser) {
-        throw new Error('User not authenticated');
-      }
-
-      // Validate supplier exists
-      const suppliers = await dataService.query(
-        'SELECT * FROM suppliers WHERE id = ? AND active = true',
-        [input.supplierId]
-      );
-
-      if (suppliers.length === 0) {
-        throw new Error('Supplier not found or inactive');
-      }
-
-      const result = await dataService.execute(
-        `INSERT INTO grn_headers (
-          supplier_id, ref_no, note, grn_date, by_user, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
-          input.supplierId,
-          input.refNo,
-          input.note || null,
-          input.date,
-          currentUser.id,
-          new Date().toISOString(),
-          new Date().toISOString()
-        ]
-      );
-
-      const grnId = result.lastInsertRowid;
-      const grn = await this.getGrn(grnId);
+      const db = await database;
       
-      if (!grn) {
-        throw new Error('Failed to retrieve created GRN');
+      // Get the last GRN number or ID
+      const lastGRN = await db.query(`
+        SELECT grn_no, id FROM grn 
+        ORDER BY id DESC 
+        LIMIT 1
+      `);
+      
+      let nextNumber = 1;
+      const currentYear = new Date().getFullYear();
+      const prefix = `GRN-${currentYear}-`;
+      
+      if (lastGRN && lastGRN.length > 0) {
+        const grn = lastGRN[0];
+        if (grn.grn_no) {
+          // Extract number from existing GRN number
+          const match = grn.grn_no.match(new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\d+)$`));
+          if (match) {
+            nextNumber = parseInt(match[1]) + 1;
+          }
+        } else if (grn.id) {
+          // Fallback to ID-based numbering
+          nextNumber = grn.id + 1;
+        }
       }
-
-      console.log(`GRN created: ${input.refNo} (ID: ${grnId})`);
-      return grn;
-
+      
+      return `${prefix}${nextNumber.toString().padStart(6, '0')}`;
     } catch (error) {
-      console.error('Failed to create GRN:', error);
-      throw error;
+      console.error('Error generating GRN number:', error);
+      throw new Error('Failed to generate GRN number');
     }
   }
 
   /**
-   * Get GRN by ID with lines
+   * Create a new GRN
    */
-  async getGrn(grnId: number): Promise<GrnHeader | null> {
+  async createGRN(header: Omit<GRN, 'id' | 'subtotal' | 'tax' | 'other' | 'total' | 'status' | 'grn_no'> & { note?: string }): Promise<number> {
     try {
-      const grns = await dataService.query<any>(
-        `SELECT 
-          g.*,
-          s.supplier_name,
-          u1.name as by_user_name,
-          u2.name as approval_user_name,
-          COUNT(l.id) as line_count,
-          SUM(l.qty) as total_qty,
-          SUM(l.line_total) as total_cost
-        FROM grn_headers g
-        LEFT JOIN suppliers s ON g.supplier_id = s.id
-        LEFT JOIN users u1 ON g.by_user = u1.id
-        LEFT JOIN users u2 ON g.approval_user = u2.id
-        LEFT JOIN grn_lines l ON g.id = l.grn_id
-        WHERE g.id = ?
-        GROUP BY g.id`,
-        [grnId]
-      );
-
-      return grns[0] || null;
-
+      const db = await database;
+      
+      const grnNo = await this.getNextGRNNo();
+      
+      const result = await db.execute(`
+        INSERT INTO grn (supplier_id, grn_no, received_by, note, status, subtotal, tax, other, total)
+        VALUES (?, ?, ?, ?, 'OPEN', 0, 0, 0, 0)
+      `, [
+        header.supplier_id,
+        grnNo,
+        header.received_by || null,
+        header.note || null
+      ]);
+      
+      return result.lastID;
     } catch (error) {
-      console.error('Failed to get GRN:', error);
-      throw error;
+      console.error('Error creating GRN:', error);
+      throw new Error('Failed to create GRN');
     }
   }
 
   /**
-   * Get GRN lines
+   * Upsert GRN line (insert or update)
    */
-  async getGrnLines(grnId: number): Promise<GrnLine[]> {
+  async upsertGRNLine(line: Omit<GRNLine, 'id' | 'line_total'>): Promise<{ lineId: number }> {
     try {
-      return await dataService.query<GrnLine>(
-        `SELECT 
-          l.*,
-          p.sku as product_sku,
-          p.barcode as product_barcode,
-          p.name_en as product_name,
-          p.unit as product_unit
-        FROM grn_lines l
-        JOIN products p ON l.product_id = p.id
-        WHERE l.grn_id = ?
-        ORDER BY l.created_at`,
-        [grnId]
-      );
-
-    } catch (error) {
-      console.error('Failed to get GRN lines:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Add line to GRN
-   */
-  async addGrnLine(grnId: number, input: GrnLineInput): Promise<void> {
-    try {
-      // Check if GRN exists and is not posted
-      const grn = await this.getGrn(grnId);
-      if (!grn) {
-        throw new Error('GRN not found');
-      }
-      if (grn.status === 'POSTED') {
-        throw new Error('Cannot modify posted GRN');
-      }
-
-      // Validate input
-      if (input.qty <= 0) {
-        throw new Error('Quantity must be greater than 0');
-      }
-      if (input.cost < 0) {
-        throw new Error('Cost cannot be negative');
-      }
-
-      const lineTotal = input.qty * input.cost;
-
-      await dataService.execute(
-        `INSERT INTO grn_lines (grn_id, product_id, qty, cost, line_total, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [grnId, input.productId, input.qty, input.cost, lineTotal, new Date().toISOString()]
-      );
-
-      // Update GRN timestamp
-      await dataService.execute(
-        'UPDATE grn_headers SET updated_at = ? WHERE id = ?',
-        [new Date().toISOString(), grnId]
-      );
-
-    } catch (error) {
-      console.error('Failed to add GRN line:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Import GRN lines from CSV
-   */
-  async importGrnLines(grnId: number, rows: BulkGrnLineInput[]): Promise<{
-    success: number;
-    errors: Array<{ row: number; error: string; data: BulkGrnLineInput }>;
-  }> {
-    try {
-      const grn = await this.getGrn(grnId);
-      if (!grn) {
-        throw new Error('GRN not found');
-      }
-      if (grn.status === 'POSTED') {
-        throw new Error('Cannot modify posted GRN');
-      }
-
-      const results = { success: 0, errors: [] as any[] };
-
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
+      const db = await database;
+      
+      const lineTotal = line.qty * line.unit_cost;
+      
+      if ((line as any).id) {
+        // Update existing line
+        await db.execute(`
+          UPDATE grn_lines 
+          SET product_id = ?, qty = ?, unit_cost = ?, mrp = ?, batch_no = ?, expiry_date = ?, line_total = ?
+          WHERE id = ?
+        `, [
+          line.product_id,
+          line.qty,
+          line.unit_cost,
+          line.mrp || null,
+          line.batch_no || null,
+          line.expiry_date || null,
+          lineTotal,
+          (line as any).id
+        ]);
         
-        try {
-          // Find product by barcode or SKU
-          let products: any[] = [];
-          
-          if (row.barcode) {
-            products = await dataService.query(
-              'SELECT * FROM products WHERE barcode = ? AND active = true',
-              [row.barcode]
-            );
-          }
-          
-          if (products.length === 0 && row.sku) {
-            products = await dataService.query(
-              'SELECT * FROM products WHERE sku = ? AND active = true',
-              [row.sku]
-            );
-          }
-
-          if (products.length === 0) {
-            results.errors.push({
-              row: i + 1,
-              error: `Product not found: ${row.barcode || row.sku}`,
-              data: row
-            });
-            continue;
-          }
-
-          const product = products[0];
-          
-          // Validate input
-          if (isNaN(row.qty) || row.qty <= 0) {
-            results.errors.push({
-              row: i + 1,
-              error: 'Invalid quantity (must be > 0)',
-              data: row
-            });
-            continue;
-          }
-
-          if (isNaN(row.cost) || row.cost < 0) {
-            results.errors.push({
-              row: i + 1,
-              error: 'Invalid cost (cannot be negative)',
-              data: row
-            });
-            continue;
-          }
-
-          // Add GRN line
-          await this.addGrnLine(grnId, {
-            productId: product.id,
-            qty: row.qty,
-            cost: row.cost
-          });
-
-          results.success++;
-
-        } catch (error) {
-          results.errors.push({
-            row: i + 1,
-            error: error instanceof Error ? error.message : 'Unknown error',
-            data: row
-          });
-        }
+        return { lineId: (line as any).id };
+      } else {
+        // Insert new line
+        const result = await db.execute(`
+          INSERT INTO grn_lines (grn_id, product_id, qty, unit_cost, mrp, batch_no, expiry_date, line_total)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          line.grn_id,
+          line.product_id,
+          line.qty,
+          line.unit_cost,
+          line.mrp || null,
+          line.batch_no || null,
+          line.expiry_date || null,
+          lineTotal
+        ]);
+        
+        return { lineId: result.lastID };
       }
-
-      return results;
-
     } catch (error) {
-      console.error('Failed to import GRN lines:', error);
-      throw error;
+      console.error('Error upserting GRN line:', error);
+      throw new Error('Failed to save GRN line');
     }
   }
 
   /**
-   * Post GRN (finalize and create inventory movements)
+   * Get GRN with details
    */
-  async postGrn(grnId: number, options: PostGrnOptions = {}): Promise<void> {
+  async getGRN(id: number): Promise<{ header: GRN; lines: (GRNLine & { product: Product })[]; supplier: Supplier }> {
     try {
-      const currentUser = authService.getCurrentUser();
-      if (!currentUser) {
-        throw new Error('User not authenticated');
-      }
-
-      const grn = await this.getGrn(grnId);
-      if (!grn) {
+      const db = await database;
+      
+      // Get GRN header
+      const header = await db.query(`
+        SELECT * FROM grn WHERE id = ?
+      `, [id]);
+      
+      if (!header || header.length === 0) {
         throw new Error('GRN not found');
       }
-      if (grn.status === 'POSTED') {
-        throw new Error('GRN already posted');
+      
+      const grnHeader = header[0];
+      
+      // Get supplier details
+      const supplier = await db.query(`
+        SELECT * FROM suppliers WHERE id = ?
+      `, [grnHeader.supplier_id]);
+      
+      if (!supplier || supplier.length === 0) {
+        throw new Error('Supplier not found');
       }
-
-      // Get GRN lines
-      const lines = await this.getGrnLines(grnId);
-      if (lines.length === 0) {
-        throw new Error('Cannot post GRN with no lines');
-      }
-
-      // Verify manager PIN if provided
-      if (options.approvalPin) {
-        const verification = await authService.verifyPin(options.approvalPin, 'MANAGER');
-        if (!verification.success) {
-          throw new Error('Invalid manager PIN');
-        }
-      }
-
-      // Create inventory movements for each line
-      for (const line of lines) {
-        await dataService.execute(
-          `INSERT INTO inventory_movements (
-            product_id, movement_type, quantity_change, unit_cost,
-            reference_type, reference_id, notes, created_at, created_by
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            line.product_id,
-            'RECEIVE',
-            line.qty,
-            line.cost,
-            'GRN',
-            grnId,
-            `GRN ${grn.ref_no} - Received from ${grn.supplier_name}`,
-            new Date().toISOString(),
-            currentUser.id
-          ]
-        );
-
-        // Update product cost if enabled
-        if (options.updateProductCost) {
-          const stockSettings = this.getStockSettings();
-          
-          if (stockSettings.costUpdateOnGRN === 'always') {
-            await dataService.execute(
-              'UPDATE products SET cost_price = ?, updated_at = ? WHERE id = ?',
-              [line.cost, new Date().toISOString(), line.product_id]
-            );
-          } else if (stockSettings.costUpdateOnGRN === 'if-empty') {
-            await dataService.execute(
-              `UPDATE products 
-               SET cost_price = ?, updated_at = ? 
-               WHERE id = ? AND (cost_price IS NULL OR cost_price = 0)`,
-              [line.cost, new Date().toISOString(), line.product_id]
-            );
+      
+      // Get GRN lines with product details
+      const lines = await db.query(`
+        SELECT 
+          gl.*,
+          p.sku, p.name_en, p.name_si, p.name_ta, p.barcode, p.unit, p.cost,
+          p.price_retail, p.price_wholesale, p.price_credit, p.price_other
+        FROM grn_lines gl
+        JOIN products p ON gl.product_id = p.id
+        WHERE gl.grn_id = ?
+        ORDER BY gl.id
+      `, [id]);
+      
+      return {
+        header: grnHeader,
+        lines: lines.map((line: any) => ({
+          ...line,
+          product: {
+            id: line.product_id.toString(),
+            sku: line.sku,
+            name: line.name_en,
+            nameSinhala: line.name_si,
+            nameTamil: line.name_ta,
+            barcode: line.barcode,
+            category: '', // Not needed for GRN
+            price: line.price_retail,
+            cost: line.cost,
+            stock: 0, // Not needed for GRN
+            minStock: 0,
+            maxStock: 0,
+            unit: line.unit,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
           }
+        })),
+        supplier: {
+          id: supplier[0].id.toString(),
+          supplier_name: supplier[0].supplier_name,
+          contactPerson: supplier[0].contact_person || undefined,
+          contact_phone: supplier[0].contact_phone || undefined,
+          contact_email: supplier[0].contact_email || undefined,
+          address: supplier[0].address || undefined,
+          city: supplier[0].city || undefined,
+          tax_id: supplier[0].tax_id || undefined,
+          active: supplier[0].active || true,
+          created_at: new Date(supplier[0].created_at),
+          // Legacy fields for compatibility
+          name: supplier[0].supplier_name,
+          phone: supplier[0].contact_phone || undefined,
+          email: supplier[0].contact_email || undefined,
+          isActive: supplier[0].active || true,
+          createdAt: new Date(supplier[0].created_at),
+          updatedAt: new Date(supplier[0].updated_at || supplier[0].created_at)
         }
-      }
-
-      // Mark GRN as posted
-      await dataService.execute(
-        `UPDATE grn_headers 
-         SET status = 'POSTED', posted_at = ?, approval_user = ?, updated_at = ?
-         WHERE id = ?`,
-        [new Date().toISOString(), currentUser.id, new Date().toISOString(), grnId]
-      );
-
-      console.log(`GRN ${grnId} posted with ${lines.length} lines`);
-
+      };
     } catch (error) {
-      console.error('Failed to post GRN:', error);
-      throw error;
+      console.error('Error getting GRN:', error);
+      throw new Error('Failed to get GRN details');
     }
   }
 
   /**
    * List GRNs with filters
    */
-  async listGrn(filters: GrnFilters = {}): Promise<GrnHeader[]> {
+  async listGRN(params: {
+    q?: string;
+    supplier_id?: number;
+    status?: GRNStatus;
+    date_from?: string;
+    date_to?: string;
+    limit?: number;
+  }): Promise<GRN[]> {
     try {
-      let query = `
+      const db = await database;
+      
+      let whereClause = 'WHERE 1=1';
+      const queryParams: any[] = [];
+      
+      if (params.q) {
+        whereClause += ' AND (grn_no LIKE ? OR s.supplier_name LIKE ?)';
+        const searchTerm = `%${params.q}%`;
+        queryParams.push(searchTerm, searchTerm);
+      }
+      
+      if (params.supplier_id) {
+        whereClause += ' AND g.supplier_id = ?';
+        queryParams.push(params.supplier_id);
+      }
+      
+      if (params.status) {
+        whereClause += ' AND g.status = ?';
+        queryParams.push(params.status);
+      }
+      
+      if (params.date_from) {
+        whereClause += ' AND DATE(g.datetime) >= ?';
+        queryParams.push(params.date_from);
+      }
+      
+      if (params.date_to) {
+        whereClause += ' AND DATE(g.datetime) <= ?';
+        queryParams.push(params.date_to);
+      }
+      
+      const limitClause = params.limit ? `LIMIT ${params.limit}` : '';
+      
+      const query = `
         SELECT 
           g.*,
           s.supplier_name,
-          u1.name as by_user_name,
-          u2.name as approval_user_name,
-          COUNT(l.id) as line_count,
-          SUM(l.qty) as total_qty,
-          SUM(l.line_total) as total_cost
-        FROM grn_headers g
+          COUNT(gl.id) as line_count
+        FROM grn g
         LEFT JOIN suppliers s ON g.supplier_id = s.id
-        LEFT JOIN users u1 ON g.by_user = u1.id
-        LEFT JOIN users u2 ON g.approval_user = u2.id
-        LEFT JOIN grn_lines l ON g.id = l.grn_id
-        WHERE 1=1
+        LEFT JOIN grn_lines gl ON g.id = gl.grn_id
+        ${whereClause}
+        GROUP BY g.id
+        ORDER BY g.datetime DESC
+        ${limitClause}
       `;
-
-      const params: any[] = [];
-
-      if (filters.dateFrom) {
-        query += ' AND DATE(g.grn_date) >= ?';
-        params.push(filters.dateFrom);
-      }
-
-      if (filters.dateTo) {
-        query += ' AND DATE(g.grn_date) <= ?';
-        params.push(filters.dateTo);
-      }
-
-      if (filters.status && filters.status !== 'ALL') {
-        query += ' AND g.status = ?';
-        params.push(filters.status);
-      }
-
-      if (filters.supplierId) {
-        query += ' AND g.supplier_id = ?';
-        params.push(filters.supplierId);
-      }
-
-      if (filters.search) {
-        query += ' AND (g.ref_no LIKE ? OR g.note LIKE ? OR s.supplier_name LIKE ?)';
-        const searchTerm = `%${filters.search}%`;
-        params.push(searchTerm, searchTerm, searchTerm);
-      }
-
-      query += ' GROUP BY g.id ORDER BY g.created_at DESC';
-
-      return await dataService.query<GrnHeader>(query, params);
-
-    } catch (error) {
-      console.error('Failed to list GRNs:', error);
-      throw error;
+      
+      return await db.query(query, queryParams);
+        } catch (error) {
+      console.error('Error listing GRNs:', error);
+      throw new Error('Failed to list GRNs');
     }
   }
 
   /**
-   * Delete GRN (only if DRAFT)
+   * Delete GRN line
    */
-  async deleteGrn(grnId: number): Promise<void> {
+  async deleteGRNLine(lineId: number): Promise<void> {
     try {
-      const grn = await this.getGrn(grnId);
-      if (!grn) {
+      const db = await database;
+      
+      await db.execute('DELETE FROM grn_lines WHERE id = ?', [lineId]);
+    } catch (error) {
+      console.error('Error deleting GRN line:', error);
+      throw new Error('Failed to delete GRN line');
+    }
+  }
+
+  /**
+   * Update GRN header
+   */
+  async updateGRNHeader(partial: Partial<GRN> & { id: number }): Promise<void> {
+    try {
+      const db = await database;
+      
+      const updates: string[] = [];
+      const values: any[] = [];
+      
+      if (partial.supplier_id !== undefined) {
+        updates.push('supplier_id = ?');
+        values.push(partial.supplier_id);
+      }
+      
+      if (partial.note !== undefined) {
+        updates.push('note = ?');
+        values.push(partial.note);
+      }
+      
+      if (partial.received_by !== undefined) {
+        updates.push('received_by = ?');
+        values.push(partial.received_by);
+      }
+      
+      if (partial.subtotal !== undefined) {
+        updates.push('subtotal = ?');
+        values.push(partial.subtotal);
+      }
+      
+      if (partial.tax !== undefined) {
+        updates.push('tax = ?');
+        values.push(partial.tax);
+      }
+      
+      if (partial.other !== undefined) {
+        updates.push('other = ?');
+        values.push(partial.other);
+      }
+      
+      if (partial.total !== undefined) {
+        updates.push('total = ?');
+        values.push(partial.total);
+      }
+      
+      if (updates.length === 0) {
+        return; // No updates to perform
+      }
+      
+      values.push(partial.id);
+      
+      await db.execute(`
+        UPDATE grn 
+        SET ${updates.join(', ')}
+        WHERE id = ?
+      `, values);
+    } catch (error) {
+      console.error('Error updating GRN header:', error);
+      throw new Error('Failed to update GRN header');
+    }
+  }
+
+  /**
+   * Post GRN (finalize and update inventory)
+   */
+  async postGRN(id: number, opts?: { updateCostPolicy?: 'none' | 'average' | 'latest' }): Promise<void> {
+    const db = await database;
+    
+    try {
+      await db.execute('BEGIN TRANSACTION');
+      
+      // Get GRN details
+      const grnData = await this.getGRN(id);
+      
+      if (grnData.header.status !== 'OPEN') {
+        throw new Error('Only OPEN GRNs can be posted');
+      }
+      
+      // Calculate totals
+      const subtotal = grnData.lines.reduce((sum, line) => sum + line.line_total, 0);
+      const tax = 0; // TODO: Calculate tax based on settings
+      const other = 0; // TODO: Add other charges if needed
+      const total = subtotal + tax + other;
+      
+      // Update GRN header with totals
+      await this.updateGRNHeader({
+        id,
+        subtotal,
+        tax,
+        other,
+        total,
+        status: 'POSTED'
+      });
+      
+      // Process each line
+      for (const line of grnData.lines) {
+        // Insert inventory movement
+        await db.execute(`
+          INSERT INTO inventory_movements (product_id, qty, type, reason, note)
+          VALUES (?, ?, 'RECEIVE', 'GRN', ?)
+        `, [line.product_id, line.qty, grnData.header.grn_no]);
+        
+        // Update product stock
+        await db.execute(`
+          UPDATE products 
+          SET stock = stock + ?
+          WHERE id = ?
+        `, [line.qty, line.product_id]);
+        
+        // Update product cost based on policy
+        const updateCostPolicy = opts?.updateCostPolicy || 'latest';
+        if (updateCostPolicy === 'latest') {
+          await db.execute(`
+            UPDATE products 
+            SET cost = ?
+            WHERE id = ?
+          `, [line.unit_cost, line.product_id]);
+        } else if (updateCostPolicy === 'average') {
+          // Simple average: (current_cost + new_cost) / 2
+          await db.execute(`
+            UPDATE products 
+            SET cost = (cost + ?) / 2
+            WHERE id = ?
+          `, [line.unit_cost, line.product_id]);
+        }
+        // 'none' policy: do nothing
+      }
+      
+      await db.execute('COMMIT');
+    } catch (error) {
+      await db.execute('ROLLBACK');
+      console.error('Error posting GRN:', error);
+      throw new Error('Failed to post GRN');
+    }
+  }
+
+  /**
+   * Void GRN (only if OPEN)
+   */
+  async voidGRN(id: number, reason?: string): Promise<void> {
+    try {
+      const db = await database;
+      
+      // Check if GRN is OPEN
+      const grn = await db.query('SELECT status FROM grn WHERE id = ?', [id]);
+      if (!grn || grn.length === 0) {
         throw new Error('GRN not found');
       }
-      if (grn.status === 'POSTED') {
-        throw new Error('Cannot delete posted GRN');
+      
+      if (grn[0].status !== 'OPEN') {
+        throw new Error('Only OPEN GRNs can be voided');
       }
-
-      // Delete lines first
-      await dataService.execute(
-        'DELETE FROM grn_lines WHERE grn_id = ?',
-        [grnId]
-      );
-
-      // Delete GRN
-      await dataService.execute(
-        'DELETE FROM grn_headers WHERE id = ?',
-        [grnId]
-      );
-
-      console.log(`GRN ${grnId} deleted`);
-
+      
+      // Update status to VOID
+      await db.execute(`
+        UPDATE grn 
+        SET status = 'VOID', note = COALESCE(note || ' | ', '') || ?
+        WHERE id = ?
+      `, [`VOIDED: ${reason || 'No reason provided'}`, id]);
     } catch (error) {
-      console.error('Failed to delete GRN:', error);
-      throw error;
+      console.error('Error voiding GRN:', error);
+      throw new Error('Failed to void GRN');
     }
-  }
-
-  /**
-   * Find product by barcode or SKU
-   */
-  async findProduct(identifier: string): Promise<any | null> {
-    try {
-      // Try barcode first
-      let products = await dataService.query(
-        'SELECT * FROM products WHERE barcode = ? AND active = true',
-        [identifier]
-      );
-
-      // Fallback to SKU
-      if (products.length === 0) {
-        products = await dataService.query(
-          'SELECT * FROM products WHERE sku = ? AND active = true',
-          [identifier]
-        );
-      }
-
-      return products[0] || null;
-
-    } catch (error) {
-      console.error('Failed to find product:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get stock settings (shared with stocktake)
-   */
-  getStockSettings(): any {
-    // In production, this would load from app settings
-    return {
-      costUpdateOnGRN: 'if-empty'
-    };
   }
 
   /**
    * Get GRN statistics
    */
-  async getGrnStats(): Promise<{
-    draftCount: number;
-    postedCount: number;
-    recentPostedCount: number;
-  }> {
+  async getGrnStats(): Promise<any> {
     try {
-      const stats = await dataService.query<any>(
-        `SELECT 
-          COUNT(CASE WHEN status = 'DRAFT' THEN 1 END) as draft_count,
-          COUNT(CASE WHEN status = 'POSTED' THEN 1 END) as posted_count,
-          COUNT(CASE WHEN status = 'POSTED' AND posted_at >= date('now', '-7 days') THEN 1 END) as recent_posted_count
-        FROM grn_headers`
-      );
-
-      return {
-        draftCount: stats[0]?.draft_count || 0,
-        postedCount: stats[0]?.posted_count || 0,
-        recentPostedCount: stats[0]?.recent_posted_count || 0
-      };
-
+      const db = await database;
+      
+      const stats = await db.query(`
+        SELECT 
+          COUNT(*) as total_grns,
+          SUM(CASE WHEN status = 'OPEN' THEN 1 ELSE 0 END) as open_grns,
+          SUM(CASE WHEN status = 'POSTED' THEN 1 ELSE 0 END) as posted_grns,
+          SUM(CASE WHEN status = 'VOID' THEN 1 ELSE 0 END) as void_grns,
+          SUM(total) as total_value
+        FROM grn
+      `);
+      
+      return stats[0] || { total_grns: 0, open_grns: 0, posted_grns: 0, void_grns: 0, total_value: 0 };
     } catch (error) {
-      console.error('Failed to get GRN stats:', error);
-      return { draftCount: 0, postedCount: 0, recentPostedCount: 0 };
+      console.error('Error getting GRN stats:', error);
+      return { total_grns: 0, open_grns: 0, posted_grns: 0, void_grns: 0, total_value: 0 };
+    }
+  }
+
+  /**
+   * Build label items from GRN for printing
+   */
+  async buildLabelItemsFromGRN(id: number, lang: 'EN' | 'SI' | 'TA'): Promise<GRNLabelItem[]> {
+    try {
+      const grnData = await this.getGRN(id);
+      
+      const labelItems: GRNLabelItem[] = [];
+      
+      for (const line of grnData.lines) {
+        const product = line.product;
+        const name = this.getLocalizedProductName(product, lang);
+        
+        // Create one label item per quantity unit
+        for (let i = 0; i < line.qty; i++) {
+          labelItems.push({
+            sku: product.sku,
+            barcode: product.barcode,
+            name,
+            price: line.unit_cost,
+            mrp: line.mrp || undefined,
+            qty: 1,
+            batch_no: line.batch_no || undefined,
+            expiry_date: line.expiry_date || undefined
+          });
+        }
+      }
+      
+      return labelItems;
+    } catch (error) {
+      console.error('Error building label items from GRN:', error);
+      throw new Error('Failed to build label items');
+    }
+  }
+
+  /**
+   * Helper to get localized product name
+   */
+  private getLocalizedProductName(product: Product, language: 'EN' | 'SI' | 'TA'): string {
+    switch (language) {
+      case 'SI':
+        return product.name_si || product.name_en || product.name || '';
+      case 'TA':
+        return product.name_ta || product.name_en || product.name || '';
+      default:
+        return product.name_en || product.name || '';
     }
   }
 }
 
 // Export singleton instance
-export const grnService = new GrnService();
+export const grnService = new GRNService();

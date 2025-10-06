@@ -303,3 +303,8 @@ The cashier authentication and shift management system is **fully implemented an
 **The system is now ready for deployment and daily POS operations!** 🚀
 
 
+
+
+
+
+

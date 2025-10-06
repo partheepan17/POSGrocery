@@ -93,6 +93,29 @@ const defaultSettings: AppSettings = {
     },
   },
   
+  refund: {
+    managerPinThreshold: 5000,
+    defaultReason: 'CUSTOMER_CHANGE' as const,
+    requireManagerApproval: true,
+    autoRestoreInventory: true,
+  },
+  
+  grnSettings: {
+    autoNumberPrefix: 'GRN-',
+    autoUpdateCostPolicy: 'latest' as const,
+    expiryReminderDays: 14,
+    defaultTaxPercent: 0,
+  },
+  
+  shiftSettings: {
+    requireShiftForSales: true,        // If true, POS blocks finalize unless a shift is open
+    allowMultipleOpenPerTerminal: false,
+    cashDrawerPulseOnOpen: true,
+    sessionTimeoutMinutes: 480,        // 8h shift hint (no auto-close, only warning)
+    xReportFooterEN: 'Thank you',
+    zReportFooterEN: 'End of Day',
+  },
+  
   // Legacy settings (for backward compatibility)
   currency: 'LKR',
   currencySymbol: 'රු',

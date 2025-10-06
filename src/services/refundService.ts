@@ -1,563 +1,393 @@
-/**
- * Refund Service
- * Handles returns, refunds, and void operations
- */
+import { database } from './database';
+import { 
+  Return, 
+  ReturnLine, 
+  SaleWithLines, 
+  ReturnValidationResult, 
+  ReturnReason
+} from '../types';
+import { ReceiptPayload } from '../types/receipt';
 
-import { dataService } from './dataService';
-import { authService } from './authService';
-
-export interface RefundableSale {
-  id: number;
-  invoice_number: string;
-  datetime: string;
-  cashier_id: number;
-  cashier_name?: string;
-  customer_id?: number;
-  customer_name?: string;
-  price_tier: 'Retail' | 'Wholesale' | 'Credit' | 'Other';
-  total_amount: number;
-  tax_amount: number;
-  discount_amount: number;
-  payment_method: 'CASH' | 'CARD' | 'WALLET';
-  terminal_name?: string;
-  type: 'SALE' | 'REFUND';
-}
-
-export interface RefundableLine {
-  id: number;
-  product_id: number;
-  product_sku: string;
-  product_name: string;
-  quantity_sold: number;
-  quantity_refunded: number;
-  quantity_returnable: number;
-  unit_price: number;
-  discount_amount: number;
-  tax_amount: number;
-  line_total: number;
-}
-
-export interface RefundLineInput {
-  original_line_id: number;
-  product_id: number;
-  quantity: number;
-  restock: boolean;
-  reason?: string;
-}
-
-export interface RefundInput {
-  original_sale_id: number;
-  cashier_id: number;
-  refund_method: 'CASH' | 'CARD' | 'WALLET';
-  lines: RefundLineInput[];
-  manager_pin?: string;
-  notes?: string;
-}
-
-export interface RefundResult {
-  refund_id: number;
-  refund_amount: number;
-  lines_processed: number;
-  inventory_updated: number;
-}
-
-export interface RefundSummary {
-  id: number;
-  refund_datetime: string;
-  original_invoice: string;
-  customer_name?: string;
-  cashier_name?: string;
-  terminal: string;
-  method: string;
-  restock_count: number;
-  refund_net: number;
-  reason?: string;
-}
-
-export interface RefundFilters {
-  dateFrom?: string;
-  dateTo?: string;
-  cashierId?: number;
-  method?: string;
-  minAmount?: number;
-  maxAmount?: number;
-}
-
-export interface ReturnSettings {
-  enableReturns: boolean;
-  managerPinRequiredAbove: number;
-  defaultRestock: boolean;
-  returnWindowDays: number;
-  allowVoidWithinHours: number;
-}
-
-class RefundService {
-  private defaultSettings: ReturnSettings = {
-    enableReturns: true,
-    managerPinRequiredAbove: 1000,
-    defaultRestock: true,
-    returnWindowDays: 30,
-    allowVoidWithinHours: 2
-  };
-
+export class RefundService {
   /**
-   * Find sale by invoice number or receipt barcode
+   * Look up a sale by receipt number or barcode
    */
-  async findSaleByNumberOrBarcode(reference: string): Promise<RefundableSale | null> {
+  async getSaleByReceipt(receiptNo: string): Promise<SaleWithLines | null> {
     try {
-      // Try to find by invoice number first
-      let sales = await dataService.query<RefundableSale>(
-        `SELECT s.*, u.name as cashier_name, c.customer_name 
-         FROM sales s 
-         LEFT JOIN users u ON s.cashier_id = u.id 
-         LEFT JOIN customers c ON s.customer_id = c.id 
-         WHERE s.invoice_number = ? AND s.type = 'SALE' AND s.voided_at IS NULL`,
-        [reference]
-      );
-
-      // If not found, try by ID (assuming barcode contains sale ID)
-      if (sales.length === 0) {
-        const saleId = parseInt(reference.replace(/\D/g, ''), 10);
-        if (!isNaN(saleId)) {
-          sales = await dataService.query<RefundableSale>(
-            `SELECT s.*, u.name as cashier_name, c.customer_name 
-             FROM sales s 
-             LEFT JOIN users u ON s.cashier_id = u.id 
-             LEFT JOIN customers c ON s.customer_id = c.id 
-             WHERE s.id = ? AND s.type = 'SALE' AND s.voided_at IS NULL`,
-            [saleId]
-          );
-        }
-      }
-
-      return sales[0] || null;
-    } catch (error) {
-      console.error('Failed to find sale:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get returnable lines for a sale
-   */
-  async getReturnableLines(saleId: number): Promise<RefundableLine[]> {
-    try {
-      const lines = await dataService.query<any>(
-        `SELECT 
-           si.id,
-           si.product_id,
-           p.sku as product_sku,
-           p.name_en as product_name,
-           si.quantity as quantity_sold,
-           COALESCE(refunded.quantity_refunded, 0) as quantity_refunded,
-           (si.quantity - COALESCE(refunded.quantity_refunded, 0)) as quantity_returnable,
-           si.unit_price,
-           si.discount_amount,
-           si.tax_amount,
-           si.total_amount as line_total
-         FROM sale_items si
-         JOIN products p ON si.product_id = p.id
-         LEFT JOIN (
-           SELECT 
-             rsi.original_line_id,
-             SUM(rsi.quantity) as quantity_refunded
-           FROM sale_items rsi
-           JOIN sales rs ON rsi.sale_id = rs.id
-           WHERE rs.type = 'REFUND' AND rs.voided_at IS NULL
-           GROUP BY rsi.original_line_id
-         ) refunded ON si.id = refunded.original_line_id
-         WHERE si.sale_id = ?
-         ORDER BY si.id`,
-        [saleId]
-      );
-
-      return lines.map(line => ({
-        id: line.id,
-        product_id: line.product_id,
-        product_sku: line.product_sku,
-        product_name: line.product_name,
-        quantity_sold: line.quantity_sold,
-        quantity_refunded: line.quantity_refunded,
-        quantity_returnable: Math.max(0, line.quantity_returnable),
-        unit_price: line.unit_price,
-        discount_amount: line.discount_amount || 0,
-        tax_amount: line.tax_amount || 0,
-        line_total: line.line_total
-      }));
-    } catch (error) {
-      console.error('Failed to get returnable lines:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Create a refund
-   */
-  async createRefund(refundInput: RefundInput): Promise<RefundResult> {
-    try {
-      const currentUser = authService.getCurrentUser();
-      if (!currentUser) {
-        throw new Error('User not authenticated');
-      }
-
-      // Get original sale
-      const originalSale = await dataService.query<RefundableSale>(
-        'SELECT * FROM sales WHERE id = ? AND type = "SALE" AND voided_at IS NULL',
-        [refundInput.original_sale_id]
-      );
-
-      if (originalSale.length === 0) {
-        throw new Error('Original sale not found or already voided');
-      }
-
-      // Get returnable lines to validate quantities
-      const returnableLines = await this.getReturnableLines(refundInput.original_sale_id);
+      const db = await database;
       
-      // Validate refund quantities
-      for (const refundLine of refundInput.lines) {
-        const returnableLine = returnableLines.find(rl => rl.id === refundLine.original_line_id);
-        if (!returnableLine) {
-          throw new Error(`Original line ${refundLine.original_line_id} not found`);
-        }
-        
-        if (refundLine.quantity > returnableLine.quantity_returnable) {
-          throw new Error(`Cannot refund ${refundLine.quantity} of ${returnableLine.product_name}. Only ${returnableLine.quantity_returnable} available for return`);
-        }
+      // First try to find by sale ID (if receiptNo is numeric)
+      let saleId: number | null = null;
+      if (/^\d+$/.test(receiptNo)) {
+        saleId = parseInt(receiptNo);
       }
-
-      // Calculate refund total
-      let refundTotal = 0;
-      for (const refundLine of refundInput.lines) {
-        const returnableLine = returnableLines.find(rl => rl.id === refundLine.original_line_id);
-        if (returnableLine) {
-          const lineRefund = (returnableLine.unit_price * refundLine.quantity) - 
-                           (returnableLine.discount_amount * (refundLine.quantity / returnableLine.quantity_sold));
-          refundTotal += lineRefund;
-        }
-      }
-
-      // Check if manager PIN required for large refunds
-      const settings = this.getReturnSettings();
-      if (refundTotal > settings.managerPinRequiredAbove && refundInput.manager_pin) {
-        const verification = await authService.verifyPin(refundInput.manager_pin, 'MANAGER');
-        if (!verification.success) {
-          throw new Error('Manager authorization required for large refunds');
-        }
-      }
-
-      // Create refund sale record
-      const refundSaleResult = await dataService.execute(
-        `INSERT INTO sales (
-          type, original_sale_id, cashier_id, customer_id, price_tier,
-          payment_method, total_amount, tax_amount, discount_amount,
-          terminal_name, invoice_number, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          'REFUND',
-          refundInput.original_sale_id,
-          refundInput.cashier_id,
-          originalSale[0].customer_id,
-          originalSale[0].price_tier,
-          refundInput.refund_method,
-          -refundTotal, // Negative amount for refund
-          0, // Tax calculation would be more complex in production
-          0, // Discount calculation would be more complex in production
-          originalSale[0].terminal_name,
-          `REF-${Date.now()}`,
-          new Date().toISOString()
-        ]
-      );
-
-      const refundId = refundSaleResult.lastInsertRowid;
-
-      // Create refund line items
-      let inventoryUpdated = 0;
-      for (const refundLine of refundInput.lines) {
-        const returnableLine = returnableLines.find(rl => rl.id === refundLine.original_line_id);
-        if (!returnableLine) continue;
-
-        // Create refund line
-        await dataService.execute(
-          `INSERT INTO sale_items (
-            sale_id, product_id, quantity, unit_price, discount_amount,
-            tax_amount, total_amount, original_line_id
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            refundId,
-            refundLine.product_id,
-            refundLine.quantity,
-            returnableLine.unit_price,
-            returnableLine.discount_amount * (refundLine.quantity / returnableLine.quantity_sold),
-            returnableLine.tax_amount * (refundLine.quantity / returnableLine.quantity_sold),
-            returnableLine.unit_price * refundLine.quantity,
-            refundLine.original_line_id
-          ]
-        );
-
-        // Update inventory if restocking
-        if (refundLine.restock) {
-          // In production, this would update the inventory table
-          console.log(`Restocking ${refundLine.quantity} of product ${refundLine.product_id}`);
-          inventoryUpdated++;
-        }
-      }
-
-      // Log the refund event
-      console.log(`Refund created: ID ${refundId}, Amount: -${refundTotal}, Lines: ${refundInput.lines.length}`);
-
-      return {
-        refund_id: refundId,
-        refund_amount: refundTotal,
-        lines_processed: refundInput.lines.length,
-        inventory_updated: inventoryUpdated
-      };
-
-    } catch (error) {
-      console.error('Failed to create refund:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Void a sale (only if within time window and no subsequent activity)
-   */
-  async voidSale(saleId: number, managerPin: string): Promise<void> {
-    try {
-      // Verify manager PIN
-      const verification = await authService.verifyPin(managerPin, 'MANAGER');
-      if (!verification.success) {
-        throw new Error('Manager authorization required to void sales');
-      }
-
-      const currentUser = authService.getCurrentUser();
-      if (!currentUser) {
-        throw new Error('User not authenticated');
-      }
-
-      // Get the sale
-      const sales = await dataService.query<any>(
-        'SELECT * FROM sales WHERE id = ? AND type = "SALE" AND voided_at IS NULL',
-        [saleId]
-      );
-
-      if (sales.length === 0) {
-        throw new Error('Sale not found or already voided');
-      }
-
-      const sale = sales[0];
-      const settings = this.getReturnSettings();
-
-      // Check time window
-      const saleTime = new Date(sale.created_at);
-      const now = new Date();
-      const hoursDiff = (now.getTime() - saleTime.getTime()) / (1000 * 60 * 60);
-
-      if (hoursDiff > settings.allowVoidWithinHours) {
-        throw new Error(`Cannot void sale after ${settings.allowVoidWithinHours} hours. Use refund instead.`);
-      }
-
-      // Check for existing refunds
-      const refunds = await dataService.query<any>(
-        'SELECT COUNT(*) as count FROM sales WHERE original_sale_id = ? AND type = "REFUND"',
-        [saleId]
-      );
-
-      if (refunds[0].count > 0) {
-        throw new Error('Cannot void sale that has existing refunds');
-      }
-
-      // Mark sale as voided
-      await dataService.execute(
-        'UPDATE sales SET voided_at = ?, voided_by = ? WHERE id = ?',
-        [new Date().toISOString(), verification.user?.id, saleId]
-      );
-
-      // In production, this would also reverse any inventory movements
-      console.log(`Sale ${saleId} voided by manager ${verification.user?.name}`);
-
-    } catch (error) {
-      console.error('Failed to void sale:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * List refunds with filters
-   */
-  async listRefunds(filters: RefundFilters = {}): Promise<RefundSummary[]> {
-    try {
-      let query = `
+      
+      // Query for sale with lines and product names
+      const saleQuery = `
         SELECT 
-          r.id,
-          r.created_at as refund_datetime,
-          os.invoice_number as original_invoice,
-          c.customer_name,
-          u.name as cashier_name,
-          r.terminal_name as terminal,
-          r.payment_method as method,
-          COUNT(CASE WHEN ri.id IS NOT NULL THEN 1 END) as restock_count,
-          r.total_amount as refund_net,
-          r.notes as reason
-        FROM sales r
-        LEFT JOIN sales os ON r.original_sale_id = os.id
-        LEFT JOIN customers c ON r.customer_id = c.id
-        LEFT JOIN users u ON r.cashier_id = u.id
-        LEFT JOIN sale_items ri ON r.id = ri.sale_id
-        WHERE r.type = 'REFUND' AND r.voided_at IS NULL
+          s.id, s.datetime, s.cashier_id, s.customer_id, s.price_tier,
+          s.gross, s.discount, s.tax, s.net, s.pay_cash, s.pay_card, s.pay_wallet,
+          s.language, s.terminal_name
+         FROM sales s 
+        WHERE s.id = ? OR s.id = ?
+        ORDER BY s.id DESC
+        LIMIT 1
       `;
-
-      const params: any[] = [];
-
-      if (filters.dateFrom) {
-        query += ' AND r.created_at >= ?';
-        params.push(filters.dateFrom);
-      }
-
-      if (filters.dateTo) {
-        query += ' AND r.created_at <= ?';
-        params.push(filters.dateTo + ' 23:59:59');
-      }
-
-      if (filters.cashierId) {
-        query += ' AND r.cashier_id = ?';
-        params.push(filters.cashierId);
-      }
-
-      if (filters.method) {
-        query += ' AND r.payment_method = ?';
-        params.push(filters.method);
-      }
-
-      if (filters.minAmount) {
-        query += ' AND ABS(r.total_amount) >= ?';
-        params.push(filters.minAmount);
-      }
-
-      if (filters.maxAmount) {
-        query += ' AND ABS(r.total_amount) <= ?';
-        params.push(filters.maxAmount);
-      }
-
-      query += ' GROUP BY r.id ORDER BY r.created_at DESC';
-
-      return await dataService.query<RefundSummary>(query, params);
-    } catch (error) {
-      console.error('Failed to list refunds:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get refund details by ID
-   */
-  async getRefundById(refundId: number): Promise<any> {
-    try {
-      const refunds = await dataService.query<any>(
-        `SELECT r.*, os.invoice_number as original_invoice, u.name as cashier_name
-         FROM sales r 
-         LEFT JOIN sales os ON r.original_sale_id = os.id
-         LEFT JOIN users u ON r.cashier_id = u.id
-         WHERE r.id = ? AND r.type = 'REFUND'`,
-        [refundId]
-      );
-
-      if (refunds.length === 0) {
+      
+      const saleResult = await db.query(saleQuery, [saleId, saleId]);
+      const sale = saleResult[0];
+      if (!sale) {
         return null;
       }
-
-      const refund = refunds[0];
-
-      // Get refund lines
-      const lines = await dataService.query<any>(
-        `SELECT ri.*, p.sku, p.name_en as product_name
-         FROM sale_items ri
-         JOIN products p ON ri.product_id = p.id
-         WHERE ri.sale_id = ?`,
-        [refundId]
-      );
-
+      
+      // Get sale lines with product names
+      const linesQuery = `
+        SELECT 
+          sl.id, sl.product_id, sl.qty, sl.unit_price, sl.line_discount, sl.tax, sl.total,
+          p.name as product_name, p.name_si as product_name_si, p.name_ta as product_name_ta
+        FROM sale_lines sl
+        JOIN products p ON sl.product_id = p.id
+        WHERE sl.sale_id = ?
+        ORDER BY sl.id
+      `;
+      
+      const lines = await db.query(linesQuery, [sale.id]);
+      
       return {
-        ...refund,
-        lines
+        ...sale,
+        lines: lines.map(line => ({
+          ...line,
+          product_name: line.product_name || 'Unknown Product',
+          product_name_si: line.product_name_si,
+          product_name_ta: line.product_name_ta
+        }))
       };
     } catch (error) {
-      console.error('Failed to get refund details:', error);
-      throw error;
+      console.error('Error looking up sale by receipt:', error);
+      throw new Error('Failed to lookup sale');
     }
   }
 
   /**
-   * Get return settings
+   * Get return ledger for a sale (sum of previously returned quantities)
    */
-  getReturnSettings(): ReturnSettings {
-    // In production, this would load from app settings
-    return this.defaultSettings;
-  }
-
-  /**
-   * Update return settings
-   */
-  updateReturnSettings(settings: Partial<ReturnSettings>): void {
-    // In production, this would save to app settings
-    Object.assign(this.defaultSettings, settings);
-  }
-
-  /**
-   * Check if refund is allowed for a sale
-   */
-  async canRefundSale(saleId: number): Promise<{ allowed: boolean; reason?: string }> {
+  async getSaleReturnLedger(saleId: number): Promise<Array<{ sale_line_id: number; returned_qty: number }>> {
     try {
-      const sales = await dataService.query<any>(
-        'SELECT * FROM sales WHERE id = ? AND type = "SALE"',
-        [saleId]
-      );
-
-      if (sales.length === 0) {
-        return { allowed: false, reason: 'Sale not found' };
-      }
-
-      const sale = sales[0];
-
-      if (sale.voided_at) {
-        return { allowed: false, reason: 'Sale has been voided' };
-      }
-
-      const settings = this.getReturnSettings();
-      if (!settings.enableReturns) {
-        return { allowed: false, reason: 'Returns are disabled' };
-      }
-
-      // Check return window
-      const saleDate = new Date(sale.created_at);
-      const now = new Date();
-      const daysDiff = (now.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24);
-
-      if (daysDiff > settings.returnWindowDays) {
-        return { 
-          allowed: false, 
-          reason: `Return window of ${settings.returnWindowDays} days has expired` 
-        };
-      }
-
-      return { allowed: true };
+      const db = await database;
+      
+      const query = `
+           SELECT 
+          rl.sale_line_id,
+          COALESCE(SUM(rl.qty), 0) as returned_qty
+        FROM return_lines rl
+        JOIN returns r ON rl.return_id = r.id
+        WHERE r.sale_id = ?
+        GROUP BY rl.sale_line_id
+      `;
+      
+      const result = await db.query(query, [saleId]);
+      return result.map(row => ({
+        sale_line_id: row.sale_line_id,
+        returned_qty: parseFloat(row.returned_qty)
+      }));
     } catch (error) {
-      console.error('Failed to check refund eligibility:', error);
-      return { allowed: false, reason: 'Error checking eligibility' };
+      console.error('Error getting sale return ledger:', error);
+      throw new Error('Failed to get return ledger');
     }
   }
 
   /**
-   * Format currency amount
+   * Validate return request
    */
-  formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-LK', {
-      style: 'currency',
-      currency: 'LKR'
-    }).format(Math.abs(amount));
+  async validateReturn(input: { 
+    sale: SaleWithLines; 
+    items: Array<{ sale_line_id: number; qty: number }> 
+  }): Promise<ReturnValidationResult> {
+    const errors: string[] = [];
+    
+    try {
+      // Get return ledger for this sale
+      const ledger = await this.getSaleReturnLedger(input.sale.id);
+      const ledgerMap = new Map(ledger.map(item => [item.sale_line_id, item.returned_qty]));
+      
+      // Validate each item
+      for (const item of input.items) {
+        const saleLine = input.sale.lines.find(line => line.id === item.sale_line_id);
+        if (!saleLine) {
+          errors.push(`Sale line ${item.sale_line_id} not found`);
+          continue;
+        }
+        
+        const alreadyReturned = ledgerMap.get(item.sale_line_id) || 0;
+        const availableToReturn = saleLine.qty - alreadyReturned;
+        
+        if (item.qty <= 0) {
+          errors.push(`Return quantity must be positive for ${saleLine.product_name}`);
+        } else if (item.qty > availableToReturn) {
+          errors.push(`Cannot return ${item.qty} of ${saleLine.product_name}. Only ${availableToReturn} available (sold: ${saleLine.qty}, already returned: ${alreadyReturned})`);
+        }
+      }
+      
+      if (input.items.length === 0) {
+        errors.push('No items selected for return');
+      }
+      
+      const totalQty = input.items.reduce((sum, item) => sum + item.qty, 0);
+      if (totalQty === 0) {
+        errors.push('Total return quantity must be greater than zero');
+      }
+
+      return {
+        ok: errors.length === 0,
+        errors: errors.length > 0 ? errors : undefined
+      };
+    } catch (error) {
+      console.error('Error validating return:', error);
+      return {
+        ok: false,
+        errors: ['Failed to validate return request']
+      };
+    }
+  }
+
+  /**
+   * Create a return transaction
+   */
+  async createReturn(tx: {
+    saleId: number;
+    lines: ReturnLine[];
+    payments: { cash: number; card: number; wallet: number; store_credit: number };
+    reason_summary?: string;
+    language: 'EN' | 'SI' | 'TA';
+    cashier_id?: number;
+    manager_id?: number | null;
+    terminal_name?: string;
+  }): Promise<{ returnId: number }> {
+    const db = await database;
+    
+    try {
+      await db.execute('BEGIN TRANSACTION');
+      
+      // 1. Insert into returns table
+      const returnInsert = `
+        INSERT INTO returns (
+          sale_id, cashier_id, manager_id, refund_cash, refund_card, 
+          refund_wallet, refund_store_credit, reason_summary, language, terminal_name
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      
+      const returnResult = await db.execute(returnInsert, [
+        tx.saleId,
+        tx.cashier_id,
+        tx.manager_id,
+        tx.payments.cash,
+        tx.payments.card,
+        tx.payments.wallet,
+        tx.payments.store_credit,
+        tx.reason_summary,
+        tx.language,
+        tx.terminal_name
+      ]);
+      
+      const returnId = returnResult.lastID;
+      
+      // 2. Insert return lines
+      for (const line of tx.lines) {
+        const lineInsert = `
+          INSERT INTO return_lines (
+            return_id, sale_line_id, product_id, qty, unit_price, line_refund, reason_code
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
+        
+        await db.execute(lineInsert, [
+          returnId,
+          line.sale_line_id,
+          line.product_id,
+          line.qty,
+          line.unit_price,
+          line.line_refund,
+          line.reason_code
+        ]);
+        
+        // 3. Insert inventory movement (type='RETURN', qty +ve back into stock)
+        const inventoryInsert = `
+          INSERT INTO inventory_movements (product_id, qty, type, reason, note)
+          VALUES (?, ?, 'RETURN', ?, ?)
+        `;
+        
+        await db.execute(inventoryInsert, [
+          line.product_id,
+          line.qty, // Positive quantity to add back to stock
+          `Return - ${line.reason_code}`,
+          `Return ID: ${returnId}, Sale Line: ${line.sale_line_id}`
+        ]);
+      }
+      
+      // 4. Update product stock levels
+      for (const line of tx.lines) {
+        const updateStock = `
+          UPDATE products 
+          SET stock = stock + ? 
+          WHERE id = ?
+        `;
+        
+        await db.execute(updateStock, [line.qty, line.product_id]);
+      }
+      
+      await db.execute('COMMIT');
+      
+      return { returnId };
+    } catch (error) {
+      await db.execute('ROLLBACK');
+      console.error('Error creating return:', error);
+      throw new Error('Failed to create return transaction');
+    }
+  }
+
+  /**
+   * Format return receipt data for printing
+   */
+  async formatReturnReceipt(returnId: number): Promise<ReceiptPayload> {
+    try {
+      const db = await database;
+      
+      // Get return with sale details
+      const returnQuery = `
+        SELECT 
+          r.*, s.datetime as sale_datetime, s.terminal_name as sale_terminal,
+          u1.name as cashier_name, u2.name as manager_name
+        FROM returns r
+        LEFT JOIN sales s ON r.sale_id = s.id
+        LEFT JOIN users u1 ON r.cashier_id = u1.id
+        LEFT JOIN users u2 ON r.manager_id = u2.id
+        WHERE r.id = ?
+      `;
+      
+      const returnResult = await db.query(returnQuery, [returnId]);
+      const returnData = returnResult[0];
+      if (!returnData) {
+        throw new Error('Return not found');
+      }
+      
+      // Get return lines with product details
+      const linesQuery = `
+        SELECT 
+          rl.*, p.name as product_name, p.name_si as product_name_si, p.name_ta as product_name_ta
+        FROM return_lines rl
+        JOIN products p ON rl.product_id = p.id
+        WHERE rl.return_id = ?
+        ORDER BY rl.id
+      `;
+      
+      const lines = await db.query(linesQuery, [returnId]);
+      
+      // Calculate totals
+      const totalRefund = returnData.refund_cash + returnData.refund_card + 
+                         returnData.refund_wallet + returnData.refund_store_credit;
+      
+      // Format receipt data
+      const receiptData: ReceiptPayload = {
+        type: 'return',
+        store: {
+          name: 'Store Name', // TODO: Get from settings
+          address: 'Store Address', // TODO: Get from settings
+          taxId: 'TAX123', // TODO: Get from settings
+        },
+        terminalName: returnData.terminal_name || 'POS-001',
+        invoice: {
+          id: `RET-${returnId.toString().padStart(6, '0')}`,
+          datetime: new Date(returnData.datetime).toISOString(),
+          language: returnData.language,
+          priceTier: 'Retail', // TODO: Get from original sale
+          isReprint: false, // TODO: Add reprint logic
+          items: lines.map(line => ({
+            sku: `PROD-${line.product_id}`,
+            name_en: line.product_name || 'Unknown Product',
+            name_si: line.product_name_si,
+            name_ta: line.product_name_ta,
+            unit: 'pc', // TODO: Get from product
+            qty: line.qty,
+            unitPrice: line.unit_price,
+            lineDiscount: 0, // Returns typically don't have discounts
+            tax: 0, // Returns typically don't have tax
+            total: line.line_refund
+          })),
+          totals: {
+            gross: totalRefund,
+            discount: 0,
+            tax: 0,
+            net: totalRefund
+          },
+          payments: {
+            cash: returnData.refund_cash,
+            card: returnData.refund_card,
+            wallet: returnData.refund_wallet,
+            change: 0 // No change for returns
+          }
+        },
+        options: {
+          paper: '80mm', // TODO: Get from settings
+          showQRCode: false,
+          showBarcode: false,
+          openCashDrawerOnCash: false,
+          roundingMode: 'NEAREST_1', // TODO: Get from settings
+          decimalPlacesKg: 2,
+          footerText: {
+            EN: this.getLocalizedText('THANK_YOU', 'EN'),
+            SI: this.getLocalizedText('THANK_YOU', 'SI'),
+            TA: this.getLocalizedText('THANK_YOU', 'TA')
+          }
+        }
+      };
+      
+      return receiptData;
+    } catch (error) {
+      console.error('Error formatting return receipt:', error);
+      throw new Error('Failed to format return receipt');
+    }
+  }
+
+  /**
+   * Get default return reasons
+   */
+  getDefaultReturnReasons(): ReturnReason[] {
+    return ['DAMAGED', 'EXPIRED', 'WRONG_ITEM', 'CUSTOMER_CHANGE', 'OTHER'];
+  }
+
+  /**
+   * Helper to get localized text
+   */
+  private getLocalizedText(key: string, language: 'EN' | 'SI' | 'TA'): string {
+    const translations: Record<string, Record<string, string>> = {
+      RETURN_RECEIPT: {
+        EN: 'RETURN RECEIPT',
+        SI: 'ආපසු ලබාදීමේ රිසිට්',
+        TA: 'திரும்ப பெறுதல் ரசீது'
+      },
+      THANK_YOU: {
+        EN: 'Thank you for your business!',
+        SI: 'ඔබේ ව්‍යාපාරයට ස්තූතියි!',
+        TA: 'உங்கள் வணிகத்திற்கு நன்றி!'
+      }
+    };
+    
+    return translations[key]?.[language] || translations[key]?.['EN'] || key;
+  }
+
+  /**
+   * Helper to get localized product name
+   */
+  private getLocalizedProductName(line: any, language: 'EN' | 'SI' | 'TA'): string {
+    switch (language) {
+      case 'SI':
+        return line.product_name_si || line.product_name || 'Unknown Product';
+      case 'TA':
+        return line.product_name_ta || line.product_name || 'Unknown Product';
+      default:
+        return line.product_name || 'Unknown Product';
+    }
   }
 }
 
 // Export singleton instance
 export const refundService = new RefundService();
-
-

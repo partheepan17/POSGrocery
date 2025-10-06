@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Package, FileInput, Upload, History, Printer, Download, Save, Settings2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Package, FileInput, Upload, History, Printer, Download, Save, Settings2, Calendar, Globe, Trash2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { LabelPreset, LabelItem, LabelBatch } from '@/types';
 import { labelService } from '@/services/labelService';
@@ -35,6 +35,21 @@ export function Labels() {
     category: '',
     activeOnly: true
   });
+
+  // Batch analysis for date legend and quick actions
+  const batchAnalysis = useMemo(() => {
+    const hasDateFields = batch.items.some(item => item.packedDate || item.expiryDate);
+    const dateFormat = batch.preset?.fields.dateFormat || 'YYYY-MM-DD';
+    const languages = [...new Set(batch.items.map(item => item.language).filter(Boolean))];
+    
+    return {
+      hasDateFields,
+      dateFormat,
+      languages,
+      totalItems: batch.items.length,
+      totalLabels: batch.items.reduce((sum, item) => sum + item.qty, 0)
+    };
+  }, [batch.items, batch.preset]);
 
   useEffect(() => {
     loadProducts();
@@ -124,6 +139,32 @@ export function Labels() {
     setBatch(prev => ({ ...prev, items: [] }));
   };
 
+  // Quick action handlers
+  const handleSetPackedDateToday = () => {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    setBatch(prev => ({
+      ...prev,
+      items: prev.items.map(item => ({ ...item, packedDate: today }))
+    }));
+    toast.success('Set packed date to today for all items');
+  };
+
+  const handleClearDates = () => {
+    setBatch(prev => ({
+      ...prev,
+      items: prev.items.map(item => ({ ...item, packedDate: null, expiryDate: null }))
+    }));
+    toast.success('Cleared dates for all items');
+  };
+
+  const handleSetLanguageForAll = (language: 'EN' | 'SI' | 'TA') => {
+    setBatch(prev => ({
+      ...prev,
+      items: prev.items.map(item => ({ ...item, language }))
+    }));
+    toast.success(`Set language to ${language} for all items`);
+  };
+
   const handlePrint = async () => {
     if (!selectedPreset || batch.items.length === 0) {
       toast.error('Select a preset and add items to print');
@@ -189,6 +230,36 @@ export function Labels() {
     setShowTemplateEditor(true);
   };
 
+  const handleEnableAllFields = async () => {
+    if (!selectedPreset) {
+      toast.error('Please select a preset first');
+      return;
+    }
+
+    const updatedPreset = {
+      ...selectedPreset,
+      fields: {
+        ...selectedPreset.fields,
+        showMRP: true,
+        showBatch: true,
+        showPackedDate: true,
+        showExpiryDate: true,
+        languageMode: 'per_item' as const,
+        dateFormat: 'YYYY-MM-DD' as const
+      }
+    };
+
+    try {
+      await labelService.savePreset(updatedPreset);
+      setSelectedPreset(updatedPreset);
+      setBatch(prev => ({ ...prev, preset: updatedPreset }));
+      toast.success('Enabled all new fields! Try editing items in the batch.');
+    } catch (error) {
+      console.error('Failed to update preset:', error);
+      toast.error('Failed to enable fields');
+    }
+  };
+
   const tabs = [
     { id: 'products' as const, label: 'From Products', icon: Package },
     { id: 'grn' as const, label: 'From GRN', icon: FileInput },
@@ -209,6 +280,16 @@ export function Labels() {
           </div>
           
           <div className="flex items-center space-x-3">
+            <button
+              onClick={handleEnableAllFields}
+              disabled={!selectedPreset}
+              className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+              title="Enable MRP, Batch, Dates, and Per-item Language"
+            >
+              <Settings2 className="w-4 h-4" />
+              <span>Enable New Fields</span>
+            </button>
+            
             <LabelPresetPicker
               selectedPreset={selectedPreset}
               onPresetChange={setSelectedPreset}
@@ -294,6 +375,68 @@ export function Labels() {
               onRemoveItem={handleRemoveBatchItem}
               onClearBatch={handleClearBatch}
             />
+            
+            {/* Date Legend and Quick Actions */}
+            {batch.items.length > 0 && (
+              <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+                <div className="flex items-center justify-between">
+                  {/* Date Legend */}
+                  <div className="flex items-center space-x-4 text-xs text-gray-600">
+                    {batchAnalysis.hasDateFields && (
+                      <div className="flex items-center space-x-1">
+                        <Calendar className="w-3 h-3" />
+                        <span>Dates in {batchAnalysis.dateFormat} format</span>
+                      </div>
+                    )}
+                    {batchAnalysis.languages.length > 0 && (
+                      <div className="flex items-center space-x-1">
+                        <Globe className="w-3 h-3" />
+                        <span>Languages: {batchAnalysis.languages.join(', ')}</span>
+                      </div>
+                    )}
+                    <div className="text-gray-500">
+                      {batchAnalysis.totalItems} items • {batchAnalysis.totalLabels} labels
+                    </div>
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={handleSetPackedDateToday}
+                      className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                      title="Set packed date to today for all items"
+                    >
+                      <Calendar className="w-3 h-3 inline mr-1" />
+                      Today
+                    </button>
+                    
+                    <button
+                      onClick={handleClearDates}
+                      className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                      title="Clear all dates"
+                    >
+                      <Trash2 className="w-3 h-3 inline mr-1" />
+                      Clear Dates
+                    </button>
+
+                    {/* Language Quick Actions */}
+                    <div className="flex items-center space-x-1">
+                      {(['EN', 'SI', 'TA'] as const).map(lang => (
+                        <button
+                          key={lang}
+                          onClick={() => handleSetLanguageForAll(lang)}
+                          className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                          title={`Set language to ${lang} for all items`}
+                        >
+                          <Globe className="w-3 h-3 inline mr-1" />
+                          {lang}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -1,4 +1,5 @@
 export type ReceiptPayload = {
+  type?: 'sale' | 'return'; // Distinguish between sales and returns
   store: {
     name: string;
     address?: string;

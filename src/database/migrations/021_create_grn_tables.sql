@@ -34,3 +34,8 @@ CREATE INDEX IF NOT EXISTS idx_grn_lines_grn ON grn_lines(grn_id);
 CREATE INDEX IF NOT EXISTS idx_grn_lines_product ON grn_lines(product_id);
 
 
+
+
+
+
+

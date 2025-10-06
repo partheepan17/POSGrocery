@@ -16,3 +16,8 @@ CREATE INDEX IF NOT EXISTS idx_cash_events_created_at ON cash_events(created_at)
 CREATE INDEX IF NOT EXISTS idx_cash_events_session_type ON cash_events(session_id, type);
 
 
+
+
+
+
+

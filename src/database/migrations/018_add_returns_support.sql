@@ -19,3 +19,8 @@ CREATE INDEX IF NOT EXISTS idx_sales_voided_at ON sales(voided_at);
 CREATE INDEX IF NOT EXISTS idx_sale_items_original_line_id ON sale_items(original_line_id);
 
 
+
+
+
+
+

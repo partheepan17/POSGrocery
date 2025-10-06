@@ -30,3 +30,8 @@ CREATE INDEX IF NOT EXISTS idx_stocktake_counts_product ON stocktake_counts(prod
 CREATE INDEX IF NOT EXISTS idx_stocktake_counts_session_product ON stocktake_counts(session_id, product_id);
 
 
+
+
+
+
+

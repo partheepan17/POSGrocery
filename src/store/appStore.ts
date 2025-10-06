@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { AppSettings, Theme, Language, LabelSettings } from '@/types';
 import { User } from '@/services/authService';
-import { Session } from '@/services/shiftService';
+import { Shift } from '@/types';
 
 interface AppState {
   // Theme and UI
@@ -47,7 +47,7 @@ interface AppState {
   
   // Authentication and Session
   currentUser: User | null;
-  currentSession: Session | null;
+  currentSession: Shift | null;
   terminal: string;
   
   // Actions
@@ -62,7 +62,7 @@ interface AppState {
   updateStockSettings: (settings: Partial<AppState['stockSettings']>) => void;
   updateSecuritySettings: (settings: Partial<AppState['securitySettings']>) => void;
   setCurrentUser: (user: User | null) => void;
-  setCurrentSession: (session: Session | null) => void;
+  setCurrentSession: (session: Shift | null) => void;
   setTerminal: (terminal: string) => void;
 }
 
@@ -147,6 +147,29 @@ const defaultSettings: AppSettings = {
     autoCreateCategories: true,
     autoCreateSuppliers: true,
   },
+  // Refund settings
+  refund: {
+    managerPinThreshold: 1000,
+    defaultReason: 'DAMAGED',
+    requireManagerApproval: true,
+    autoRestoreInventory: true,
+  },
+  // GRN settings
+  grnSettings: {
+    autoNumberPrefix: 'GRN',
+    autoUpdateCostPolicy: 'latest',
+    expiryReminderDays: 7,
+    defaultTaxPercent: 0,
+  },
+  // Shift settings
+  shiftSettings: {
+    requireShiftForSales: true,
+    allowMultipleOpenPerTerminal: false,
+    cashDrawerPulseOnOpen: true,
+    sessionTimeoutMinutes: 480,
+    xReportFooterEN: 'Thank you',
+    zReportFooterEN: 'End of Day',
+  },
 };
 
 export const useAppStore = create<AppState>()(
@@ -197,7 +220,8 @@ export const useAppStore = create<AppState>()(
             cols: 3,
             margin_mm: 5,
             gutter_mm: 2
-          }
+          },
+          defaultDateFormat: 'YYYY-MM-DD' as const
         },
       
       // Authentication and Session

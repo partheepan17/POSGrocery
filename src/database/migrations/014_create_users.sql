@@ -22,3 +22,8 @@ INSERT INTO users (name, role, pin, active) VALUES
 ON CONFLICT DO NOTHING;
 
 
+
+
+
+
+

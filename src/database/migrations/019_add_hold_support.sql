@@ -16,3 +16,8 @@ CREATE INDEX IF NOT EXISTS idx_sales_expires_at ON sales(expires_at);
 UPDATE sales SET status = COALESCE(type, 'SALE') WHERE status IS NULL;
 
 
+
+
+
+
+

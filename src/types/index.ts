@@ -1,20 +1,35 @@
 export interface Product {
   id: string;
-  name: string;
+  sku: string;
+  barcode?: string;
+  name_en: string;
+  name_si?: string;
+  name_ta?: string;
+  unit: string;
+  category_id?: string;
+  is_scale_item: boolean;
+  tax_code?: string;
+  price_retail: number;
+  price_wholesale: number;
+  price_credit: number;
+  price_other: number;
+  cost?: number;
+  reorder_level?: number;
+  preferred_supplier_id?: string;
+  is_active: boolean;
+  created_at: Date;
+  // Legacy fields for compatibility
+  name?: string;
   nameSinhala?: string;
   nameTamil?: string;
-  barcode?: string;
-  sku: string;
-  category: string;
-  price: number;
-  cost: number;
-  stock: number;
-  minStock: number;
-  maxStock: number;
-  unit: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  category?: string;
+  price?: number;
+  stock?: number;
+  minStock?: number;
+  maxStock?: number;
+  isActive?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface Customer {
@@ -31,15 +46,22 @@ export interface Customer {
 
 export interface Supplier {
   id: string;
-  name: string;
+  supplier_name: string;
+  contact_phone?: string;
+  contact_email?: string;
+  address?: string;
+  tax_id?: string;
+  active: boolean;
+  created_at: Date;
+  // Legacy fields for compatibility
+  name?: string;
   contactPerson?: string;
   phone?: string;
   email?: string;
-  address?: string;
   city?: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  isActive?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface SaleItem {
@@ -178,6 +200,32 @@ export interface AppSettings {
     };
   };
   
+  // Refund Settings
+  refund: {
+    managerPinThreshold: number; // default 5000
+    defaultReason: 'DAMAGED' | 'EXPIRED' | 'WRONG_ITEM' | 'CUSTOMER_CHANGE' | 'OTHER';
+    requireManagerApproval: boolean;
+    autoRestoreInventory: boolean;
+  };
+  
+  // GRN Settings
+  grnSettings: {
+    autoNumberPrefix: string; // default 'GRN-'
+    autoUpdateCostPolicy: 'none' | 'average' | 'latest'; // default 'latest'
+    expiryReminderDays: number; // default 14
+    defaultTaxPercent: number; // default 0
+  };
+  
+  // Shift Settings
+  shiftSettings: {
+    requireShiftForSales: boolean; // If true, POS blocks finalize unless a shift is open
+    allowMultipleOpenPerTerminal: boolean;
+    cashDrawerPulseOnOpen: boolean;
+    sessionTimeoutMinutes: number; // 8h shift hint (no auto-close, only warning)
+    xReportFooterEN: string;
+    zReportFooterEN: string;
+  };
+  
   // Label Settings
   labelSettings?: LabelSettings;
   
@@ -268,12 +316,24 @@ export interface LabelPreset {
       show_label: boolean; 
     };
     weight_hint?: boolean; // show "per kg" if unit=kg
+    // New fields for extended functionality
+    languageMode?: 'preset' | 'per_item'; // new
+    showPackedDate?: boolean;
+    showExpiryDate?: boolean;
+    showMRP?: boolean;
+    showBatch?: boolean;
+    dateFormat?: 'YYYY-MM-DD' | 'DD/MM/YYYY' | 'MM/DD/YYYY';
+    mrpLabel?: string;     // default 'MRP'
+    batchLabel?: string;   // default 'Batch'
+    packedLabel?: string;  // default 'Packed'
+    expiryLabel?: string;  // default 'Expiry'
   };
   style: {
     font_scale: number; // 0.8–1.4
     bold_name: boolean;
     align: 'left' | 'center' | 'right';
     show_store_logo: boolean;
+    sectionOrder?: Array<'name' | 'barcode' | 'price' | 'mrp' | 'batch' | 'dates'>; // stacking
   };
   defaults: {
     qty: number;
@@ -296,9 +356,14 @@ export interface LabelItem {
   price_other: number;
   qty: number;
   price_tier: 'retail' | 'wholesale' | 'credit' | 'other';
-  language: 'EN' | 'SI' | 'TA';
+  language?: 'EN' | 'SI' | 'TA'; // overrides preset default
   custom_line1?: string;
   custom_line2?: string;
+  // New fields for extended functionality
+  packedDate?: string | null;  // ISO yyyy-mm-dd
+  expiryDate?: string | null;  // ISO yyyy-mm-dd
+  mrp?: number | null;         // printed "MRP"
+  batchNo?: string | null;
 }
 
 export interface LabelJob {
@@ -327,9 +392,277 @@ export interface LabelSettings {
     margin_mm: number; 
     gutter_mm: number; 
   };
+  defaultDateFormat: 'YYYY-MM-DD' | 'DD/MM/YYYY' | 'MM/DD/YYYY';
 }
 
 export type LabelSource = 'products' | 'grn' | 'csv';
 export type BarcodeSymbology = 'EAN13' | 'CODE128';
 export type LabelPaperType = 'THERMAL' | 'A4';
 export type LabelType = 'product' | 'shelf';
+
+// Returns & Refunds Types
+export type ReturnReason = 'DAMAGED' | 'EXPIRED' | 'WRONG_ITEM' | 'CUSTOMER_CHANGE' | 'OTHER';
+
+export interface Return {
+  id?: number;
+  sale_id: number;
+  datetime?: string;
+  cashier_id?: number;
+  manager_id?: number | null;
+  refund_cash: number;
+  refund_card: number;
+  refund_wallet: number;
+  refund_store_credit: number;
+  reason_summary?: string | null;
+  language: 'EN' | 'SI' | 'TA';
+  terminal_name?: string;
+}
+
+export interface ReturnLine {
+  id?: number;
+  return_id?: number;
+  sale_line_id: number;
+  product_id: number;
+  qty: number;
+  unit_price: number;
+  line_refund: number;
+  reason_code: ReturnReason;
+}
+
+// Extended types for returns processing
+export interface SaleWithLines {
+  id: number;
+  datetime: string;
+  cashier_id?: number;
+  customer_id?: number;
+  price_tier: string;
+  gross: number;
+  discount: number;
+  tax: number;
+  net: number;
+  pay_cash: number;
+  pay_card: number;
+  pay_wallet: number;
+  language: 'EN' | 'SI' | 'TA';
+  terminal_name?: string;
+  lines: Array<{
+    id: number;
+    product_id: number;
+    qty: number;
+    unit_price: number;
+    line_discount: number;
+    tax: number;
+    total: number;
+    product_name?: string;
+    product_name_si?: string;
+    product_name_ta?: string;
+  }>;
+}
+
+export interface ReturnValidationResult {
+  ok: boolean;
+  errors?: string[];
+}
+
+// GRN (Goods Received Note) Types
+export type GRNStatus = 'OPEN' | 'POSTED' | 'VOID';
+
+export interface GRN {
+  id?: number;
+  supplier_id: number;
+  grn_no?: string;
+  datetime?: string;
+  received_by?: number | null;
+  note?: string;
+  status?: GRNStatus;
+  subtotal: number;
+  tax: number;
+  other: number;
+  total: number;
+}
+
+export interface GRNLine {
+  id?: number;
+  grn_id?: number;
+  product_id: number;
+  qty: number;
+  unit_cost: number;
+  mrp?: number | null;
+  batch_no?: string | null;
+  expiry_date?: string | null; // ISO yyyy-mm-dd
+  line_total: number;
+}
+
+// Extended types for GRN processing
+export interface GRNWithDetails extends GRN {
+  supplier?: Supplier;
+  lines?: Array<GRNLine & { product?: Product }>;
+}
+
+export interface GRNLabelItem {
+  sku: string;
+  barcode?: string;
+  name: string;
+  price?: number;
+  mrp?: number;
+  qty: number;
+  batch_no?: string;
+  expiry_date?: string;
+}
+
+// Shift Management Types
+export type ShiftStatus = 'OPEN' | 'CLOSED' | 'VOID';
+
+export interface Shift {
+  id?: number;
+  terminal_name: string;
+  terminal?: string; // Legacy compatibility
+  cashier_id: number;
+  opened_at?: string;
+  closed_at?: string | null;
+  opening_cash: number;
+  declared_cash?: number | null;
+  variance_cash?: number | null;
+  note?: string | null;
+  status?: ShiftStatus;
+}
+
+export type ShiftMovementType = 'CASH_IN' | 'CASH_OUT' | 'DROP' | 'PICKUP' | 'PETTY';
+
+export interface CashEvent {
+  type: ShiftMovementType;
+  amount: number;
+  reason?: string;
+  datetime: string;
+}
+
+export interface XReport {
+  shiftId: number;
+  terminal: string;
+  cashierId: number;
+  openedAt: string;
+  reportTime: string;
+  generated_at: string;
+  session: {
+    id: number;
+    cashier_name: string;
+    terminal: string;
+    started_at: string;
+    opening_float: number;
+  };
+  totals: {
+    invoices: number;
+    gross: number;
+    discount: number;
+    tax: number;
+    net: number;
+    cash: number;
+    card: number;
+    wallet: number;
+    cash_in: number;
+    cash_out: number;
+    expected_cash: number;
+  };
+  cashEvents: CashEvent[];
+}
+
+export interface ZReport {
+  shiftId: number;
+  terminal: string;
+  cashierId: number;
+  openedAt: string;
+  closedAt: string;
+  ended_at: string;
+  closed_by_name?: string;
+  session: {
+    id: number;
+    cashier_name: string;
+    terminal: string;
+    started_at: string;
+    opening_float: number;
+  };
+  totals: {
+    invoices: number;
+    gross: number;
+    discount: number;
+    tax: number;
+    net: number;
+    cash: number;
+    card: number;
+    wallet: number;
+    cash_in: number;
+    cash_out: number;
+    expected_cash: number;
+  };
+  counted_cash: number;
+  variance: number;
+  cashEvents: CashEvent[];
+}
+
+export interface ShiftMovement {
+  id?: number;
+  shift_id: number;
+  datetime?: string;
+  type: ShiftMovementType;
+  amount: number;
+  reason?: string | null;
+}
+
+export interface ShiftSummary {
+  shift: Shift;
+  sales: {
+    invoices: number;
+    gross: number;
+    discount: number;
+    tax: number;
+    net: number;
+  };
+  payments: {
+    cash: number;
+    card: number;
+    wallet: number;
+    other?: number;
+  };
+  cashDrawer: {
+    opening: number;
+    cashIn: number;
+    cashOut: number;
+    drops: number;
+    pickups: number;
+    petty: number;
+    expectedCash: number;  // opening + cash + cashIn - cashOut - drops - petty
+    declaredCash?: number | null;
+    variance?: number | null;
+  };
+}
+
+// Company Profile and License Types
+export interface CompanyProfile {
+  id: number;
+  name: string;
+  address: string;
+  taxId?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  logoUrl?: string;
+  updatedAt: Date;
+}
+
+export interface LicenseInfo {
+  id: number;
+  productName: string;
+  licensee: string;
+  fullName: string;
+  locked: boolean;
+  issuedAt: Date;
+}
+
+export interface LicenseAdmin {
+  id: number;
+  name: string;
+  role: 'LICENSE_ADMIN';
+  pin: string;
+  active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}

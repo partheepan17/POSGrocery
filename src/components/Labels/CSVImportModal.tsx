@@ -56,10 +56,10 @@ export function CSVImportModal({ isOpen, onClose, onImport }: CSVImportModalProp
   };
 
   const downloadTemplate = () => {
-    const templateData = `barcode,sku,qty,price_tier,language,custom_line1,custom_line2
-123456789012,ITEM001,2,retail,EN,,
-,ITEM002,1,wholesale,SI,,
-987654321098,ITEM003,5,retail,TA,"Custom Name","Size: Large"`;
+    const templateData = `barcode,sku,qty,price_tier,language,custom_line1,custom_line2,packed_date,expiry_date,mrp,batch_no
+123456789012,ITEM001,2,retail,EN,,,2024-03-15,2024-09-15,150.00,B001
+,ITEM002,1,wholesale,SI,,,2024-03-15,2024-12-31,75.50,LOT123
+987654321098,ITEM003,5,retail,TA,"Custom Name","Size: Large",2024-03-15,,299.99,BATCH456`;
     
     const blob = new Blob([templateData], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -298,6 +298,10 @@ function PreviewStep({ result, onImport, onBack }: PreviewStepProps) {
                   <th className="text-left p-2 font-medium text-green-900">Qty</th>
                   <th className="text-left p-2 font-medium text-green-900">Price Tier</th>
                   <th className="text-left p-2 font-medium text-green-900">Language</th>
+                  <th className="text-left p-2 font-medium text-green-900">Packed</th>
+                  <th className="text-left p-2 font-medium text-green-900">Expiry</th>
+                  <th className="text-left p-2 font-medium text-green-900">MRP</th>
+                  <th className="text-left p-2 font-medium text-green-900">Batch</th>
                 </tr>
               </thead>
               <tbody>
@@ -307,12 +311,16 @@ function PreviewStep({ result, onImport, onBack }: PreviewStepProps) {
                     <td className="p-2 text-green-800">{item.name_en}</td>
                     <td className="p-2 text-green-800">{item.qty}</td>
                     <td className="p-2 text-green-800">{item.price_tier}</td>
-                    <td className="p-2 text-green-800">{item.language}</td>
+                    <td className="p-2 text-green-800">{item.language || 'EN'}</td>
+                    <td className="p-2 text-green-800">{item.packedDate || '-'}</td>
+                    <td className="p-2 text-green-800">{item.expiryDate || '-'}</td>
+                    <td className="p-2 text-green-800">{item.mrp ? `${item.mrp}` : '-'}</td>
+                    <td className="p-2 text-green-800">{item.batchNo || '-'}</td>
                   </tr>
                 ))}
                 {items.length > 10 && (
                   <tr>
-                    <td colSpan={5} className="p-2 text-green-600 italic text-center">
+                    <td colSpan={9} className="p-2 text-green-600 italic text-center">
                       ...and {items.length - 10} more items
                     </td>
                   </tr>

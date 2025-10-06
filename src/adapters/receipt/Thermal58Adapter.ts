@@ -144,6 +144,13 @@ export class Thermal58Adapter implements ReceiptAdapter {
             margin-bottom: 8px;
         }
         
+        .receipt-type {
+            font-weight: bold;
+            font-size: 12px;
+            margin: 3px 0;
+            text-transform: uppercase;
+        }
+        
         .store-name {
             font-weight: bold;
             font-size: 14px;
@@ -286,8 +293,9 @@ export class Thermal58Adapter implements ReceiptAdapter {
         <div class="store-name">${store.name}</div>
         ${store.address ? `<div class="store-address">${store.address}</div>` : ''}
         ${store.taxId ? `<div class="tax-id">${localizedContent.taxId}: ${store.taxId}</div>` : ''}
+        ${payload.type === 'return' ? `<div class="receipt-type">${localizedContent.returnReceipt}</div>` : ''}
         <div class="invoice-info">
-            <span>${localizedContent.invoice}: ${invoice.id}</span>
+            <span>${payload.type === 'return' ? localizedContent.returnId : localizedContent.invoice}: ${invoice.id}</span>
             <span>${terminalName}</span>
         </div>
         <div class="invoice-info">
@@ -360,6 +368,9 @@ export class Thermal58Adapter implements ReceiptAdapter {
     <div class="footer">
         <div>${footerText}</div>
         <div style="margin-top: 4px;">${localizedContent.thankYou}</div>
+        <div style="margin-top: 6px; font-size: 8px; color: #666;">
+            <div>viRtual POS © Virtual Software Pvt Ltd</div>
+        </div>
     </div>
 </body>
 </html>`;
@@ -371,6 +382,8 @@ export class Thermal58Adapter implements ReceiptAdapter {
     const content = {
       EN: {
         invoice: 'Invoice',
+        returnId: 'Return ID',
+        returnReceipt: 'RETURN RECEIPT',
         taxId: 'Tax ID',
         gross: 'Gross',
         discount: 'Disc',
@@ -390,6 +403,8 @@ export class Thermal58Adapter implements ReceiptAdapter {
       },
       SI: {
         invoice: 'ඉන්වොයිස්',
+        returnId: 'ආපසු ලබාදීමේ අංකය',
+        returnReceipt: 'ආපසු ලබාදීමේ රිසිට්',
         taxId: 'බදු අංකය',
         gross: 'ප්‍රාථමික',
         discount: 'වට්ටම්',
@@ -409,6 +424,8 @@ export class Thermal58Adapter implements ReceiptAdapter {
       },
       TA: {
         invoice: 'விலைப்பட்டியல்',
+        returnId: 'திரும்ப பெறுதல் எண்',
+        returnReceipt: 'திரும்ப பெறுதல் ரசீது',
         taxId: 'வரி எண்',
         gross: 'மொத்தம்',
         discount: 'தள்ளுபடி',

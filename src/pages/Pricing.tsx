@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Download, Upload, RefreshCw, Calculator, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Search, Download, Upload, RefreshCw, Calculator, AlertTriangle, ArrowRight, Edit3, Trash2, Plus } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { dataService, Product, Category } from '@/services/dataService';
 import { csvService } from '@/services/csvService';
 import { BulkActionsModal } from '@/components/Pricing/BulkActionsModal';
 import { CSVImportModal } from '@/components/Pricing/CSVImportModal';
 import { VirtualizedTable } from '@/components/Pricing/VirtualizedTable';
+import { EditPriceModal } from '@/components/Pricing/EditPriceModal';
+import { AddPriceModal } from '@/components/Pricing/AddPriceModal';
 import { useAppStore } from '@/store/appStore';
 
 interface ProductWithCategory extends Product {
@@ -93,6 +95,8 @@ export function Pricing() {
   const VIRTUALIZATION_THRESHOLD = 200;
   const shouldUseVirtualization = products.length > VIRTUALIZATION_THRESHOLD;
   const [showImportModal, setShowImportModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<ProductWithCategory | null>(null);
+  const [showAddPrice, setShowAddPrice] = useState(false);
 
   // Refs
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -416,6 +420,14 @@ export function Pricing() {
           </div>
           <div className="flex items-center space-x-3">
             <button
+              onClick={() => setShowAddPrice(true)}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              title="Add Price"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Price
+            </button>
+            <button
               onClick={() => setShowBulkModal(true)}
               className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
@@ -600,6 +612,7 @@ export function Pricing() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Last Updated
                     </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -655,12 +668,145 @@ export function Pricing() {
                         )}
                       </td>
 
-                      {/* Similar pattern for other price fields */}
-                      <td className="px-4 py-3 text-sm text-gray-500">
-                        {product.category?.name || '-'}
+                      {/* Wholesale Price */}
+                      <td className="px-4 py-3 text-sm">
+                        {editingCell?.productId === product.id && editingCell?.field === 'price_wholesale' ? (
+                          <input
+                            type="text"
+                            value={editingCell.value}
+                            onChange={(e) => handleCellValueChange(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveEdit();
+                              if (e.key === 'Escape') handleCancelEdit();
+                            }}
+                            onBlur={handleSaveEdit}
+                            className={`w-full px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500 ${
+                              isPriceBlocked(product, 'price_wholesale') 
+                                ? 'border-red-500 bg-red-50' 
+                                : 'border-blue-500'
+                            }`}
+                            autoFocus
+                            title={getValidationMessage(product, 'price_wholesale') || ''}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => handleCellEdit(product.id, 'price_wholesale')}
+                            className={`w-full text-left px-2 py-1 rounded hover:bg-gray-100 ${
+                              isMissingPrice(product, 'price_wholesale') 
+                                ? isPriceBlocked(product, 'price_wholesale')
+                                  ? 'text-red-600 font-semibold'
+                                  : 'text-red-600'
+                                : 'text-gray-900'
+                            }`}
+                            title={getValidationMessage(product, 'price_wholesale') || ''}
+                          >
+                            {getPriceDisplay(product, 'price_wholesale')}
+                          </button>
+                        )}
                       </td>
+
+                      {/* Credit Price */}
+                      <td className="px-4 py-3 text-sm">
+                        {editingCell?.productId === product.id && editingCell?.field === 'price_credit' ? (
+                          <input
+                            type="text"
+                            value={editingCell.value}
+                            onChange={(e) => handleCellValueChange(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveEdit();
+                              if (e.key === 'Escape') handleCancelEdit();
+                            }}
+                            onBlur={handleSaveEdit}
+                            className={`w-full px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500 ${
+                              isPriceBlocked(product, 'price_credit') 
+                                ? 'border-red-500 bg-red-50' 
+                                : 'border-blue-500'
+                            }`}
+                            autoFocus
+                            title={getValidationMessage(product, 'price_credit') || ''}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => handleCellEdit(product.id, 'price_credit')}
+                            className={`w-full text-left px-2 py-1 rounded hover:bg-gray-100 ${
+                              isMissingPrice(product, 'price_credit') 
+                                ? isPriceBlocked(product, 'price_credit')
+                                  ? 'text-red-600 font-semibold'
+                                  : 'text-red-600'
+                                : 'text-gray-900'
+                            }`}
+                            title={getValidationMessage(product, 'price_credit') || ''}
+                          >
+                            {getPriceDisplay(product, 'price_credit')}
+                          </button>
+                        )}
+                      </td>
+
+                      {/* Other Price */}
+                      <td className="px-4 py-3 text-sm">
+                        {editingCell?.productId === product.id && editingCell?.field === 'price_other' ? (
+                          <input
+                            type="text"
+                            value={editingCell.value}
+                            onChange={(e) => handleCellValueChange(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveEdit();
+                              if (e.key === 'Escape') handleCancelEdit();
+                            }}
+                            onBlur={handleSaveEdit}
+                            className={`w-full px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500 ${
+                              isPriceBlocked(product, 'price_other') 
+                                ? 'border-red-500 bg-red-50' 
+                                : 'border-blue-500'
+                            }`}
+                            autoFocus
+                            title={getValidationMessage(product, 'price_other') || ''}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => handleCellEdit(product.id, 'price_other')}
+                            className={`w-full text-left px-2 py-1 rounded hover:bg-gray-100 ${
+                              isMissingPrice(product, 'price_other') 
+                                ? isPriceBlocked(product, 'price_other')
+                                  ? 'text-red-600 font-semibold'
+                                  : 'text-red-600'
+                                : 'text-gray-900'
+                            }`}
+                            title={getValidationMessage(product, 'price_other') || ''}
+                          >
+                            {getPriceDisplay(product, 'price_other')}
+                          </button>
+                        )}
+                      </td>
+
+                      {/* Last Updated */}
                       <td className="px-4 py-3 text-sm text-gray-500">
-                        {product.updated_at ? new Date(product.updated_at).toLocaleDateString() : '-'}
+                        {product.updated_at ? new Date(product.updated_at).toLocaleString() : '-'}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => setEditingProduct(product)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Edit Prices"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Delete ${product.sku}?`)) return;
+                              await dataService.deleteProduct(product.id as any);
+                              toast.success('Deleted');
+                              loadData();
+                            }}
+                            className="text-gray-500 hover:text-red-700"
+                            title="Delete Product"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -696,6 +842,27 @@ export function Pricing() {
         onClose={() => setShowImportModal(false)}
         onImportComplete={handleImportComplete}
       />
+
+      {editingProduct && (
+        <EditPriceModal
+          product={editingProduct as any}
+          onClose={() => setEditingProduct(null)}
+          onSaved={(updated) => {
+            setProducts(prev => prev.map(p => p.id === updated.id ? { ...p, ...updated } : p));
+            setEditingProduct(null);
+          }}
+        />
+      )}
+
+      {showAddPrice && (
+        <AddPriceModal
+          onClose={() => setShowAddPrice(false)}
+          onAdded={(updated) => {
+            setProducts(prev => prev.map(p => p.id === updated.id ? { ...p, ...updated } : p));
+            setShowAddPrice(false);
+          }}
+        />
+      )}
     </div>
   );
 }

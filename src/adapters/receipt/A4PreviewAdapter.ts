@@ -137,6 +137,14 @@ export class A4PreviewAdapter implements ReceiptAdapter {
             margin-bottom: 30px;
         }
         
+        .receipt-type {
+            font-weight: bold;
+            font-size: 18px;
+            margin: 10px 0;
+            text-transform: uppercase;
+            color: #d32f2f;
+        }
+        
         .store-info {
             text-align: center;
             margin-bottom: 20px;
@@ -324,12 +332,13 @@ export class A4PreviewAdapter implements ReceiptAdapter {
                 <div class="store-name">${store.name}</div>
                 ${store.address ? `<div class="store-address">${store.address}</div>` : ''}
                 ${store.taxId ? `<div class="tax-id">${localizedContent.taxId}: ${store.taxId}</div>` : ''}
+                ${payload.type === 'return' ? `<div class="receipt-type">${localizedContent.returnReceipt}</div>` : ''}
             </div>
             
             <div class="invoice-details">
                 <div class="invoice-info">
-                    <h3>${localizedContent.invoice}</h3>
-                    <p><strong>${localizedContent.invoice} No:</strong> ${invoice.id}</p>
+                    <h3>${payload.type === 'return' ? localizedContent.returnReceipt : localizedContent.invoice}</h3>
+                    <p><strong>${payload.type === 'return' ? localizedContent.returnId : localizedContent.invoice} No:</strong> ${invoice.id}</p>
                     <p><strong>Date:</strong> ${new Date(invoice.datetime).toLocaleDateString()}</p>
                     <p><strong>Time:</strong> ${new Date(invoice.datetime).toLocaleTimeString()}</p>
                 </div>
@@ -424,6 +433,9 @@ export class A4PreviewAdapter implements ReceiptAdapter {
         <div class="footer">
             <div>${footerText}</div>
             <div style="margin-top: 10px;">${localizedContent.thankYou}</div>
+            <div style="margin-top: 15px; font-size: 10px; color: #999;">
+                <div>viRtual POS © Virtual Software Pvt Ltd</div>
+            </div>
         </div>
     </div>
 </body>
@@ -436,6 +448,8 @@ export class A4PreviewAdapter implements ReceiptAdapter {
     const content = {
       EN: {
         invoice: 'Invoice',
+        returnId: 'Return ID',
+        returnReceipt: 'RETURN RECEIPT',
         terminal: 'Terminal',
         taxId: 'Tax ID',
         item: 'Item',
@@ -461,6 +475,8 @@ export class A4PreviewAdapter implements ReceiptAdapter {
       },
       SI: {
         invoice: 'ඉන්වොයිස්',
+        returnId: 'ආපසු ලබාදීමේ අංකය',
+        returnReceipt: 'ආපසු ලබාදීමේ රිසිට්',
         terminal: 'ටර්මිනල්',
         taxId: 'බදු අංකය',
         item: 'අයිතමය',
@@ -486,6 +502,8 @@ export class A4PreviewAdapter implements ReceiptAdapter {
       },
       TA: {
         invoice: 'விலைப்பட்டியல்',
+        returnId: 'திரும்ப பெறுதல் எண்',
+        returnReceipt: 'திரும்ப பெறுதல் ரசீது',
         terminal: 'முனையம்',
         taxId: 'வரி எண்',
         item: 'பொருள்',

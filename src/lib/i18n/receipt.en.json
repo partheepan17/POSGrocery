@@ -1,0 +1,45 @@
+{
+  "store": {
+    "name": "Grocery POS Store",
+    "address": "123 Main Street, Colombo 01",
+    "phone": "011-1234567",
+    "taxId": "123456789V"
+  },
+  "receipt": {
+    "title": "RECEIPT",
+    "receiptNo": "Receipt No",
+    "date": "Date",
+    "time": "Time",
+    "operator": "Operator",
+    "terminal": "Terminal",
+    "customer": "Customer"
+  },
+  "items": {
+    "header": {
+      "qty": "Qty",
+      "description": "Description",
+      "price": "Price",
+      "total": "Total"
+    }
+  },
+  "totals": {
+    "subtotal": "Subtotal",
+    "itemDiscounts": "Item Discounts",
+    "manualDiscount": "Manual Discount",
+    "tax": "Tax",
+    "total": "Total"
+  },
+  "payment": {
+    "method": "Payment Method",
+    "reference": "Reference",
+    "tendered": "Tendered",
+    "change": "Change"
+  },
+  "footer": {
+    "thankYou": "Thank you for your business!",
+    "warranty": "Warranty: 7 days",
+    "hotline": "Hotline: 011-1234567",
+    "returnPolicy": "Return Policy: 7 days with receipt"
+  }
+}
+

@@ -3,6 +3,9 @@ import { X, AlertTriangle, TestTube } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { dataService, DiscountRule, Product, Category } from '@/services/dataService';
 import { discountEngine } from '@/services/discountEngine';
+import ManagerPinDialog from '@/components/Security/ManagerPinDialog';
+import { authService } from '@/services/authService';
+import { auditService, AUDIT_ACTIONS } from '@/services/auditService';
 
 interface DiscountModalProps {
   rule?: DiscountRule | null;
@@ -55,6 +58,8 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
   const [conflictingRules, setConflictingRules] = useState<DiscountRule[]>([]);
   const [loading, setLoading] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
+  const [showManagerPin, setShowManagerPin] = useState(false);
+  const [pendingOverrideReason, setPendingOverrideReason] = useState('');
 
   // Initialize form data when rule prop changes
   useEffect(() => {
@@ -147,6 +152,14 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
       return;
     }
 
+    // Enforce manager override when discount percent exceeds cap (example cap: 10%)
+    const cashierCapPct = 10;
+    if (formData.type === 'PERCENT' && formData.value > cashierCapPct) {
+      setPendingOverrideReason(`Discount ${formData.value}% exceeds cap ${cashierCapPct}%`);
+      setShowManagerPin(true);
+      return;
+    }
+
     setLoading(true);
     try {
       const ruleData: Omit<DiscountRule, 'id'> = {
@@ -223,9 +236,9 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
         total: targetProduct.price_retail * 3 * 1.15
       }];
 
-      const result = await discountEngine.testRule({
-        rule: mockRule,
-        mockLines
+      const result = await discountEngine.applyRulesToCart({
+        lines: mockLines as any,
+        rules: [mockRule]
       });
 
       setTestResult(result);
@@ -285,7 +298,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
               type="text"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500 ${
                 errors.name ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="e.g., Sugar Discount 10/kg"
@@ -306,7 +319,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
                   applies_to: e.target.value as 'PRODUCT' | 'CATEGORY',
                   target_id: 0 // Reset target when changing applies_to
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               >
                 <option value="PRODUCT">Product</option>
                 <option value="CATEGORY">Category</option>
@@ -321,7 +334,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
               <select
                 value={formData.target_id}
                 onChange={(e) => setFormData(prev => ({ ...prev, target_id: parseInt(e.target.value) }))}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
                   errors.target_id ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
@@ -345,7 +358,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
               <select
                 value={formData.type}
                 onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as 'PERCENT' | 'AMOUNT' }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               >
                 <option value="PERCENT">Percentage</option>
                 <option value="AMOUNT">Fixed Amount</option>
@@ -364,7 +377,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
                   max={formData.type === 'PERCENT' ? '100' : undefined}
                   value={formData.value}
                   onChange={(e) => setFormData(prev => ({ ...prev, value: parseFloat(e.target.value) || 0 }))}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500 ${
                     errors.value ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="0"
@@ -393,7 +406,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
                 ...prev, 
                 max_qty_or_weight: e.target.value ? parseFloat(e.target.value) : undefined 
               }))}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500 ${
                 errors.max_qty_or_weight ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="Leave empty for no limit"
@@ -414,7 +427,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
                 type="date"
                 value={formData.active_from}
                 onChange={(e) => setFormData(prev => ({ ...prev, active_from: e.target.value }))}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
                   errors.active_from ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
@@ -429,7 +442,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
                 type="date"
                 value={formData.active_to}
                 onChange={(e) => setFormData(prev => ({ ...prev, active_to: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               />
             </div>
           </div>
@@ -444,7 +457,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
               min="1"
               value={formData.priority}
               onChange={(e) => setFormData(prev => ({ ...prev, priority: parseInt(e.target.value) || 10 }))}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
                 errors.priority ? 'border-red-500' : 'border-gray-300'
               }`}
             />
@@ -560,10 +573,71 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
             </div>
           </div>
         </form>
+
+        {/* Manager PIN Dialog */}
+        <ManagerPinDialog
+          isOpen={showManagerPin}
+          onClose={() => setShowManagerPin(false)}
+          permissions={[ 'DISCOUNT_OVERRIDE' as any ]}
+          reason={pendingOverrideReason}
+          requiredRole={'MANAGER' as any}
+          onSuccess={async (manager) => {
+            setShowManagerPin(false);
+            setLoading(true);
+            try {
+              const ruleData: Omit<DiscountRule, 'id'> = {
+                name: formData.name.trim(),
+                applies_to: formData.applies_to,
+                target_id: formData.target_id,
+                type: formData.type,
+                value: formData.value,
+                max_qty_or_weight: formData.max_qty_or_weight,
+                active_from: new Date(formData.active_from),
+                active_to: new Date(formData.active_to),
+                priority: formData.priority,
+                reason_required: formData.reason_required,
+                active: formData.active
+              };
+
+              if (rule?.id) {
+                await dataService.updateDiscountRule(rule.id, ruleData);
+              } else {
+                await dataService.createDiscountRule(ruleData);
+              }
+
+              await auditService.log({
+                action: AUDIT_ACTIONS.DISCOUNT_OVERRIDE,
+                payload: {
+                  cashier_id: authService.getCurrentUser()?.id || null,
+                  manager_id: manager?.id || null,
+                  reason: pendingOverrideReason,
+                  rule_preview: { name: formData.name, type: formData.type, value: formData.value }
+                }
+              });
+
+              toast.success('Discount rule saved with manager override');
+              onSave();
+            } catch (error) {
+              console.error('Error saving discount rule with override:', error);
+              toast.error('Failed to save rule');
+            } finally {
+              setLoading(false);
+            }
+          }}
+          onError={() => {
+            setShowManagerPin(false);
+            toast.error('Manager authorization required');
+          }}
+        />
       </div>
     </div>
   );
 }
+
+
+
+
+
 
 
 

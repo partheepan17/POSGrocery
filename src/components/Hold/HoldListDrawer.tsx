@@ -134,7 +134,7 @@ const HoldListDrawer: React.FC<HoldListDrawerProps> = ({
   // Handle expiry extension
   const handleExtendExpiry = useCallback(async (holdId: number, currentExpiry?: string) => {
     const settings = holdService.getHoldSettings();
-    const defaultMinutes = settings.expiryMinutes || 120;
+    const defaultMinutes = settings.expiryMinutes || 720;
     
     const minutesStr = prompt(
       `Extend expiry by how many minutes?`,
@@ -515,5 +515,10 @@ const HoldListDrawer: React.FC<HoldListDrawerProps> = ({
 };
 
 export default HoldListDrawer;
+
+
+
+
+
 
 

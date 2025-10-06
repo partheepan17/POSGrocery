@@ -6,21 +6,39 @@ export class Thermal80Adapter implements ReceiptAdapter {
 
   async print(payload: ReceiptPayload): Promise<void> {
     const receiptHtml = await this.generateReceiptHtml(payload);
-    
-    // Open print dialog for thermal printer
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      throw new Error('Unable to open print window');
+
+    // Use hidden iframe to allow Chrome print preview instead of system-only dialog
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      document.body.removeChild(iframe);
+      throw new Error('Unable to access print iframe document');
     }
 
-    printWindow.document.write(receiptHtml);
-    printWindow.document.close();
-    
-    // Auto-print after a short delay
+    iframeDoc.open();
+    iframeDoc.write(receiptHtml);
+    iframeDoc.close();
+
+    // Wait for iframe to render then trigger print
     setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 100);
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } finally {
+        // Remove iframe shortly after to avoid DOM leaks
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+      }
+    }, 150);
 
     // Send cash drawer pulse if needed
     if (payload.options.openCashDrawerOnCash && payload.invoice.payments.cash > 0) {
@@ -63,29 +81,40 @@ export class Thermal80Adapter implements ReceiptAdapter {
       }
     };
 
-    // Generate items HTML with wider layout
-    const itemsHtml = invoice.items.map(item => {
-      const localizedName = item[itemNameField] || item.name_en;
-      const qtyFormatted = formatQuantity(item.qty, item.unit);
-      const unitPriceFormatted = formatCurrency(applyRounding(item.unitPrice));
-      const totalFormatted = formatCurrency(applyRounding(item.total));
-      
-      let itemHtml = `
-        <div class="item-row">
-          <div class="item-name">${this.truncateText(localizedName, 35)}</div>
-          <div class="item-details">
-            ${qtyFormatted}${item.unit} × ${unitPriceFormatted}
+    // Table headers localized
+    const headers = {
+      name: localizedContent.itemName || 'Item',
+      qty: localizedContent.qty || 'Qty',
+      price: localizedContent.unitPrice || 'Price',
+      disc: localizedContent.discount || 'Disc',
+      total: localizedContent.total || 'Total'
+    };
+
+    const itemsHtml = `
+      <div class="items-header" style="display:flex; font-weight:bold; border-bottom:1px solid #000; padding-bottom:4px;">
+        <div style="flex: 6">${headers.name}</div>
+        <div style="flex: 2; text-align:right;">${headers.qty}</div>
+        <div style="flex: 3; text-align:right;">${headers.price}</div>
+        <div style="flex: 3; text-align:right;">${headers.disc}</div>
+        <div style="flex: 3; text-align:right;">${headers.total}</div>
+      </div>
+      ${invoice.items.map(item => {
+        const localizedName = (item as any)[itemNameField] || (item as any).name_en;
+        const qtyFormatted = formatQuantity(item.qty, item.unit);
+        const unitPriceFormatted = formatCurrency(applyRounding(item.unitPrice));
+        const lineDisc = item.lineDiscount ? formatCurrency(applyRounding(item.lineDiscount)) : '-';
+        const totalFormatted = formatCurrency(applyRounding(item.total));
+        return `
+          <div class="item-row" style="display:flex; margin:4px 0;">
+            <div style="flex: 6">${this.truncateText(localizedName, 30)}</div>
+            <div style="flex: 2; text-align:right;">${qtyFormatted}</div>
+            <div style="flex: 3; text-align:right;">${unitPriceFormatted}</div>
+            <div style="flex: 3; text-align:right;">${lineDisc}</div>
+            <div style="flex: 3; text-align:right;">${totalFormatted}</div>
           </div>
-          <div class="item-total">${totalFormatted}</div>
-      `;
-      
-      if (item.lineDiscount > 0) {
-        itemHtml += `<div class="item-discount">${localizedContent.discount}: ${formatCurrency(applyRounding(item.lineDiscount))}</div>`;
-      }
-      
-      itemHtml += '</div>';
-      return itemHtml;
-    }).join('');
+        `;
+      }).join('')}
+    `;
 
     // Format totals
     const totals = {
@@ -95,7 +124,14 @@ export class Thermal80Adapter implements ReceiptAdapter {
       net: formatCurrency(applyRounding(invoice.totals.net))
     };
 
-    // Format payments
+    // Payments formatting: support either aggregated fields or a list
+    const paymentsList: Array<{ method: string; amount: number }> = Array.isArray((invoice as any).paymentsList)
+      ? (invoice as any).paymentsList
+      : [
+          { method: 'CASH', amount: Number(invoice.payments.cash || 0) },
+          { method: 'CARD', amount: Number(invoice.payments.card || 0) },
+          { method: 'WALLET', amount: Number(invoice.payments.wallet || 0) }
+        ].filter(p => p.amount > 0);
     const payments = {
       cash: formatCurrency(applyRounding(invoice.payments.cash)),
       card: formatCurrency(applyRounding(invoice.payments.card)),
@@ -142,6 +178,13 @@ export class Thermal80Adapter implements ReceiptAdapter {
             border-bottom: 1px dashed #000;
             padding-bottom: 10px;
             margin-bottom: 10px;
+        }
+        
+        .receipt-type {
+            font-weight: bold;
+            font-size: 14px;
+            margin: 5px 0;
+            text-transform: uppercase;
         }
         
         .store-name {
@@ -278,8 +321,9 @@ export class Thermal80Adapter implements ReceiptAdapter {
         <div class="store-name">${store.name}</div>
         ${store.address ? `<div class="store-address">${store.address}</div>` : ''}
         ${store.taxId ? `<div class="tax-id">${localizedContent.taxId}: ${store.taxId}</div>` : ''}
+        ${payload.type === 'return' ? `<div class="receipt-type">${localizedContent.returnReceipt}</div>` : ''}
         <div class="invoice-info">
-            <span>${localizedContent.invoice}: ${invoice.id}</span>
+            <span>${payload.type === 'return' ? localizedContent.returnId : localizedContent.invoice}: ${invoice.id}</span>
             <span>${terminalName}</span>
         </div>
         <div class="invoice-info">
@@ -320,29 +364,17 @@ export class Thermal80Adapter implements ReceiptAdapter {
     </div>
     
     <div class="payments-section">
-        ${invoice.payments.cash > 0 ? `
-        <div class="payment-row">
-            <span>${localizedContent.cash}:</span>
-            <span>${payments.cash}</span>
-        </div>
-        ` : ''}
-        ${invoice.payments.card > 0 ? `
-        <div class="payment-row">
-            <span>${localizedContent.card}:</span>
-            <span>${payments.card}</span>
-        </div>
-        ` : ''}
-        ${invoice.payments.wallet > 0 ? `
-        <div class="payment-row">
-            <span>${localizedContent.wallet}:</span>
-            <span>${payments.wallet}</span>
-        </div>
-        ` : ''}
+        ${paymentsList.map(p => `
+          <div class="payment-row">
+            <span>${p.method}:</span>
+            <span>${formatCurrency(applyRounding(p.amount))}</span>
+          </div>
+        `).join('')}
         ${invoice.payments.change > 0 ? `
-        <div class="payment-row">
+          <div class="payment-row">
             <span>${localizedContent.change}:</span>
             <span>${payments.change}</span>
-        </div>
+          </div>
         ` : ''}
     </div>
     
@@ -352,6 +384,9 @@ export class Thermal80Adapter implements ReceiptAdapter {
     <div class="footer">
         <div>${footerText}</div>
         <div style="margin-top: 6px;">${localizedContent.thankYou}</div>
+        <div style="margin-top: 8px; font-size: 9px; color: #666;">
+            <div>viRtual POS © Virtual Software Pvt Ltd</div>
+        </div>
     </div>
 </body>
 </html>`;
@@ -363,7 +398,13 @@ export class Thermal80Adapter implements ReceiptAdapter {
     const content = {
       EN: {
         invoice: 'Invoice',
+        returnId: 'Return ID',
+        returnReceipt: 'RETURN RECEIPT',
         taxId: 'Tax ID',
+        itemName: 'Item',
+        qty: 'Qty',
+        unitPrice: 'Price',
+        total: 'Total',
         gross: 'Gross',
         discount: 'Disc',
         tax: 'Tax',
@@ -382,10 +423,16 @@ export class Thermal80Adapter implements ReceiptAdapter {
       },
       SI: {
         invoice: 'ඉන්වොයිස්',
+        returnId: 'ආපසු ලබාදීමේ අංකය',
+        returnReceipt: 'ආපසු ලබාදීමේ රිසිට්',
         taxId: 'බදු අංකය',
-        gross: 'ප්‍රාථමික',
+        itemName: 'භාණ්ඩය',
+        qty: 'ප්‍රමාණය',
+        unitPrice: 'මිල',
+        total: 'මුළු',
+        gross: 'මුළු',
         discount: 'වට්ටම්',
-        tax: 'බදු',
+        tax: 'බද්ද',
         net: 'ශුද්ධ',
         cash: 'මුදල්',
         card: 'කාඩ්',
@@ -401,7 +448,13 @@ export class Thermal80Adapter implements ReceiptAdapter {
       },
       TA: {
         invoice: 'விலைப்பட்டியல்',
+        returnId: 'திரும்ப பெறுதல் எண்',
+        returnReceipt: 'திரும்ப பெறுதல் ரசீது',
         taxId: 'வரி எண்',
+        itemName: 'பொருள்',
+        qty: 'அளவு',
+        unitPrice: 'விலை',
+        total: 'மொத்தம்',
         gross: 'மொத்தம்',
         discount: 'தள்ளுபடி',
         tax: 'வரி',

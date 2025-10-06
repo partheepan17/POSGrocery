@@ -13,7 +13,7 @@ import {
   FileText,
   Scale
 } from 'lucide-react';
-import { inventoryService, StockRow, StockFilters, MovementLogRow, MovementLogFilters } from '@/services/inventoryService';
+import { inventoryServiceSimple as inventoryService, StockRow, StockFilters, MovementLogRow, MovementLogFilters } from '@/services/inventoryServiceSimple';
 import { csvService } from '@/services/csvService';
 import { useAppStore } from '@/store/appStore';
 import { ReceiveModal } from '@/components/Inventory/ReceiveModal';
@@ -43,7 +43,7 @@ export function Inventory() {
   
   // Filter states
   const [stockFilters, setStockFilters] = useState<StockFilters>({
-    active: true,
+    // Don't filter by active by default - show all products
     limit: 100
   });
   
@@ -194,7 +194,7 @@ export function Inventory() {
       if (stockFilters.search) count++;
       if (stockFilters.category) count++;
       if (stockFilters.supplier) count++;
-      if (stockFilters.lowStockOnly) count++;
+      if (stockFilters.lowStock) count++;
       if (stockFilters.unit) count++;
     } else if (activeTab === 'logs') {
       if (logFilters.type) count++;
@@ -218,7 +218,7 @@ export function Inventory() {
                 placeholder="SKU, Barcode, or Name..."
                 value={stockFilters.search || ''}
                 onChange={(e) => setStockFilters(prev => ({ ...prev, search: e.target.value || undefined }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500"
               />
             </div>
             
@@ -227,7 +227,7 @@ export function Inventory() {
               <select
                 value={stockFilters.category || ''}
                 onChange={(e) => setStockFilters(prev => ({ ...prev, category: e.target.value || undefined }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               >
                 <option value="">All Categories</option>
                 {categories.map(category => (
@@ -241,7 +241,7 @@ export function Inventory() {
               <select
                 value={stockFilters.supplier || ''}
                 onChange={(e) => setStockFilters(prev => ({ ...prev, supplier: e.target.value || undefined }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               >
                 <option value="">All Suppliers</option>
                 {suppliers.map(supplier => (
@@ -255,7 +255,7 @@ export function Inventory() {
               <select
                 value={stockFilters.unit || ''}
                 onChange={(e) => setStockFilters(prev => ({ ...prev, unit: e.target.value as 'pc' | 'kg' || undefined }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               >
                 <option value="">All Units</option>
                 <option value="pc">Pieces</option>
@@ -268,8 +268,8 @@ export function Inventory() {
             <label className="flex items-center">
               <input
                 type="checkbox"
-                checked={stockFilters.lowStockOnly || false}
-                onChange={(e) => setStockFilters(prev => ({ ...prev, lowStockOnly: e.target.checked || undefined }))}
+                checked={stockFilters.lowStock || false}
+                onChange={(e) => setStockFilters(prev => ({ ...prev, lowStock: e.target.checked || undefined }))}
                 className="mr-2"
               />
               <span className="text-sm text-gray-700">Low stock only</span>
@@ -374,7 +374,7 @@ export function Inventory() {
                 value={logFilters.fromDate?.toISOString().split('T')[0] || ''}
                 onChange={(e) => setLogFilters(prev => ({ 
                   ...prev, 
-                  fromDate: e.target.value ? new Date(e.target.value) : undefined 
+                  fromDate: e.target.value ? new Date(e.target.value) : new Date(new Date().setDate(new Date().getDate() - 7))
                 }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
@@ -387,7 +387,7 @@ export function Inventory() {
                 value={logFilters.toDate?.toISOString().split('T')[0] || ''}
                 onChange={(e) => setLogFilters(prev => ({ 
                   ...prev, 
-                  toDate: e.target.value ? new Date(e.target.value) : undefined 
+                  toDate: e.target.value ? new Date(e.target.value) : new Date()
                 }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />

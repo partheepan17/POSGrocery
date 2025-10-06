@@ -13,11 +13,13 @@ import { LanguageFormattingSection } from '@/components/Settings/LanguageFormatt
 import { PricingPoliciesSection } from '@/components/Settings/PricingPoliciesSection';
 import { ReceiptOptionsSection } from '@/components/Settings/ReceiptOptionsSection';
 import { BackupsSection } from '@/components/Settings/BackupsSection';
+import CompanySettings from './Settings/Company';
 
-type SettingsSection = 'store-info' | 'devices' | 'language-formatting' | 'pricing-policies' | 'receipt-options' | 'backups';
+type SettingsSection = 'store-info' | 'devices' | 'language-formatting' | 'pricing-policies' | 'receipt-options' | 'backups' | 'company';
 
 const sectionConfig = [
   { id: 'store-info' as SettingsSection, label: 'Store Info', icon: SettingsIcon },
+  { id: 'company' as SettingsSection, label: 'Company', icon: SettingsIcon },
   { id: 'devices' as SettingsSection, label: 'Devices', icon: SettingsIcon },
   { id: 'language-formatting' as SettingsSection, label: 'Language & Formatting', icon: SettingsIcon },
   { id: 'pricing-policies' as SettingsSection, label: 'Pricing Policies', icon: SettingsIcon },
@@ -232,6 +234,8 @@ export function Settings() {
     switch (activeSection) {
       case 'store-info':
         return <StoreInfoSection {...commonProps} />;
+      case 'company':
+        return <CompanySettings />;
       case 'devices':
         return <DevicesSection {...commonProps} />;
       case 'language-formatting':

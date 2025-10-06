@@ -100,7 +100,7 @@ const Login: React.FC = () => {
           navigate('/sales');
         } else {
           // Prompt to start new session
-          navigate('/shift?action=start');
+          navigate('/shifts/new');
         }
       } else {
         setState(prev => ({ 
@@ -364,5 +364,8 @@ const Login: React.FC = () => {
 };
 
 export default Login;
+
+
+
 
 

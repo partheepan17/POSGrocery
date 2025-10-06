@@ -1,4 +1,6 @@
 import { dataService, Product, Customer, Sale, SaleLine, DiscountRule } from './dataService';
+import { generateReceiptNumber } from '@/utils/receiptNumber';
+import { SETTINGS } from '@/config/settings';
 
 export interface POSSaleRequest {
   cashier_id: number;
@@ -99,7 +101,8 @@ export class POSService {
 
     const lineDiscount = request.line_discount || 0;
     const subtotal = (unitPrice * request.qty) - lineDiscount;
-    const tax = subtotal * 0.15; // 15% tax
+    // FIX: Tax is computed after all discounts at invoice level to avoid drift.
+    const tax = 0; // Per-line tax removed - computed at invoice level
     const total = subtotal + tax;
 
     const saleLine: SaleLine = {
@@ -122,8 +125,7 @@ export class POSService {
       // Increment quantity of existing line
       this.currentLines[existingLineIndex].qty += request.qty;
       this.currentLines[existingLineIndex].total = 
-        ((this.currentLines[existingLineIndex].qty * unitPrice) - lineDiscount) + 
-        (this.currentLines[existingLineIndex].qty * unitPrice * 0.15);
+        ((this.currentLines[existingLineIndex].qty * unitPrice) - lineDiscount);
     } else {
       // Add new line
       this.currentLines.push(saleLine);
@@ -156,7 +158,7 @@ export class POSService {
     }
 
     line.line_discount = discount;
-    line.total = ((line.qty * line.unit_price) - discount) + (line.qty * line.unit_price * 0.15);
+    line.total = ((line.qty * line.unit_price) - discount);
 
     this.currentLines[lineIndex] = line;
     return line;
@@ -172,9 +174,14 @@ export class POSService {
     const today = new Date().toISOString().split('T')[0];
 
     for (const rule of discountRules) {
+      const activeFrom = rule.active_from instanceof Date ? rule.active_from : new Date(rule.active_from as any);
+      const activeTo = rule.active_to instanceof Date ? rule.active_to : new Date(rule.active_to as any);
+      const fromStr = activeFrom.toISOString().split('T')[0];
+      const toStr = activeTo.toISOString().split('T')[0];
+
       if (rule.applies_to === 'PRODUCT' && rule.active && 
-          today >= rule.active_from.toISOString().split('T')[0] && 
-          today <= rule.active_to.toISOString().split('T')[0]) {
+          today >= fromStr && 
+          today <= toStr) {
         
         // Find lines for this product
         const productLines = this.currentLines.filter(line => line.product_id === rule.target_id);
@@ -182,8 +189,11 @@ export class POSService {
 
         if (totalQty > 0 && rule.max_qty_or_weight) {
           let eligibleQty = Math.min(totalQty, rule.max_qty_or_weight);
+          // IMPORTANT: Discounts are calculated on retail price, not current unit price
+          const product = await dataService.getProductById(productLines[0].product_id);
+          const retailPrice = product?.price_retail || productLines[0].unit_price;
           const discountPerUnit = rule.type === 'PERCENT' ? 
-            (productLines[0].unit_price * rule.value / 100) : rule.value;
+            (retailPrice * rule.value / 100) : rule.value;
           
           // Apply discount to eligible quantity
           for (const line of productLines) {
@@ -196,8 +206,7 @@ export class POSService {
             }
             
             // Recalculate total
-            line.total = ((line.qty * line.unit_price) - line.line_discount) + 
-                        (line.qty * line.unit_price * 0.15);
+            line.total = ((line.qty * line.unit_price) - line.line_discount);
           }
         }
       }
@@ -244,7 +253,8 @@ export class POSService {
     // Calculate totals
     const gross = this.currentLines.reduce((sum, line) => sum + (line.qty * line.unit_price), 0);
     const discount = this.currentLines.reduce((sum, line) => sum + line.line_discount, 0);
-    const tax = this.currentLines.reduce((sum, line) => sum + line.tax, 0);
+    // FIX: Tax computed at invoice level using SETTINGS.TAX_RATE
+    const tax = (gross - discount) * SETTINGS.TAX_RATE;
     const net = gross - discount + tax;
 
     // Update sale totals
@@ -320,8 +330,7 @@ export class POSService {
     if (lineIndex >= 0) {
       this.currentLines[lineIndex].qty = qty;
       const line = this.currentLines[lineIndex];
-      line.total = ((line.qty * line.unit_price) - line.line_discount) + 
-                  (line.qty * line.unit_price * 0.15);
+      line.total = ((line.qty * line.unit_price) - line.line_discount);
     }
   }
 
@@ -329,7 +338,8 @@ export class POSService {
   getSaleTotals(): { gross: number; discount: number; tax: number; net: number } {
     const gross = this.currentLines.reduce((sum, line) => sum + (line.qty * line.unit_price), 0);
     const discount = this.currentLines.reduce((sum, line) => sum + line.line_discount, 0);
-    const tax = this.currentLines.reduce((sum, line) => sum + line.tax, 0);
+    // FIX: Tax computed at invoice level using SETTINGS.TAX_RATE
+    const tax = (gross - discount) * SETTINGS.TAX_RATE;
     const net = gross - discount + tax;
 
     return { gross, discount, tax, net };
