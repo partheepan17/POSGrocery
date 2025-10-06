@@ -200,7 +200,7 @@ export class LabelPrintAdapter {
     barcodeHtml: string
   ): string {
     const sectionOrder = preset.style.sectionOrder || [
-      'store', 'name_en', 'name_si', 'name_ta', 'barcode', 'price', 'mrp', 'batch', 'dates', 'desc'
+      'store', 'barcode', 'name_en', 'name_si', 'name_ta', 'price', 'mrp', 'batch', 'dates', 'desc'
     ];
     let html = '';
     

@@ -427,7 +427,7 @@ export class LabelService {
           bold_name: true,
           align: 'center',
           show_store_logo: false,
-          sectionOrder: ['store', 'name_en', 'name_si', 'name_ta', 'barcode', 'price', 'dates', 'desc']
+          sectionOrder: ['store', 'barcode', 'name_en', 'name_si', 'name_ta', 'price', 'dates', 'desc']
         },
         defaults: {
           qty: 1,
@@ -472,7 +472,7 @@ export class LabelService {
           bold_name: true,
           align: 'left',
           show_store_logo: true,
-          sectionOrder: ['store', 'name_en', 'name_si', 'name_ta', 'barcode', 'price', 'dates', 'desc']
+          sectionOrder: ['store', 'barcode', 'name_en', 'name_si', 'name_ta', 'price', 'dates', 'desc']
         },
         defaults: {
           qty: 1,
@@ -523,7 +523,7 @@ export class LabelService {
           bold_name: true,
           align: 'center',
           show_store_logo: false,
-          sectionOrder: ['store', 'name_en', 'name_si', 'name_ta', 'barcode', 'price', 'dates', 'desc']
+          sectionOrder: ['store', 'barcode', 'name_en', 'name_si', 'name_ta', 'price', 'dates', 'desc']
         },
         defaults: {
           qty: 1,

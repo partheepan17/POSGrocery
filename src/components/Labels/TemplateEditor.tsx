@@ -58,7 +58,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
           bold_name: true,
           align: 'center',
           show_store_logo: false,
-          sectionOrder: ['name', 'barcode', 'price', 'mrp', 'batch', 'dates']
+          sectionOrder: ['store', 'barcode', 'name_en', 'name_si', 'name_ta', 'price', 'mrp', 'batch', 'dates', 'desc']
         },
         defaults: {
           qty: 1,
