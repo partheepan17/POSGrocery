@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, User, AlertCircle } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 
@@ -16,6 +17,7 @@ interface CustomerSelectProps {
 }
 
 export function CustomerSelect({ onCustomerChange }: CustomerSelectProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -33,7 +35,7 @@ export function CustomerSelect({ onCustomerChange }: CustomerSelectProps) {
   const loadCustomers = async () => {
     setIsLoading(true);
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/customers?active=true`);
       const data = await response.json();
       
@@ -85,7 +87,7 @@ export function CustomerSelect({ onCustomerChange }: CustomerSelectProps) {
   return (
     <div className="relative">
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Customer Selection
+        {t('sales.customerSelection')}
       </label>
       
       {/* Customer Dropdown */}
@@ -93,7 +95,7 @@ export function CustomerSelect({ onCustomerChange }: CustomerSelectProps) {
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="relative w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm pl-3 pr-10 py-2 text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="relative w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm pl-3 pr-10 py-2 text-left cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
         >
           <div className="flex items-center">
             <User className="h-5 w-5 text-gray-400 mr-2" />
@@ -110,7 +112,7 @@ export function CustomerSelect({ onCustomerChange }: CustomerSelectProps) {
         {isNonRetailTier && (
           <div className="mt-2 flex items-center text-sm text-amber-600 dark:text-amber-400">
             <AlertCircle className="w-4 h-4 mr-1" />
-            <span>Discount rules disabled (non-retail tier)</span>
+            <span>{t('sales.discountRulesDisabled')}</span>
           </div>
         )}
 
@@ -123,8 +125,8 @@ export function CustomerSelect({ onCustomerChange }: CustomerSelectProps) {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search customers..."
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder={t('sales.searchCustomers')}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                 autoFocus
               />
             </div>
@@ -140,10 +142,10 @@ export function CustomerSelect({ onCustomerChange }: CustomerSelectProps) {
                   <User className="h-5 w-5 text-gray-400 mr-3" />
                   <div>
                     <div className="font-medium text-gray-900 dark:text-white">
-                      Walk-in Customer (Retail)
+                      {t('sales.walkInCustomer')}
                     </div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">
-                      Default customer for retail sales
+                      {t('sales.defaultCustomerDescription')}
                     </div>
                   </div>
                 </div>
@@ -152,11 +154,11 @@ export function CustomerSelect({ onCustomerChange }: CustomerSelectProps) {
               {/* Customer Options */}
               {isLoading ? (
                 <div className="px-4 py-3 text-center text-gray-500 dark:text-gray-400">
-                  Loading customers...
+                  {t('sales.loadingCustomers')}
                 </div>
               ) : filteredCustomers.length === 0 ? (
                 <div className="px-4 py-3 text-center text-gray-500 dark:text-gray-400">
-                  {searchQuery ? 'No customers found' : 'No customers available'}
+                  {searchQuery ? t('sales.noCustomersFound') : t('sales.noCustomersAvailable')}
                 </div>
               ) : (
                 filteredCustomers.map((customer) => (

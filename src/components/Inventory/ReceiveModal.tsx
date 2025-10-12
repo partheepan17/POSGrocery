@@ -293,7 +293,7 @@ export function ReceiveModal({ onClose, onSuccess }: ReceiveModalProps) {
                         onKeyDown={(e) => handleKeyDown(e, index)}
                         data-row-index={index}
                         placeholder="Enter SKU or scan barcode"
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-green-500 focus:border-green-500 ${
                           row.error ? 'border-red-300 bg-red-50' : 'border-gray-300'
                         }`}
                       />
@@ -322,7 +322,7 @@ export function ReceiveModal({ onClose, onSuccess }: ReceiveModalProps) {
                         step={row.unit === 'kg' ? '0.001' : '1'}
                         min="0"
                         placeholder="0"
-                        className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-green-500 focus:border-green-500"
                       />
                     </td>
                     
@@ -336,7 +336,7 @@ export function ReceiveModal({ onClose, onSuccess }: ReceiveModalProps) {
                           step="0.01"
                           min="0"
                           placeholder="0.00"
-                          className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-green-500 focus:border-green-500"
                         />
                       </div>
                     </td>
@@ -347,7 +347,7 @@ export function ReceiveModal({ onClose, onSuccess }: ReceiveModalProps) {
                         value={row.note || ''}
                         onChange={(e) => updateRow(row.id, { note: e.target.value })}
                         placeholder="Optional note"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-green-500 focus:border-green-500"
                       />
                     </td>
                     

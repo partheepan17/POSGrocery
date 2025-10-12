@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search as SearchIcon, Package, Users, DollarSign } from 'lucide-react';
 
 export default function Search() {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
@@ -31,7 +33,7 @@ export default function Search() {
             placeholder="Search products, customers, suppliers..."
             value={searchTerm}
             onChange={(e) => handleSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
           />
         </div>
 
@@ -66,5 +68,13 @@ export default function Search() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
 
 

@@ -94,6 +94,7 @@ export async function testDiscountSystem() {
       product: mockProducts[0],
       qty: 2.5,
       unit_price: 100,
+      retail_price: 100,
       line_discount: 0,
       tax: 0,
       total: 250
@@ -106,8 +107,8 @@ export async function testDiscountSystem() {
 
     console.log('✅ Result:', {
       originalTotal: 250,
-      discountApplied: result1.totals.discount,
-      finalTotal: result1.totals.total,
+      discountApplied: result1.totals.itemDiscounts,
+      finalTotal: result1.totals.net,
       appliedRules: result1.appliedRules.map(r => r.rule_name)
     });
 
@@ -120,6 +121,7 @@ export async function testDiscountSystem() {
       product: mockProducts[0],
       qty: 4.0,
       unit_price: 100,
+      retail_price: 100,
       line_discount: 0,
       tax: 0,
       total: 400
@@ -132,8 +134,8 @@ export async function testDiscountSystem() {
 
     console.log('✅ Result:', {
       originalTotal: 400,
-      discountApplied: result2.totals.discount,
-      finalTotal: result2.totals.total,
+      discountApplied: result2.totals.itemDiscounts,
+      finalTotal: result2.totals.net,
       appliedRules: result2.appliedRules.map(r => r.rule_name),
       warnings: result2.warnings
     });
@@ -148,6 +150,7 @@ export async function testDiscountSystem() {
         product: mockProducts[0],
         qty: 2,
         unit_price: 100,
+        retail_price: 100,
         line_discount: 0,
         tax: 0,
         total: 200
@@ -158,6 +161,7 @@ export async function testDiscountSystem() {
         product: mockProducts[1],
         qty: 1,
         unit_price: 200,
+        retail_price: 200,
         line_discount: 0,
         tax: 0,
         total: 200
@@ -171,8 +175,8 @@ export async function testDiscountSystem() {
 
     console.log('✅ Result:', {
       originalTotal: 400,
-      discountApplied: result3.totals.discount,
-      finalTotal: result3.totals.total,
+      discountApplied: result3.totals.itemDiscounts,
+      finalTotal: result3.totals.net,
       appliedRules: result3.appliedRules.map(r => `${r.rule_name}: Rs.${r.discount_amount}`)
     });
 

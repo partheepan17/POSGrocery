@@ -59,7 +59,7 @@ export class A4PreviewAdapter implements ReceiptAdapter {
     };
 
     // Generate items table
-    const itemsRows = invoice.items.map(item => {
+    const itemsRows = invoice.items.map((item: any) => {
       const localizedName = item[itemNameField] || item.name_en;
       const qtyFormatted = formatQuantity(item.qty, item.unit);
       const unitPriceFormatted = formatCurrency(applyRounding(item.unitPrice));
@@ -69,11 +69,15 @@ export class A4PreviewAdapter implements ReceiptAdapter {
       return `
         <tr>
           <td>${localizedName}</td>
-          <td class="text-center">${qtyFormatted}${item.unit}</td>
+          <td class="text-center">${qtyFormatted}${item.unit}${item.uom ? ' ('+String(item.uom)+')' : ''}</td>
           <td class="text-right">${unitPriceFormatted}</td>
           <td class="text-right">${discountFormatted}</td>
           <td class="text-right">${totalFormatted}</td>
         </tr>
+        ${item.unit === 'kg' ? `
+        <tr>
+          <td colspan="5" class="text-right" style="font-size:12px;color:#555;">${item.unitPrice.toFixed(2)} × ${item.qty.toFixed(3)}kg</td>
+        </tr>` : ''}
       `;
     }).join('');
 
@@ -396,30 +400,12 @@ export class A4PreviewAdapter implements ReceiptAdapter {
         <div class="payments-section">
             <h3>${localizedContent.paymentDetails}</h3>
             <table class="payments-table">
-                ${invoice.payments.cash > 0 ? `
-                <tr>
-                    <td class="label">${localizedContent.cash}:</td>
-                    <td class="text-right">${payments.cash}</td>
-                </tr>
-                ` : ''}
-                ${invoice.payments.card > 0 ? `
-                <tr>
-                    <td class="label">${localizedContent.card}:</td>
-                    <td class="text-right">${payments.card}</td>
-                </tr>
-                ` : ''}
-                ${invoice.payments.wallet > 0 ? `
-                <tr>
-                    <td class="label">${localizedContent.wallet}:</td>
-                    <td class="text-right">${payments.wallet}</td>
-                </tr>
-                ` : ''}
-                ${invoice.payments.change > 0 ? `
-                <tr>
-                    <td class="label">${localizedContent.change}:</td>
-                    <td class="text-right">${payments.change}</td>
-                </tr>
-                ` : ''}
+              ${(Array.isArray((invoice as any).paymentsList) ? (invoice as any).paymentsList : []).map((p: any) => `
+                <tr><td class="label">${p.method}:</td><td class="text-right">${formatCurrency(applyRounding(p.amount))}</td></tr>
+              `).join('')}
+              ${invoice.payments.change > 0 ? `
+                <tr><td class="label">${localizedContent.change}:</td><td class="text-right">${payments.change}</td></tr>
+              ` : ''}
             </table>
         </div>
         

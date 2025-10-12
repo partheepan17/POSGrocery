@@ -145,7 +145,9 @@ class AuthService {
           name: userData.name,
           role: userData.role,
           pin: pin,
-          active: true
+          active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         };
 
         this.currentUser = user;

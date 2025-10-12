@@ -39,7 +39,7 @@ export const useUIStore = create<UIState>()(
       // Initial state
       isOnline: true,
       lastOnlineCheck: null,
-      printLanguage: 'en',
+      printLanguage: 'si', // Default to Sinhala
       currentTime: new Date(),
       userRole: 'cashier',
       userName: 'Admin User',

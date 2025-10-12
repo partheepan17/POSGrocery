@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { X, Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Upload, FileText, AlertCircle, CheckCircle, Download } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { csvService } from '@/services/csvService';
 import { dataService, Category, Supplier } from '@/services/dataService';
+import { downloadTemplate, getTemplateConfig } from '@/utils/templateDownloader';
 
 interface CSVImportModalProps {
   categories: Category[];
@@ -267,6 +268,54 @@ export function CSVImportModal({ categories, suppliers, onClose, onImport }: CSV
     return supplier.id.toString();
   };
 
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        sku: 'PROD001',
+        barcode: '1234567890123',
+        alias_barcodes: '1234567890124,1234567890125',
+        name_en: 'Sample Product 1',
+        name_si: 'නියමුනු නිෂ්පාදන 1',
+        name_ta: 'மாதிரி தயாரிப்பு 1',
+        unit: 'pc',
+        category: 'Electronics',
+        price_retail: '100.00',
+        price_wholesale: '85.00',
+        price_credit: '95.00',
+        price_other: '90.00',
+        tax_code: 'VAT',
+        shelf_location: 'A1-B2',
+        reorder_level: '10',
+        preferred_supplier: 'ABC Suppliers Ltd',
+        is_scale_item: 'false',
+        is_active: 'true'
+      },
+      {
+        sku: 'PROD002',
+        barcode: '1234567890126',
+        alias_barcodes: '',
+        name_en: 'Sample Product 2',
+        name_si: 'නියමුනු නිෂ්පාදන 2',
+        name_ta: 'மாதிரி தயாரிப்பு 2',
+        unit: 'kg',
+        category: 'Food & Beverages',
+        price_retail: '50.00',
+        price_wholesale: '42.50',
+        price_credit: '47.50',
+        price_other: '45.00',
+        tax_code: 'VAT',
+        shelf_location: 'B1-C3',
+        reorder_level: '25',
+        preferred_supplier: 'XYZ Trading Co',
+        is_scale_item: 'true',
+        is_active: 'true'
+      }
+    ];
+
+    csvService.exportData(templateData, 'products_template.csv');
+    toast.success('Template downloaded');
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'new':
@@ -330,7 +379,7 @@ export function CSVImportModal({ categories, suppliers, onClose, onImport }: CSV
                   />
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   >
                     Browse files
                   </button>
@@ -344,13 +393,20 @@ export function CSVImportModal({ categories, suppliers, onClose, onImport }: CSV
                 <h4 className="text-sm font-medium text-blue-900 mb-2">Required CSV Headers:</h4>
                 <div className="text-sm text-blue-800">
                   <p className="mb-2">Your CSV must include these exact column headers:</p>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
                     {CSV_HEADERS.map(header => (
                       <code key={header} className="bg-blue-100 px-2 py-1 rounded text-xs">
                         {header}
                       </code>
                     ))}
                   </div>
+                  <button
+                    onClick={() => downloadTemplate(getTemplateConfig('products'))}
+                    className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download Template (.csv)
+                  </button>
                 </div>
               </div>
             </div>
@@ -451,14 +507,14 @@ export function CSVImportModal({ categories, suppliers, onClose, onImport }: CSV
           <div className="flex items-center justify-end space-x-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               Cancel
             </button>
             <button
               onClick={handleImport}
               disabled={importing || preview.summary.errors > 0}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {importing ? 'Importing...' : `Import ${preview.summary.new + preview.summary.updated} Products`}
             </button>

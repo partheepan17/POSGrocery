@@ -6,14 +6,13 @@ describe('Hold Service', () => {
   beforeEach(async () => {
     // Clear localStorage before each test
     localStorage.clear();
-    await dataService.initialize();
   });
 
   it('should create and retrieve holds', async () => {
     // Create a test hold
     const holdInput = {
       hold_name: 'Test Hold',
-      customer_id: null,
+      customer_id: undefined,
       cashier_id: 1,
       terminal_name: 'POS-001',
       price_tier: 'Retail' as const,
@@ -31,7 +30,7 @@ describe('Hold Service', () => {
     };
 
     // Create the hold
-    const createdHold = await holdService.createHold(holdInput);
+    const createdHold = await holdService.createHold({ ...holdInput, customer_id: undefined });
     expect(createdHold).toBeDefined();
     expect(createdHold.hold_name).toBe('Test Hold');
     expect(createdHold.status).toBe('HELD');
@@ -49,7 +48,7 @@ describe('Hold Service', () => {
     // Create holds for different terminals
     const holdInput1 = {
       hold_name: 'Terminal 1 Hold',
-      customer_id: null,
+      customer_id: undefined,
       cashier_id: 1,
       terminal_name: 'POS-001',
       price_tier: 'Retail' as const,
@@ -67,7 +66,7 @@ describe('Hold Service', () => {
 
     const holdInput2 = {
       hold_name: 'Terminal 2 Hold',
-      customer_id: null,
+      customer_id: undefined,
       cashier_id: 1,
       terminal_name: 'POS-002',
       price_tier: 'Retail' as const,
@@ -100,7 +99,7 @@ describe('Hold Service', () => {
     // Create a hold
     const holdInput = {
       hold_name: 'Detailed Hold',
-      customer_id: null,
+      customer_id: undefined,
       cashier_id: 1,
       terminal_name: 'POS-001',
       price_tier: 'Retail' as const,
@@ -123,9 +122,9 @@ describe('Hold Service', () => {
     expect(retrievedHold).toBeDefined();
     expect(retrievedHold?.hold_name).toBe('Detailed Hold');
     expect(retrievedHold?.lines).toBeDefined();
-    expect(retrievedHold?.lines.length).toBe(1);
-    expect(retrievedHold?.lines[0].quantity).toBe(3);
-    expect(retrievedHold?.lines[0].unit_price).toBe(25);
+    expect(retrievedHold?.lines?.length).toBe(1);
+    expect(retrievedHold?.lines?.[0]?.quantity).toBe(3);
+    expect(retrievedHold?.lines?.[0]?.unit_price).toBe(25);
   });
 });
 

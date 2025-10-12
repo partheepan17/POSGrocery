@@ -60,7 +60,7 @@ export function ReturnFunction({ onBack }: ReturnFunctionProps) {
     setError(null);
 
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/invoices?limit=50&query=${encodeURIComponent(searchQuery)}`);
       const data = await response.json();
 
@@ -82,7 +82,7 @@ export function ReturnFunction({ onBack }: ReturnFunctionProps) {
     setError(null);
 
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/invoices/${invoice.id}`);
       const data = await response.json();
 
@@ -137,7 +137,7 @@ export function ReturnFunction({ onBack }: ReturnFunctionProps) {
     setError(null);
 
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/returns`, {
         method: 'POST',
         headers: {
@@ -158,7 +158,7 @@ export function ReturnFunction({ onBack }: ReturnFunctionProps) {
         
         // Print return receipt
         try {
-          const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+          const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
           await fetch(`${apiBaseUrl}/api/print`, {
             method: 'POST',
             headers: {
@@ -225,7 +225,7 @@ export function ReturnFunction({ onBack }: ReturnFunctionProps) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Enter receipt number or customer name..."
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20"
               />
             </div>
             <button

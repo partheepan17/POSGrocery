@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { useTranslation } from 'react-i18next';
+import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { FormLabel, Textarea } from '../components/ui/Form';
@@ -9,6 +10,7 @@ import { shiftService } from '../services/shiftService';
 import { useSettingsStore } from '../store/settingsStore';
 
 export default function NewShift() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { settings } = useSettingsStore();
   
@@ -62,7 +64,7 @@ export default function NewShift() {
       {/* Form */}
       <Card>
         <CardHeader>
-          <CardTitle>Shift Details</CardTitle>
+          <h3 >Shift Details</h3 >
         </CardHeader>
         <CardContent className="space-y-4">
           <div>

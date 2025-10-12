@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { FormLabel } from '../components/ui/Form';
@@ -23,7 +23,7 @@ import { refundService } from '../services/refundService';
 import { SaleWithLines, ReturnLine, ReturnReason } from '../types';
 import { useSettingsStore } from '../store/settingsStore';
 // import { useAuthStore } from '../store/appStore'; // Not available yet
-import { useTranslation } from '../i18n';
+import { useTranslation } from 'react-i18next';
 
 interface ReturnItem {
   sale_line_id: number;
@@ -54,7 +54,7 @@ export default function Returns() {
   const { settings } = useSettingsStore();
   // const { user } = useAuthStore(); // Not available yet
   const user = { id: 1, name: 'Admin', role: 'admin' }; // Mock user for now
-  const t = useTranslation();
+  const { t } = useTranslation();
   const receiptInputRef = useRef<HTMLInputElement>(null);
 
   const returnReasons: ReturnReason[] = refundService.getDefaultReturnReasons();
@@ -96,7 +96,7 @@ export default function Returns() {
 
   const handleLookupSale = async () => {
     if (!receiptInput.trim()) {
-      setError('Please enter a receipt number');
+      setError(t('returns.pleaseEnterReceiptNumber'));
       return;
     }
 
@@ -107,7 +107,7 @@ export default function Returns() {
     try {
       const saleData = await refundService.getSaleByReceipt(receiptInput.trim());
       if (!saleData) {
-        setError('Sale not found. Please check the receipt number.');
+        setError(t('returns.saleNotFound'));
         return;
       }
 
@@ -138,7 +138,7 @@ export default function Returns() {
       setReturnItems(items);
       setSelectedRowIndex(0);
     } catch (err) {
-      setError('Failed to lookup sale. Please try again.');
+      setError(t('returns.failedToLookupSale'));
       console.error('Lookup error:', err);
     } finally {
       setLoading(false);
@@ -220,23 +220,23 @@ export default function Returns() {
     const errors: string[] = [];
     
     if (returnItems.length === 0) {
-      errors.push('No items selected for return');
+      errors.push(t('returns.noItemsSelected'));
     }
     
     const totalQty = returnItems.reduce((sum, item) => sum + item.return_qty, 0);
     if (totalQty === 0) {
-      errors.push('Total return quantity must be greater than zero');
+      errors.push(t('returns.totalReturnQuantityMustBeGreaterThanZero'));
     }
     
     const totalRefund = getTotalRefund();
     if (totalRefund <= 0) {
-      errors.push('Total refund amount must be greater than zero');
+      errors.push(t('returns.totalRefundAmountMustBeGreaterThanZero'));
     }
     
     // Check manager PIN requirement
     const managerPinThreshold = settings?.refund?.managerPinThreshold || 5000;
     if (totalRefund >= managerPinThreshold && !managerPin) {
-      errors.push(`Manager PIN required for refunds over ${managerPinThreshold}`);
+      errors.push(t('returns.managerPinRequired', { threshold: managerPinThreshold }));
     }
     
     return errors;
@@ -350,7 +350,7 @@ export default function Returns() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <RotateCcw className="h-8 w-8" />
-          {t.returns.title}
+          {t('returns.title')}
                 </h1>
         <div className="flex items-center gap-2">
           <FormLabel htmlFor="language">Language:</FormLabel>
@@ -386,13 +386,13 @@ export default function Returns() {
           {/* Lookup Panel */}
           <Card>
             <CardHeader>
-              <CardTitle>{t.returns.lookupSale}</CardTitle>
+              <h3 className="text-lg font-semibold">{t('returns.lookupSale')}</h3>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-2">
                 <Input
                   ref={receiptInputRef}
-                  placeholder={t.returns.receiptNumber}
+                  placeholder={t('returns.receiptNumber')}
                   value={receiptInput}
                   onChange={(e) => setReceiptInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleLookupSale()}
@@ -400,17 +400,17 @@ export default function Returns() {
                 />
                 <Button onClick={handleLookupSale} disabled={loading}>
                   <Search className="h-4 w-4 mr-2" />
-                  {t.returns.findSale}
+                  {t('returns.findSale')}
                 </Button>
               </div>
               
               {sale && (
                 <div className="p-4 bg-muted rounded-lg">
-                  <h3 className="font-semibold">Sale Details</h3>
-                  <p>Date: {new Date(sale.datetime).toLocaleString()}</p>
-                  <p>Cashier: {sale.cashier_id || 'Unknown'}</p>
-                  <p>Tier: {sale.price_tier}</p>
-                  <p>Total: LKR {sale.net.toFixed(2)}</p>
+                  <h3 className="font-semibold">{t('returns.saleDetails')}</h3>
+                  <p>{t('returns.date')}: {new Date(sale.datetime).toLocaleString()}</p>
+                  <p>{t('returns.cashier')}: {sale.cashier_id || t('returns.unknown')}</p>
+                  <p>{t('returns.tier')}: {sale.price_tier}</p>
+                  <p>{t('returns.total')}: LKR {sale.net.toFixed(2)}</p>
                 </div>
               )}
             </CardContent>
@@ -420,7 +420,7 @@ export default function Returns() {
           {sale && (
             <Card>
               <CardHeader>
-                <CardTitle>Return Items</CardTitle>
+                <h3 className="text-lg font-semibold">{t('returns.returnItems')}</h3>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -440,8 +440,8 @@ export default function Returns() {
                           <div className="flex-1">
                             <h4 className="font-medium">{getLocalizedProductName(item)}</h4>
                             <div className="text-sm text-muted-foreground space-y-1">
-                              <p>Sold: {item.sold_qty} | Already Returned: {item.already_returned}</p>
-                              <p>Unit Price: LKR {item.unit_price.toFixed(2)}</p>
+                              <p>{t('returns.sold')}: {item.sold_qty} | {t('returns.alreadyReturned')}: {item.already_returned}</p>
+                              <p>{t('returns.unitPrice')}: LKR {item.unit_price.toFixed(2)}</p>
               </div>
             </div>
 
@@ -522,7 +522,7 @@ export default function Returns() {
           {sale && (
             <Card>
               <CardHeader>
-                <CardTitle>Refund Summary</CardTitle>
+                <h3 className="text-lg font-semibold">Refund Summary</h3>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -579,7 +579,7 @@ export default function Returns() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Return Receipt Preview</CardTitle>
+              <h3 className="text-lg font-semibold">Return Receipt Preview</h3>
             </CardHeader>
             <CardContent>
               <div className="bg-muted p-4 rounded-lg min-h-[400px]">
@@ -611,7 +611,7 @@ export default function Returns() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Card className="w-96">
             <CardHeader>
-              <CardTitle>Manager PIN Required</CardTitle>
+              <h3 className="text-lg font-semibold">Manager PIN Required</h3>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">

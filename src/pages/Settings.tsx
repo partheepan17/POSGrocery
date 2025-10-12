@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Save, RotateCcw, Download, Upload, Settings as SettingsIcon, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAppStore } from '@/store/appStore';
@@ -13,9 +14,10 @@ import { LanguageFormattingSection } from '@/components/Settings/LanguageFormatt
 import { PricingPoliciesSection } from '@/components/Settings/PricingPoliciesSection';
 import { ReceiptOptionsSection } from '@/components/Settings/ReceiptOptionsSection';
 import { BackupsSection } from '@/components/Settings/BackupsSection';
+import { AdminSection } from '@/components/Settings/AdminSection';
 import CompanySettings from './Settings/Company';
 
-type SettingsSection = 'store-info' | 'devices' | 'language-formatting' | 'pricing-policies' | 'receipt-options' | 'backups' | 'company';
+type SettingsSection = 'store-info' | 'devices' | 'language-formatting' | 'pricing-policies' | 'receipt-options' | 'backups' | 'company' | 'admin';
 
 const sectionConfig = [
   { id: 'store-info' as SettingsSection, label: 'Store Info', icon: SettingsIcon },
@@ -25,9 +27,11 @@ const sectionConfig = [
   { id: 'pricing-policies' as SettingsSection, label: 'Pricing Policies', icon: SettingsIcon },
   { id: 'receipt-options' as SettingsSection, label: 'Receipt Options', icon: SettingsIcon },
   { id: 'backups' as SettingsSection, label: 'Backups', icon: SettingsIcon },
+  { id: 'admin' as SettingsSection, label: 'Admin Tools', icon: SettingsIcon },
 ];
 
 export function Settings() {
+  const { t } = useTranslation();
   const { settings, updateSettings } = useAppStore();
   
   // Debug logging
@@ -115,7 +119,7 @@ export function Settings() {
           address: '123 Main Street\nColombo 01\nSri Lanka',
           taxId: '123456789V',
           logoUrl: '',
-          defaultReceiptLanguage: 'EN',
+          defaultReceiptLanguage: 'SI',
         },
         devices: {
           receiptPaper: '80mm',
@@ -246,6 +250,8 @@ export function Settings() {
         return <ReceiptOptionsSection {...commonProps} />;
       case 'backups':
         return <BackupsSection {...commonProps} />;
+      case 'admin':
+        return <AdminSection />;
       default:
         return <StoreInfoSection {...commonProps} />;
     }

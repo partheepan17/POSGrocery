@@ -29,7 +29,7 @@ export function KeyboardOverlay() {
       <div className="relative w-full max-w-3xl rounded-lg bg-white p-8 shadow-lg">
         <button
           onClick={() => setIsOpen(false)}
-          className="absolute right-4 top-4 rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+          className="absolute right-4 top-4 rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:ring-offset-2"
         >
           <X className="h-5 w-5" />
         </button>

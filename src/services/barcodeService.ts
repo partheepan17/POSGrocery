@@ -1,275 +1,256 @@
-import { BarcodeSymbology } from '@/types';
+import { Product } from '@/types/product';
+import { getApiBaseUrl } from '@/utils/api';
 
-export interface BarcodeResult {
-  data: string;
-  format: 'svg' | 'dataUrl';
-  width: number;
-  height: number;
+export interface BarcodeSearchResult {
+  product: Product | null;
+  found: boolean;
+  lookupType: 'barcode' | 'sku' | 'none';
+  duration: number;
+  cacheHit: boolean;
 }
 
-export class BarcodeService {
-  private static instance: BarcodeService;
+export interface BarcodeSearchOptions {
+  debounceMs?: number;
+  retryAttempts?: number;
+  timeout?: number;
+}
 
-  static getInstance(): BarcodeService {
-    if (!BarcodeService.instance) {
-      BarcodeService.instance = new BarcodeService();
-    }
-    return BarcodeService.instance;
-  }
-
-  /**
-   * Encode EAN-13 barcode
-   * Supports 12-digit input (computes checksum) or 13-digit input (validates checksum)
-   */
-  encodeEAN13(data: string): BarcodeResult {
-    // Remove any non-numeric characters
-    const cleanData = data.replace(/\D/g, '');
-    
-    if (cleanData.length === 12) {
-      // Compute checksum
-      const withChecksum = cleanData + this.calculateEAN13Checksum(cleanData);
-      return this.generateEAN13SVG(withChecksum);
-    } else if (cleanData.length === 13) {
-      // Validate checksum
-      const dataWithoutChecksum = cleanData.substring(0, 12);
-      const providedChecksum = cleanData.substring(12);
-      const computedChecksum = this.calculateEAN13Checksum(dataWithoutChecksum);
-      
-      if (providedChecksum !== computedChecksum) {
-        throw new Error(`Invalid EAN-13 checksum. Expected ${computedChecksum}, got ${providedChecksum}`);
-      }
-      return this.generateEAN13SVG(cleanData);
-    } else {
-      throw new Error('EAN-13 requires 12 or 13 digits');
-    }
-  }
+class BarcodeService {
+  private cache = new Map<string, BarcodeSearchResult>();
+  private pendingRequests = new Map<string, Promise<BarcodeSearchResult>>();
+  private debounceTimeouts = new Map<string, NodeJS.Timeout>();
 
   /**
-   * Encode Code128 barcode
-   * Supports any ASCII characters
+   * Search for a product by barcode or SKU
    */
-  encodeCode128(data: string): BarcodeResult {
-    if (!data || data.length === 0) {
-      throw new Error('Code128 data cannot be empty');
-    }
-    
-    // Auto-select Code128 subset (simplified - use Code128B for most cases)
-    return this.generateCode128SVG(data);
-  }
+  async searchBarcode(
+    code: string, 
+    options: BarcodeSearchOptions = {}
+  ): Promise<BarcodeSearchResult> {
+    const {
+      debounceMs = 200,
+      retryAttempts = 2,
+      timeout = 5000
+    } = options;
 
-  /**
-   * Calculate EAN-13 checksum
-   */
-  private calculateEAN13Checksum(data: string): string {
-    if (data.length !== 12) {
-      throw new Error('EAN-13 checksum calculation requires exactly 12 digits');
-    }
+    const trimmedCode = code.trim();
 
-    let sum = 0;
-    for (let i = 0; i < 12; i++) {
-      const digit = parseInt(data[i]);
-      if (i % 2 === 0) {
-        sum += digit; // Odd positions (1st, 3rd, 5th, etc.) - weight 1
-      } else {
-        sum += digit * 3; // Even positions (2nd, 4th, 6th, etc.) - weight 3
-      }
+    // Client-side validation
+    if (!this.validateBarcode(trimmedCode)) {
+      return {
+        product: null,
+        found: false,
+        lookupType: 'none',
+        duration: 0,
+        cacheHit: false
+      };
     }
 
-    const checksum = (10 - (sum % 10)) % 10;
-    return checksum.toString();
-  }
-
-  /**
-   * Generate EAN-13 SVG barcode
-   */
-  private generateEAN13SVG(data: string): BarcodeResult {
-    if (data.length !== 13) {
-      throw new Error('EAN-13 data must be exactly 13 digits');
+    // Check cache first
+    const cached = this.cache.get(trimmedCode);
+    if (cached) {
+      return { ...cached, cacheHit: true };
     }
 
-    // EAN-13 encoding patterns
-    const leftOddPatterns = [
-      '0001101', '0011001', '0010011', '0111101', '0100011',
-      '0110001', '0101111', '0111011', '0110111', '0001011'
-    ];
-    
-    const leftEvenPatterns = [
-      '0100111', '0110011', '0011011', '0100001', '0011101',
-      '0111001', '0000101', '0010001', '0001001', '0010111'
-    ];
-    
-    const rightPatterns = [
-      '1110010', '1100110', '1101100', '1000010', '1011100',
-      '1001110', '1010000', '1000100', '1001000', '1110100'
-    ];
-
-    // First digit determines the pattern for left group
-    const firstDigit = parseInt(data[0]);
-    const patternMap = [
-      'OOOOOO', 'OOEOEE', 'OOEEOE', 'OOEEEO', 'OEOOEE',
-      'OEEOOE', 'OEEEOO', 'OEOEOE', 'OEOEEO', 'OEEOEO'
-    ];
-    const pattern = patternMap[firstDigit];
-
-    // Build barcode
-    let barcode = '';
-    
-    // Start guard
-    barcode += '101';
-    
-    // Left group (6 digits)
-    for (let i = 1; i <= 6; i++) {
-      const digit = parseInt(data[i]);
-      if (pattern[i - 1] === 'O') {
-        barcode += leftOddPatterns[digit];
-      } else {
-        barcode += leftEvenPatterns[digit];
-      }
-    }
-    
-    // Center guard
-    barcode += '01010';
-    
-    // Right group (6 digits)
-    for (let i = 7; i <= 12; i++) {
-      const digit = parseInt(data[i]);
-      barcode += rightPatterns[digit];
-    }
-    
-    // End guard
-    barcode += '101';
-
-    return this.binaryToSVG(barcode, data, 'EAN13');
-  }
-
-  /**
-   * Generate Code128 SVG barcode (simplified implementation)
-   */
-  private generateCode128SVG(data: string): BarcodeResult {
-    // Code128B character set (subset for simplicity)
-    const code128B: { [key: string]: string } = {
-      ' ': '11011001100', '!': '11001101100', '"': '11001100110', '#': '10010011000',
-      '$': '10010001100', '%': '10001001100', '&': '10011001000', "'": '10011000100',
-      '(': '10001100100', ')': '11001001000', '*': '11001000100', '+': '11000100100',
-      ',': '10110011100', '-': '10011011100', '.': '10011001110', '/': '10111001100',
-      '0': '10011101100', '1': '10011100110', '2': '11001110010', '3': '11001011100',
-      '4': '11001001110', '5': '11011100100', '6': '11001110100', '7': '11101101110',
-      '8': '11101001100', '9': '11100101100', ':': '11100100110', ';': '11101100100',
-      '<': '11100110100', '=': '11100110010', '>': '11011011000', '?': '11011000110',
-      '@': '11000110110', 'A': '10100011000', 'B': '10001011000', 'C': '10001000110',
-      'D': '10110001000', 'E': '10001101000', 'F': '10001100010', 'G': '11010001000',
-      'H': '11000101000', 'I': '11000100010', 'J': '10110111000', 'K': '10110001110',
-      'L': '10001101110', 'M': '10111011000', 'N': '10111000110', 'O': '10001110110',
-      'P': '11101110110', 'Q': '11010001110', 'R': '11000101110', 'S': '11011101000',
-      'T': '11011100010', 'U': '11011101110', 'V': '11101011000', 'W': '11101000110',
-      'X': '11100010110', 'Y': '11101101000', 'Z': '11101100010'
-    };
-
-    // Start Code B
-    let barcode = '11010010000';
-    let checksum = 104; // Start Code B value
-
-    // Encode data
-    for (let i = 0; i < data.length; i++) {
-      const char = data[i];
-      if (!(char in code128B)) {
-        throw new Error(`Unsupported character in Code128: '${char}'`);
-      }
-      barcode += code128B[char];
-      checksum += (char.charCodeAt(0) - 32) * (i + 1);
+    // Check if request is already pending
+    const pending = this.pendingRequests.get(trimmedCode);
+    if (pending) {
+      return pending;
     }
 
-    // Add checksum
-    const checksumValue = checksum % 103;
-    const checksumChar = String.fromCharCode(checksumValue + 32);
-    if (checksumChar in code128B) {
-      barcode += code128B[checksumChar];
-    }
+    // Create new request
+    const request = this.performSearch(trimmedCode, retryAttempts, timeout, true);
+    this.pendingRequests.set(trimmedCode, request);
 
-    // Stop pattern
-    barcode += '1100011101011';
-
-    return this.binaryToSVG(barcode, data, 'CODE128');
-  }
-
-  /**
-   * Convert binary pattern to SVG
-   */
-  private binaryToSVG(binary: string, text: string, type: 'EAN13' | 'CODE128'): BarcodeResult {
-    const moduleWidth = 1;
-    const height = type === 'EAN13' ? 60 : 50;
-    const textHeight = 12;
-    const totalHeight = height + textHeight + 5;
-    const width = binary.length * moduleWidth;
-    
-    let svg = `<svg width="${width}" height="${totalHeight}" xmlns="http://www.w3.org/2000/svg">`;
-    svg += '<rect width="100%" height="100%" fill="white"/>';
-    
-    // Draw bars
-    let x = 0;
-    for (let i = 0; i < binary.length; i++) {
-      if (binary[i] === '1') {
-        svg += `<rect x="${x}" y="0" width="${moduleWidth}" height="${height}" fill="black"/>`;
-      }
-      x += moduleWidth;
-    }
-    
-    // Add text
-    svg += `<text x="${width / 2}" y="${height + textHeight}" font-family="monospace" font-size="10" text-anchor="middle" fill="black">${text}</text>`;
-    svg += '</svg>';
-
-    return {
-      data: svg,
-      format: 'svg',
-      width,
-      height: totalHeight
-    };
-  }
-
-  /**
-   * Convert SVG to data URL for use in HTML
-   */
-  svgToDataUrl(svg: string): string {
-    const encoded = encodeURIComponent(svg);
-    return `data:image/svg+xml,${encoded}`;
-  }
-
-  /**
-   * Validate barcode data for a given symbology
-   */
-  validateBarcodeData(data: string, symbology: BarcodeSymbology): { valid: boolean; error?: string } {
     try {
-      if (symbology === 'EAN13') {
-        const cleanData = data.replace(/\D/g, '');
-        if (cleanData.length !== 12 && cleanData.length !== 13) {
-          return { valid: false, error: 'EAN-13 requires 12 or 13 digits' };
+      const result = await request;
+      this.cache.set(trimmedCode, result);
+      return result;
+    } finally {
+      this.pendingRequests.delete(trimmedCode);
+    }
+  }
+
+  /**
+   * Debounced barcode search
+   */
+  searchBarcodeDebounced(
+    code: string,
+    callback: (result: BarcodeSearchResult) => void,
+    options: BarcodeSearchOptions = {}
+  ): void {
+    const trimmedCode = code.trim();
+    const { debounceMs = 200 } = options;
+
+    // Clear existing timeout
+    const existingTimeout = this.debounceTimeouts.get(trimmedCode);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Set new timeout
+    const timeout = setTimeout(async () => {
+      const result = await this.searchBarcode(trimmedCode, options);
+      callback(result);
+    }, debounceMs);
+
+    this.debounceTimeouts.set(trimmedCode, timeout);
+  }
+
+  /**
+   * Clear cache
+   */
+  clearCache(): void {
+    this.cache.clear();
+  }
+
+  /**
+   * Clear specific barcode from cache
+   */
+  clearBarcodeFromCache(code: string): void {
+    this.cache.delete(code.trim());
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getCacheStats(): { size: number; keys: string[] } {
+    return {
+      size: this.cache.size,
+      keys: Array.from(this.cache.keys())
+    };
+  }
+
+  private validateBarcode(code: string): boolean {
+    if (!code || code.length < 3 || code.length > 50) {
+      return false;
+    }
+
+    // Allow alphanumeric, hyphens, underscores, and periods
+    if (!/^[a-zA-Z0-9\-_\.]+$/.test(code)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private async performSearch(
+    code: string,
+    retryAttempts: number,
+    timeout: number,
+    fallbackToSku: boolean = true
+  ): Promise<BarcodeSearchResult> {
+    const startTime = Date.now();
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= retryAttempts; attempt++) {
+      try {
+        const result = await this.makeApiRequest(code, timeout, fallbackToSku);
+        const duration = Date.now() - startTime;
+        
+        return {
+          ...result,
+          duration
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown error');
+        
+        // Don't retry on client errors (4xx)
+        if (error instanceof Error && error.message.includes('4')) {
+          break;
         }
-        if (cleanData.length === 13) {
-          // Validate checksum
-          const dataWithoutChecksum = cleanData.substring(0, 12);
-          const providedChecksum = cleanData.substring(12);
-          const computedChecksum = this.calculateEAN13Checksum(dataWithoutChecksum);
-          if (providedChecksum !== computedChecksum) {
-            return { valid: false, error: `Invalid EAN-13 checksum` };
-          }
-        }
-      } else if (symbology === 'CODE128') {
-        if (!data || data.length === 0) {
-          return { valid: false, error: 'Code128 data cannot be empty' };
-        }
-        // Check for unsupported characters (simplified)
-        for (let char of data) {
-          if (char.charCodeAt(0) < 32 || char.charCodeAt(0) > 126) {
-            return { valid: false, error: `Unsupported character: '${char}'` };
-          }
+        
+        // Wait before retry (exponential backoff)
+        if (attempt < retryAttempts) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 100));
         }
       }
-      return { valid: true };
-    } catch (error) {
-      return { valid: false, error: error instanceof Error ? error.message : 'Unknown validation error' };
     }
+
+    const duration = Date.now() - startTime;
+    return {
+      product: null,
+      found: false,
+      lookupType: 'none',
+      duration,
+      cacheHit: false
+    };
+  }
+
+  private async makeApiRequest(code: string, timeout: number, fallbackToSku: boolean = true): Promise<BarcodeSearchResult> {
+    const apiBaseUrl = getApiBaseUrl();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const url = fallbackToSku 
+        ? `${apiBaseUrl}/api/products/barcode/${encodeURIComponent(code)}?fallback=sku`
+        : `${apiBaseUrl}/api/products/barcode/${encodeURIComponent(code)}`;
+        
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          product: data.product ? this.transformProduct(data.product) : null,
+          found: !!data.product,
+          lookupType: data.product ? (data.product.barcode === code ? 'barcode' : 'sku') : 'none',
+          duration: 0, // Will be set by caller
+          cacheHit: false
+        };
+      } else if (response.status === 404) {
+        return {
+          product: null,
+          found: false,
+          lookupType: 'none',
+          duration: 0,
+          cacheHit: false
+        };
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
+  }
+
+  private transformProduct(apiProduct: any): Product {
+    return {
+      id: apiProduct.id,
+      sku: apiProduct.sku,
+      barcode: apiProduct.barcode,
+      name_en: apiProduct.name_en,
+      name_si: apiProduct.name_si,
+      name_ta: apiProduct.name_ta,
+      unit: apiProduct.unit,
+      category_id: apiProduct.category_id || 1,
+      is_scale_item: apiProduct.is_scale_item || false,
+      tax_code: apiProduct.tax_code,
+      price_retail: apiProduct.price_retail,
+      price_wholesale: apiProduct.price_wholesale,
+      price_credit: apiProduct.price_credit,
+      price_other: apiProduct.price_other,
+      cost: apiProduct.cost,
+      reorder_level: apiProduct.reorder_level,
+      preferred_supplier_id: apiProduct.preferred_supplier_id,
+      is_active: apiProduct.is_active,
+      created_at: new Date(apiProduct.created_at || Date.now()),
+      updated_at: apiProduct.updated_at ? new Date(apiProduct.updated_at) : undefined,
+      category_name: apiProduct.category_name,
+      supplier_name: apiProduct.supplier_name
+    };
   }
 }
 
 // Export singleton instance
-export const barcodeService = BarcodeService.getInstance();
+export const barcodeService = new BarcodeService();
+export default barcodeService;

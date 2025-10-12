@@ -129,7 +129,7 @@ class UserService {
           u.pin_locked_until as lockout_expires
         FROM users u
         WHERE u.id = ?`,
-        [id]
+        [Number(id)]
       );
 
       if (users.length === 0) {
@@ -208,7 +208,7 @@ class UserService {
         }
       });
 
-      const user = await this.getUser(userId);
+      const user = await this.getUser(Number(userId ?? 0));
       if (!user) {
         throw new Error('Failed to retrieve created user');
       }

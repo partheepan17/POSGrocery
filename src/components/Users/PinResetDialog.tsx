@@ -172,7 +172,7 @@ const PinResetDialog: React.FC<PinResetDialogProps> = ({
                 type={showPin ? "text" : "password"}
                 value={pin}
                 onChange={(e) => handlePinChange(e.target.value)}
-                className={`w-full px-3 py-2 pr-10 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center text-lg font-mono tracking-widest focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-3 py-2 pr-10 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center text-lg font-mono tracking-widest focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.pin ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 }`}
                 placeholder="••••••"
@@ -208,7 +208,7 @@ const PinResetDialog: React.FC<PinResetDialogProps> = ({
                 type={showConfirmPin ? "text" : "password"}
                 value={confirmPin}
                 onChange={(e) => handleConfirmPinChange(e.target.value)}
-                className={`w-full px-3 py-2 pr-10 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center text-lg font-mono tracking-widest focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-3 py-2 pr-10 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center text-lg font-mono tracking-widest focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.confirmPin ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 }`}
                 placeholder="••••••"

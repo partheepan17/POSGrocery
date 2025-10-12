@@ -61,7 +61,7 @@ export function LanguageFormattingSection({ settings, updateSettings, onSettings
               <select
                 value={settings.languageFormatting.displayLanguage}
                 onChange={(e) => handleInputChange('displayLanguage', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="EN">English</option>
                 <option value="SI">සිංහල (Sinhala)</option>
@@ -89,7 +89,7 @@ export function LanguageFormattingSection({ settings, updateSettings, onSettings
               <select
                 value={settings.languageFormatting.roundingMode}
                 onChange={(e) => handleInputChange('roundingMode', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="NEAREST_1">Nearest 1.00 (Whole Numbers)</option>
                 <option value="NEAREST_0_50">Nearest 0.50</option>
@@ -131,7 +131,7 @@ export function LanguageFormattingSection({ settings, updateSettings, onSettings
               <select
                 value={settings.languageFormatting.kgDecimals}
                 onChange={(e) => handleInputChange('kgDecimals', parseInt(e.target.value))}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value={2}>2 decimal places (e.g., 1.25 kg)</option>
                 <option value={3}>3 decimal places (e.g., 1.250 kg)</option>

@@ -2173,7 +2173,6 @@ export class CSVService {
   ): Promise<CSVImportResult> {
     try {
       const { grnService } = await import('./grnService');
-      const { dataService } = await import('./dataService');
       
       const text = await file.text();
       const lines = text.split('\n').filter(line => line.trim());

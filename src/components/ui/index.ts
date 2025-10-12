@@ -1,8 +1,60 @@
 // UI Components Barrel Export
 
-// Button System
+// Core Components
 export { Button } from './Button';
 export type { ButtonProps } from './Button';
+
+export { Input } from './Input';
+export type { InputProps } from './Input';
+
+export { Select } from './Select';
+export type { SelectProps, SelectOption } from './Select';
+
+export { Badge } from './Badge';
+export type { BadgeProps } from './Badge';
+
+// Layout Components
+export { Card, CardHeader, CardContent, CardFooter } from './Card';
+export type { CardProps, CardHeaderProps, CardContentProps, CardFooterProps } from './Card';
+
+export { 
+  Table, 
+  TableHeader, 
+  TableBody, 
+  TableFooter, 
+  TableRow, 
+  TableHead, 
+  TableCell 
+} from './Table';
+export type { 
+  TableProps, 
+  TableHeaderProps, 
+  TableBodyProps, 
+  TableFooterProps, 
+  TableRowProps, 
+  TableHeadProps, 
+  TableCellProps 
+} from './Table';
+
+// Overlay Components
+export { 
+  Dialog, 
+  DialogHeader, 
+  DialogContent, 
+  DialogFooter, 
+  DialogTitle, 
+  DialogDescription,
+  AlertDialog 
+} from './Dialog';
+export type { 
+  DialogProps, 
+  DialogHeaderProps, 
+  DialogContentProps, 
+  DialogFooterProps, 
+  DialogTitleProps, 
+  DialogDescriptionProps,
+  AlertDialogProps 
+} from './Dialog';
 
 // Toast Notification System
 export { 
@@ -48,90 +100,24 @@ export type {
   DrawerModalProps
 } from './Modal';
 
-// Enhanced Table System
-export { 
-  Table, 
-  TableHeader, 
-  TableBody, 
-  TableFooter, 
-  TableRow, 
-  TableHead, 
-  TableCell,
-  EnhancedTable,
-  DataTable
-} from './Table';
-export type { 
-  TableProps, 
-  TableHeaderProps, 
-  TableBodyProps, 
-  TableFooterProps,
-  TableRowProps, 
-  TableHeadProps, 
-  TableCellProps,
-  EnhancedTableProps,
-  EnhancedTableColumn,
-  DataTableProps
-} from './Table';
-
-export { Input } from './Input';
-export type { InputProps } from './Input';
-
-export { 
-  Card, 
-  CardHeader, 
-  CardContent, 
-  CardFooter, 
-  CardTitle, 
-  CardDescription 
-} from './Card';
-export type { 
-  CardProps, 
-  CardHeaderProps, 
-  CardContentProps, 
-  CardFooterProps,
-  CardTitleProps,
-  CardDescriptionProps
-} from './Card';
-
-// Modal exports already defined above
-
+// Dropdown Components
 export { 
   Dropdown, 
   DropdownMenu, 
   DropdownItem, 
-  DropdownSeparator,
-  Select
+  DropdownSeparator
 } from './Dropdown';
 export type { 
   DropdownProps, 
   DropdownMenuProps, 
-  DropdownItemProps, 
-  SelectProps,
-  SelectOption
+  DropdownItemProps
 } from './Dropdown';
 
-// LoadingSpinner exports already defined above
-
-// Toast exports already defined above
-
-export { 
-  Badge, 
-  StatusBadge, 
-  NotificationBadge, 
-  PriorityBadge 
-} from './Badge';
-export type { 
-  BadgeProps, 
-  StatusBadgeProps, 
-  NotificationBadgeProps, 
-  PriorityBadgeProps 
-} from './Badge';
-
-// Table exports already defined above
-
+// Breadcrumb Components
 export { Breadcrumb, AutoBreadcrumb, PageHeader } from './Breadcrumb';
 export type { BreadcrumbProps, BreadcrumbItem, AutoBreadcrumbProps, PageHeaderProps } from './Breadcrumb';
 
+// Form Components
 export { 
   FormField,
   FormLabel,
@@ -160,19 +146,19 @@ export type {
   FormActionsProps
 } from './Form';
 
+// Alert Components
 export { 
-  AlertDialog, 
   AlertBanner, 
   InlineAlert, 
   StatusMessage 
 } from './AlertDialog';
 export type { 
-  AlertDialogProps, 
   AlertBannerProps, 
   InlineAlertProps, 
   StatusMessageProps 
 } from './AlertDialog';
 
+// Accessibility Components
 export {
   ScreenReaderOnly,
   FocusTrap,
@@ -195,6 +181,7 @@ export type {
   ProgressProps
 } from './A11y';
 
+// Notification Components
 export { 
   NotificationCenter, 
   NotificationItem, 
@@ -209,7 +196,6 @@ export type {
 
 // Alert System
 export { Alert, AlertDescription } from './Alert';
-// export type { AlertProps } from './Alert';
 
 // Separator Component
 export { Separator } from './Separator';

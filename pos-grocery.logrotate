@@ -1,0 +1,48 @@
+# Logrotate configuration for POS Grocery System
+# Place this file in /etc/logrotate.d/pos-grocery
+
+/var/log/pos/pos-grocery*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 644 pos pos
+    postrotate
+        # Reload systemd if using systemd
+        systemctl reload pos-grocery > /dev/null 2>&1 || true
+        # Or restart PM2 if using PM2
+        pm2 reload pos-server > /dev/null 2>&1 || true
+    endscript
+}
+
+# PM2 log rotation (if using PM2)
+/opt/pos-grocery/server/logs/*.log {
+    daily
+    missingok
+    rotate 7
+    compress
+    delaycompress
+    notifempty
+    create 644 pos pos
+    postrotate
+        pm2 reload pos-server > /dev/null 2>&1 || true
+    endscript
+}
+
+# Application-specific logs
+/opt/pos-grocery/logs/*.log {
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 644 pos pos
+    copytruncate
+}
+
+
+
+

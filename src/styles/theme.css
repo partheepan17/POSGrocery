@@ -1,0 +1,117 @@
+/**
+ * Theme CSS Variables and Accessibility Styles
+ * Provides consistent theming and accessibility improvements
+ */
+
+:root {
+  /* Light theme colors */
+  --surface: #ffffff;
+  --card: #f8fafc;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #06b6d4;
+}
+
+[data-theme="dark"] {
+  /* Dark theme colors */
+  --surface: #111827;
+  --card: #1f2937;
+  --text: #f9fafb;
+  --muted: #9ca3af;
+  --border: #374151;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #06b6d4;
+}
+
+/* Base accessibility styles */
+* {
+  box-sizing: border-box;
+}
+
+/* Focus styles for better accessibility */
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Remove default focus styles for mouse users */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Button focus styles */
+button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary);
+}
+
+/* Link focus styles */
+a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  text-decoration: underline;
+}
+
+/* Input focus styles */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-color: var(--primary);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --text: #000000;
+    --muted: #333333;
+    --border: #000000;
+  }
+  
+  [data-theme="dark"] {
+    --text: #ffffff;
+    --muted: #cccccc;
+    --border: #ffffff;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  * {
+    color: #000000 !important;
+    background: #ffffff !important;
+  }
+  
+  a[href]:after {
+    content: " (" attr(href) ")";
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}

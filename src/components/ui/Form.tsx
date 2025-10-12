@@ -75,13 +75,13 @@ const FormHelp: React.FC<FormHelpProps> = ({ children, className }) => {
 };
 
 // Enhanced Input Field with Form Integration
-interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface FormInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
   label?: string;
   error?: string;
   help?: string;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
-  variant?: 'default' | 'filled' | 'underlined';
+  variant?: 'default' | 'pos' | 'search';
   inputSize?: 'sm' | 'md' | 'lg';
 }
 
@@ -91,6 +91,7 @@ const FormInput: React.FC<FormInputProps> = ({
   help,
   required,
   id,
+  inputSize,
   ...inputProps
 }) => {
   const inputId = id || React.useId();
@@ -105,6 +106,7 @@ const FormInput: React.FC<FormInputProps> = ({
       <Input
         id={inputId}
         error={error}
+        inputSize={inputSize}
         aria-invalid={error ? 'true' : 'false'}
         aria-describedby={
           error ? `${inputId}-error` : help ? `${inputId}-help` : undefined
@@ -181,7 +183,7 @@ const FormSelect: React.FC<FormSelectProps> = ({
 
 // Textarea Component
 interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  variant?: 'default' | 'filled' | 'underlined';
+  variant?: 'default' | 'pos' | 'search';
   textareaSize?: 'sm' | 'md' | 'lg';
   error?: boolean;
 }
@@ -199,14 +201,14 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     const variants = {
       default: cn(
         'border border-gray-300 bg-white px-3 text-gray-900 shadow-sm',
-        'focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20',
+        'focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20',
         'dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100',
         'dark:focus:border-primary-400 dark:focus:ring-primary-400/20',
         error && 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
       ),
       filled: cn(
         'border-0 bg-gray-100 px-3 text-gray-900',
-        'focus:bg-white focus:ring-2 focus:ring-primary-500/20',
+        'focus:bg-white focus:ring-1 focus:ring-primary-500/20',
         'dark:bg-gray-700 dark:text-gray-100 dark:focus:bg-gray-800',
         error && 'bg-red-50 focus:bg-red-50 focus:ring-red-500/20 dark:bg-red-900/20'
       ),
@@ -228,7 +230,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       <textarea
         className={cn(
           baseClasses,
-          variants[variant],
+          variants[variant as keyof typeof variants],
           sizes[textareaSize],
           className
         )}
@@ -246,7 +248,7 @@ interface FormTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaEle
   label?: string;
   error?: string;
   help?: string;
-  variant?: 'default' | 'filled' | 'underlined';
+  variant?: 'default' | 'pos' | 'search';
   textareaSize?: 'sm' | 'md' | 'lg';
 }
 
@@ -327,7 +329,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
                 id={checkboxId}
                 className={cn(
                   'w-4 h-4 text-primary-600 border-gray-300 rounded',
-                  'focus:ring-primary-500 focus:ring-2',
+                  'focus:ring-primary-500 focus:ring-1',
                   'dark:border-gray-600 dark:bg-gray-700',
                   error && 'border-red-500'
                 )}
@@ -366,7 +368,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
               id={checkboxId}
               className={cn(
                 'w-4 h-4 text-primary-600 border-gray-300 rounded',
-                'focus:ring-primary-500 focus:ring-2',
+                'focus:ring-primary-500 focus:ring-1',
                 'dark:border-gray-600 dark:bg-gray-700',
                 error && 'border-red-500',
                 className

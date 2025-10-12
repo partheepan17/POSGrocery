@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { FormLabel, Textarea } from '../components/ui/Form';
@@ -22,7 +22,7 @@ import {
 import { shiftService } from '../services/shiftService';
 import { useSettingsStore } from '../store/settingsStore';
 import { Shift, ShiftMovement, ShiftSummary, ShiftMovementType } from '../types';
-import { useTranslation } from '../i18n';
+import { useTranslation } from 'react-i18next';
 
 export default function ShiftSession() {
   const { id } = useParams<{ id: string }>();
@@ -245,7 +245,7 @@ export default function ShiftSession() {
           {/* Shift Header */}
           <Card>
             <CardHeader>
-              <CardTitle>Shift Details</CardTitle>
+              <h3 >Shift Details</h3 >
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -291,7 +291,7 @@ export default function ShiftSession() {
           {/* Movements */}
           <Card>
             <CardHeader>
-              <CardTitle>Cash Movements</CardTitle>
+              <h3 >Cash Movements</h3 >
             </CardHeader>
             <CardContent>
               {shift.status === 'OPEN' && (
@@ -370,17 +370,17 @@ export default function ShiftSession() {
           {summary && (
             <Card>
               <CardHeader>
-                <CardTitle>Sales Summary</CardTitle>
+                <h3 >Sales Summary</h3 >
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <FormLabel>Invoices</FormLabel>
-                    <p className="text-lg font-semibold">{summary.sales.invoices}</p>
+                    <p >{summary.sales.invoices}</p>
                   </div>
                   <div>
                     <FormLabel>Gross Sales</FormLabel>
-                    <p className="text-lg font-semibold">{formatCurrency(summary.sales.gross)}</p>
+                    <p >{formatCurrency(summary.sales.gross)}</p>
                   </div>
                 </div>
                 
@@ -409,7 +409,7 @@ export default function ShiftSession() {
           {/* Actions */}
           <Card>
             <CardHeader>
-              <CardTitle>Actions</CardTitle>
+              <h3 >Actions</h3 >
             </CardHeader>
             <CardContent className="space-y-3">
               <Button
@@ -459,7 +459,7 @@ export default function ShiftSession() {
           {summary && (
             <Card>
               <CardHeader>
-                <CardTitle>Cash Drawer</CardTitle>
+                <h3 >Cash Drawer</h3 >
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="space-y-2">
@@ -525,7 +525,7 @@ export default function ShiftSession() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md">
             <CardHeader>
-              <CardTitle>Close Shift</CardTitle>
+              <h3 >Close Shift</h3 >
             </CardHeader>
             <CardContent className="space-y-4">
               <div>

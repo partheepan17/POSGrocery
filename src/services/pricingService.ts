@@ -12,7 +12,7 @@ export interface PricingComputeResult {
 
 export const pricingService = {
   async compute(input: PricingComputeInput): Promise<PricingComputeResult> {
-    const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8100';
+    const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8250';
     const res = await fetch(`${apiBaseUrl}/api/pricing/compute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -24,6 +24,14 @@ export const pricingService = {
     return res.json();
   }
 };
+
+
+
+
+
+
+
+
 
 
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { FormLabel } from '../components/ui/Form';
@@ -20,7 +20,7 @@ import {
 import { shiftService } from '../services/shiftService';
 import { useSettingsStore } from '../store/settingsStore';
 import { Shift, ShiftStatus } from '../types';
-import { useTranslation } from '../i18n';
+import { useTranslation } from 'react-i18next';
 
 export default function ShiftList() {
   const navigate = useNavigate();
@@ -128,7 +128,7 @@ export default function ShiftList() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Filters</CardTitle>
+          <h3 >Filters</h3 >
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -183,7 +183,7 @@ export default function ShiftList() {
       {/* Shifts Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Shifts ({shifts.length})</CardTitle>
+          <h3 >Shifts ({shifts.length})</h3 >
         </CardHeader>
         <CardContent>
           {loading ? (

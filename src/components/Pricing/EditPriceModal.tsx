@@ -49,19 +49,19 @@ export function EditPriceModal({ product, onClose, onSaved }: EditPriceModalProp
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Retail (රු)</label>
-              <input type="number" step="0.01" value={retail} onChange={(e) => setRetail(parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white" />
+              <input type="number" step="0.01" value={retail} onChange={(e) => setRetail(parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Wholesale (රු)</label>
-              <input type="number" step="0.01" value={wholesale} onChange={(e) => setWholesale(parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white" />
+              <input type="number" step="0.01" value={wholesale} onChange={(e) => setWholesale(parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Credit (රු)</label>
-              <input type="number" step="0.01" value={credit} onChange={(e) => setCredit(parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white" />
+              <input type="number" step="0.01" value={credit} onChange={(e) => setCredit(parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Other (රු)</label>
-              <input type="number" step="0.01" value={other} onChange={(e) => setOther(parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white" />
+              <input type="number" step="0.01" value={other} onChange={(e) => setOther(parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white" />
             </div>
           </div>
         </div>

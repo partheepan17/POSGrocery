@@ -55,7 +55,7 @@ export function DevicesSection({ settings, updateSettings, onSettingsChange }: D
               <select
                 value={settings.devices.receiptPaper}
                 onChange={(e) => handleInputChange('receiptPaper', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="58mm">58mm Thermal</option>
                 <option value="80mm">80mm Thermal</option>
@@ -156,7 +156,7 @@ export function DevicesSection({ settings, updateSettings, onSettingsChange }: D
               <select
                 value={settings.devices.scaleMode}
                 onChange={(e) => handleInputChange('scaleMode', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="off">Off - No scale integration</option>
                 <option value="weight_embedded">Weight Embedded - PLU + Weight</option>

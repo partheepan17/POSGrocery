@@ -27,7 +27,7 @@ export default function ReturnsPage() {
   // Health check
   const checkOnlineStatus = async () => {
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/health`);
       const data = await response.json();
       setIsOnline(data.status === 'ok');
@@ -78,14 +78,14 @@ export default function ReturnsPage() {
 
     setIsPrinting(true);
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/print`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           receipt_no: lastReturnReceiptNo,
           type: 'return',
-          language: 'en', // From store
+          language: 'si', // From store - default to Sinhala
           payload: printable
         })
       });

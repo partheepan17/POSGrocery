@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Search,
   Filter,
@@ -33,6 +34,7 @@ import { useAppStore } from '@/store/appStore';
 import RequirePerm from '@/components/Security/RequirePerm';
 
 const Audit: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { currentUser } = useAppStore();
   

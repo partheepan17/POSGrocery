@@ -174,7 +174,7 @@ export function EnhancedHeader({ className }: EnhancedHeaderProps) {
         </Button>
 
         {/* Notifications */}
-        <NotificationBadge count={notificationCount}>
+        <NotificationBadge>
           <Button
             variant="ghost"
             size="sm"

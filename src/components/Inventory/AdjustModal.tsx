@@ -281,7 +281,7 @@ export function AdjustModal({ onClose, onSuccess }: AdjustModalProps) {
             step={row.unit === 'kg' ? '0.001' : '1'}
             min="0"
             placeholder="0"
-            className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+            className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-red-500 focus:border-red-500"
           />
           <span className="ml-2 text-red-600 text-sm">(-{formatQuantity(Math.abs(row.qty), row.unit)})</span>
         </div>
@@ -300,7 +300,7 @@ export function AdjustModal({ onClose, onSuccess }: AdjustModalProps) {
               step={row.unit === 'kg' ? '0.001' : '1'}
               min="0"
               placeholder="0"
-              className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <div className="flex items-center space-x-2 text-sm">
@@ -322,7 +322,7 @@ export function AdjustModal({ onClose, onSuccess }: AdjustModalProps) {
           onChange={(e) => handleQtyChange(row.id, e.target.value)}
           step={row.unit === 'kg' ? '0.001' : '1'}
           placeholder="±0"
-          className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
         />
         {row.qty !== 0 && (
           <span className={`ml-2 text-sm ${row.qty > 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -397,7 +397,7 @@ export function AdjustModal({ onClose, onSuccess }: AdjustModalProps) {
               <select
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
                 {reasonOptions.map(r => (
@@ -461,7 +461,7 @@ export function AdjustModal({ onClose, onSuccess }: AdjustModalProps) {
                         onKeyDown={(e) => handleKeyDown(e, index)}
                         data-row-index={index}
                         placeholder="Enter SKU or scan barcode"
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
                           row.error ? 'border-red-300 bg-red-50' : 'border-gray-300'
                         }`}
                       />
@@ -498,7 +498,7 @@ export function AdjustModal({ onClose, onSuccess }: AdjustModalProps) {
                         value={row.note || ''}
                         onChange={(e) => updateRow(row.id, { note: e.target.value })}
                         placeholder="Optional note"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </td>
                     

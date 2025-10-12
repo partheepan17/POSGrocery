@@ -542,7 +542,7 @@ export function Sales() {
                     handleAddProduct(searchResults[0]);
                   }
                 }}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 placeholder="Scan barcode or search..."
               />
             </div>
@@ -581,7 +581,7 @@ export function Sales() {
                   setPriceTier(customer.customer_type as any);
                 }
               }}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
             >
               <option value="">Walk-in Customer</option>
               {customers.map((customer) => (
@@ -860,7 +860,7 @@ export function Sales() {
               type="number"
               value={discountAmount}
               onChange={(e) => setDiscountAmount(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               placeholder={discountType === 'percent' ? 'Enter percentage' : 'Enter amount'}
             />
           </div>

@@ -133,7 +133,7 @@ export function StoreInfoSection({ settings, updateSettings, onSettingsChange }:
                   value={settings.storeInfo.logoUrl || ''}
                   onChange={(e) => handleLogoUrlChange(e.target.value)}
                   placeholder="https://example.com/logo.png"
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -175,7 +175,7 @@ export function StoreInfoSection({ settings, updateSettings, onSettingsChange }:
                 value={settings.storeInfo.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="Enter store name"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
@@ -190,7 +190,7 @@ export function StoreInfoSection({ settings, updateSettings, onSettingsChange }:
                 onChange={(e) => handleInputChange('address', e.target.value)}
                 placeholder="Enter store address"
                 rows={4}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-none"
                 required
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -208,7 +208,7 @@ export function StoreInfoSection({ settings, updateSettings, onSettingsChange }:
                 value={settings.storeInfo.taxId}
                 onChange={(e) => handleInputChange('taxId', e.target.value)}
                 placeholder="e.g., 123456789V"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
@@ -221,7 +221,7 @@ export function StoreInfoSection({ settings, updateSettings, onSettingsChange }:
               <select
                 value={settings.storeInfo.defaultReceiptLanguage}
                 onChange={(e) => handleInputChange('defaultReceiptLanguage', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="EN">English</option>
                 <option value="SI">සිංහල (Sinhala)</option>

@@ -184,7 +184,7 @@ const LockScreen: React.FC<LockScreenProps> = ({ isLocked, onUnlock }) => {
                   onChange={(e) => setPin(e.target.value)}
                   disabled={loading}
                   placeholder="••••••"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center text-lg font-mono tracking-widest focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center text-lg font-mono tracking-widest focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
                   maxLength={6}
                   autoComplete="off"
                 />

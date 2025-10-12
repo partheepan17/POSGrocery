@@ -147,22 +147,41 @@ class HealthService {
    */
   private async checkAppVersion(): Promise<HealthItem> {
     try {
-      const version = packageJson.version;
-      const buildTime = process.env.VITE_BUILD_TIME || 'unknown';
-      const gitCommit = process.env.VITE_GIT_COMMIT || 'unknown';
+      // Fetch build info from API
+      const response = await fetch('/api/health');
+      if (response.ok) {
+        const healthData = await response.json();
+        const build = healthData.build || {};
+        
+        // Use API data directly - no fallbacks to hardcoded values
+        const version = build.version;
+        const buildTime = build.buildTime;
+        const buildSha = build.buildSha;
+        const appName = build.name;
 
-      return {
-        key: 'app-version',
-        label: 'App Version & Build',
-        status: version ? 'OK' : 'WARN',
-        details: `Version ${version}, Build: ${buildTime}`,
-        metrics: {
-          version,
-          buildTime,
-          gitCommit,
-          nodeEnv: process.env.NODE_ENV || 'unknown'
-        }
-      };
+        return {
+          key: 'app-version',
+          label: 'App Version & Build',
+          status: version && buildTime && buildSha ? 'OK' : 'WARN',
+          details: `${appName} v${version} (${buildSha?.substring(0, 8) || 'unknown'}) - ${buildTime}`,
+          metrics: {
+            appName,
+            version,
+            buildTime,
+            buildSha,
+            nodeEnv: healthData.environment || 'unknown'
+          }
+        };
+      } else {
+        // API failed - return FAIL status instead of fallback
+        return {
+          key: 'app-version',
+          label: 'App Version & Build',
+          status: 'FAIL',
+          details: 'Failed to fetch build information from API',
+          suggestion: 'Check if backend server is running and accessible'
+        };
+      }
     } catch (error) {
       return {
         key: 'app-version',

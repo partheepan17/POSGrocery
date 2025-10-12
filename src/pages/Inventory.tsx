@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Package, 
   Plus, 
@@ -23,6 +24,7 @@ import { StocktakeImportModal } from '@/components/Inventory/StocktakeImportModa
 type TabId = 'stock' | 'receive' | 'adjust' | 'stocktake' | 'logs';
 
 export function Inventory() {
+  const { t } = useTranslation();
   const { settings } = useAppStore();
   
   // UI states
@@ -211,25 +213,25 @@ export function Inventory() {
         <div className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.search')}</label>
               <input
                 ref={searchRef}
                 type="text"
-                placeholder="SKU, Barcode, or Name..."
+                placeholder={t('inventory.searchPlaceholder')}
                 value={stockFilters.search || ''}
                 onChange={(e) => setStockFilters(prev => ({ ...prev, search: e.target.value || undefined }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500"
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.category')}</label>
               <select
                 value={stockFilters.category || ''}
                 onChange={(e) => setStockFilters(prev => ({ ...prev, category: e.target.value || undefined }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               >
-                <option value="">All Categories</option>
+                <option value="">{t('inventory.allCategories')}</option>
                 {categories.map(category => (
                   <option key={category} value={category}>{category}</option>
                 ))}
@@ -237,13 +239,13 @@ export function Inventory() {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('inventory.supplier')}</label>
               <select
                 value={stockFilters.supplier || ''}
                 onChange={(e) => setStockFilters(prev => ({ ...prev, supplier: e.target.value || undefined }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               >
-                <option value="">All Suppliers</option>
+                <option value="">{t('inventory.allSuppliers')}</option>
                 {suppliers.map(supplier => (
                   <option key={supplier} value={supplier}>{supplier}</option>
                 ))}
@@ -251,15 +253,15 @@ export function Inventory() {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.unit')}</label>
               <select
                 value={stockFilters.unit || ''}
                 onChange={(e) => setStockFilters(prev => ({ ...prev, unit: e.target.value as 'pc' | 'kg' || undefined }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               >
-                <option value="">All Units</option>
-                <option value="pc">Pieces</option>
-                <option value="kg">Kilograms</option>
+                <option value="">{t('inventory.allUnits')}</option>
+                <option value="pc">{t('inventory.pieces')}</option>
+                <option value="kg">{t('inventory.kilograms')}</option>
               </select>
             </div>
           </div>
@@ -272,7 +274,7 @@ export function Inventory() {
                 onChange={(e) => setStockFilters(prev => ({ ...prev, lowStock: e.target.checked || undefined }))}
                 className="mr-2"
               />
-              <span className="text-sm text-gray-700">Low stock only</span>
+              <span className="text-sm text-gray-700">{t('inventory.lowStockOnly')}</span>
             </label>
             
             <label className="flex items-center">
@@ -282,7 +284,7 @@ export function Inventory() {
                 onChange={(e) => setStockFilters(prev => ({ ...prev, active: e.target.checked }))}
                 className="mr-2"
               />
-              <span className="text-sm text-gray-700">Active products only</span>
+              <span className="text-sm text-gray-700">{t('inventory.activeProductsOnly')}</span>
             </label>
           </div>
         </div>
@@ -293,14 +295,14 @@ export function Inventory() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stock</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reorder Level</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('common.sku')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('common.name')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('common.unit')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('inventory.currentStock')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('inventory.reorderLevel')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('inventory.supplier')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('common.status')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('inventory.updated')}</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -376,7 +378,7 @@ export function Inventory() {
                   ...prev, 
                   fromDate: e.target.value ? new Date(e.target.value) : new Date(new Date().setDate(new Date().getDate() - 7))
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             
@@ -389,7 +391,7 @@ export function Inventory() {
                   ...prev, 
                   toDate: e.target.value ? new Date(e.target.value) : new Date()
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             
@@ -401,7 +403,7 @@ export function Inventory() {
                   ...prev, 
                   type: e.target.value as 'RECEIVE' | 'ADJUST' | 'WASTE' || undefined 
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">All Types</option>
                 <option value="RECEIVE">Receive</option>
@@ -417,7 +419,7 @@ export function Inventory() {
                 placeholder="Filter by SKU..."
                 value={logFilters.sku || ''}
                 onChange={(e) => setLogFilters(prev => ({ ...prev, sku: e.target.value || undefined }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
           </div>
@@ -531,7 +533,7 @@ export function Inventory() {
               <>
                 <button
                   onClick={() => setShowReceiveModal(true)}
-                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-1 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
                   title="Receive inventory (R)"
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -539,7 +541,7 @@ export function Inventory() {
                 </button>
                 <button
                   onClick={() => setShowAdjustModal(true)}
-                  className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+                  className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 focus:ring-1 focus:ring-orange-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
                   title="Adjust/Waste inventory (A)"
                 >
                   <Minus className="w-4 h-4 mr-2" />
@@ -547,7 +549,7 @@ export function Inventory() {
                 </button>
                 <button
                   onClick={handleExportStock}
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-1 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Export CSV
@@ -559,14 +561,14 @@ export function Inventory() {
               <>
                 <button
                   onClick={handleExportStocktakeTemplate}
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-1 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Export Template
                 </button>
                 <button
                   onClick={() => setShowStocktakeModal(true)}
-                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-1 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
                 >
                   <Upload className="w-4 h-4 mr-2" />
                   Import Counts
@@ -577,7 +579,7 @@ export function Inventory() {
             {activeTab === 'logs' && (
               <button
                 onClick={handleExportLogs}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-1 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
               >
                 <Download className="w-4 h-4 mr-2" />
                 Export CSV
@@ -586,7 +588,7 @@ export function Inventory() {
             
             <button
               onClick={handleRefresh}
-              className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:ring-1 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />

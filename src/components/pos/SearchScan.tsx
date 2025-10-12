@@ -17,6 +17,8 @@ export function SearchScan({ onProductFound, onProductNotFound }: SearchScanProp
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isLoading, setIsLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showError, setShowError] = useState(false);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const scanTimeoutRef = useRef<NodeJS.Timeout>();
@@ -101,14 +103,27 @@ export function SearchScan({ onProductFound, onProductNotFound }: SearchScanProp
     const value = e.target.value;
     setQuery(value);
     setSelectedIndex(-1);
+    setShowError(false);
+    setErrorMessage('');
     
     // Check if this looks like a barcode scan (fast typing)
     if (value.length > 5 && !isScanning) {
       setIsScanning(true);
     }
     
-    // Search for products
-    searchProducts(value);
+    // Clear existing timeout
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+    }
+    
+    // Debounced search for products (200ms)
+    scanTimeoutRef.current = setTimeout(() => {
+      if (value.length >= 2) {
+        searchProducts(value);
+      } else {
+        setSuggestions([]);
+      }
+    }, 200);
 
     // Fallback auto-add: if a scanner isn't captured by global buffer,
     // debounce briefly and treat the whole input as a scanned code.
@@ -132,11 +147,16 @@ export function SearchScan({ onProductFound, onProductNotFound }: SearchScanProp
     if (e.key === 'Enter') {
       e.preventDefault();
       
+      // Clear any pending debounced search
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+      }
+      
       if (selectedIndex >= 0 && suggestions[selectedIndex]) {
         // Select from suggestions
         handleProductSelect(suggestions[selectedIndex]);
       } else if (query.trim()) {
-        // Try to add by barcode/SKU
+        // Try to add by barcode/SKU immediately (no debounce)
         handleBarcodeScan(query.trim());
       }
     } else if (e.key === 'ArrowDown') {
@@ -153,35 +173,52 @@ export function SearchScan({ onProductFound, onProductNotFound }: SearchScanProp
     }
   };
 
-  // Handle barcode scan
+  // Handle barcode scan using centralized service
   const handleBarcodeScan = async (codeOrSku: string) => {
     setIsLoading(true);
+    setShowError(false);
+    setErrorMessage('');
+    
     try {
-      // Try direct barcode endpoint first
-      const resp = await fetch(`${apiBaseUrl}/api/products/barcode/${encodeURIComponent(codeOrSku)}`);
-      const data = await resp.json();
-      if (resp.ok && data.product) {
-        handleProductSelect(data.product);
+      const { barcodeService } = await import('@/services/barcodeService');
+      const result = await barcodeService.searchBarcode(codeOrSku, {
+        debounceMs: 0, // No debounce for direct calls
+        retryAttempts: 2,
+        timeout: 5000
+      });
+
+      if (result.found && result.product) {
+        handleProductSelect(result.product);
+        setQuery(''); // Clear input on success
         return;
       }
 
-      // Fallback: search by query and match SKU or barcode exactly
-      const searchResp = await fetch(`${apiBaseUrl}/api/products/search?q=${encodeURIComponent(codeOrSku)}&limit=25`);
-      const searchData = await searchResp.json();
-      if (searchResp.ok && Array.isArray(searchData.products)) {
-        const exact = searchData.products.find((p: any) => p.sku === codeOrSku || p.barcode === codeOrSku) || searchData.products[0];
-        if (exact) {
-          handleProductSelect(exact);
-          return;
-        }
+      // Show inline error message instead of toast
+      if (result.lookupType === 'none') {
+        setErrorMessage('Product not found');
+        setShowError(true);
+        playErrorSound();
+        onProductNotFound?.();
+      } else {
+        setErrorMessage('Invalid barcode format');
+        setShowError(true);
+        playErrorSound();
       }
-
-      toast.error('Product not found');
-      playErrorSound();
-      onProductNotFound?.();
+      
+      // Keep focus in input
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
     } catch (error) {
       console.error('Barcode/SKU lookup error:', error);
-      toast.error('Failed to lookup product');
+      setErrorMessage('Failed to lookup product');
+      setShowError(true);
+      playErrorSound();
+      
+      // Keep focus in input
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
     } finally {
       setIsLoading(false);
     }
@@ -259,7 +296,7 @@ export function SearchScan({ onProductFound, onProductNotFound }: SearchScanProp
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           placeholder="🔍 Search Products: Scan barcode or type product name/SKU..."
-          className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+          className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent text-lg"
           autoComplete="off"
         />
         {isLoading && (
@@ -268,6 +305,22 @@ export function SearchScan({ onProductFound, onProductNotFound }: SearchScanProp
           </div>
         )}
       </div>
+
+      {/* Inline Error Display */}
+      {showError && errorMessage && (
+        <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg" role="alert" aria-live="polite">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-4 w-4 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-2">
+              <p className="text-sm text-red-800 dark:text-red-200">{errorMessage}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hint Text */}
       <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">

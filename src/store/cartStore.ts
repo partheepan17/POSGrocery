@@ -76,6 +76,7 @@ interface CartState {
   clearCart: () => void;
   calculateTotals: () => void;
   recomputeAutoDiscounts: () => Promise<void> | void;
+  getCurrentPrice: (product: any, tier?: PriceTier) => number;
 }
 
 const initialTotals: CartTotals = {

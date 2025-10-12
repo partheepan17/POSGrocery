@@ -51,7 +51,7 @@ const defaultSettings: AppSettings = {
     address: '123 Main Street\nColombo 01\nSri Lanka',
     taxId: '123456789V',
     logoUrl: '',
-    defaultReceiptLanguage: 'EN',
+    defaultReceiptLanguage: 'SI',
   },
   devices: {
     receiptPaper: '80mm',
@@ -122,7 +122,7 @@ const defaultSettings: AppSettings = {
   roundingMode: 'nearest',
   roundingValue: 0.01,
   taxRate: 15,
-  receiptLanguage: 'en',
+  receiptLanguage: 'si',
   theme: 'auto',
   autoBackup: true,
   backupFrequency: 'daily',

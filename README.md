@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# POSGrocery
-=======
 # Grocery POS System
 
 A lightweight, keyboard-first Point of Sale (POS) application designed for Grocery/FMCG businesses with support for up to 4 clients, multi-language receipts, and comprehensive inventory management.
@@ -34,6 +31,166 @@ A lightweight, keyboard-first Point of Sale (POS) application designed for Groce
 - **Routing**: React Router v6
 - **Icons**: Lucide React
 - **Notifications**: React Hot Toast
+
+## 🚀 Quick Start
+
+### One-Click Start (Recommended)
+
+**Windows:**
+1. Double-click `tools/launchers/setup-project.bat` to install dependencies and build the project
+2. Double-click `tools/launchers/start-dev-all.bat` to start development servers
+3. Open http://localhost:5173 in your browser
+
+**macOS/Linux:**
+1. Double-click `tools/launchers/setup-project.command` to install dependencies and build the project
+2. Double-click `tools/launchers/start-dev-all.command` to start development servers
+3. Open http://localhost:5173 in your browser
+
+## 🎯 Deployment Buttons
+
+### Available Launchers
+
+| Button | Description | Frontend | Backend | Use Case |
+|--------|-------------|----------|---------|----------|
+| **Start Dev (All)** | Full development mode | http://localhost:5173 | http://localhost:8250 | Daily development |
+| **Start Dev (Fast)** | Fast development mode | http://localhost:5173 | http://localhost:8250 | Quick iteration |
+| **Start Production** | Production mode | http://localhost:8080 | http://localhost:8250 | Production testing |
+| **Check Health** | Health check | - | http://localhost:8250 | Service monitoring |
+| **Setup Project** | Project setup | - | - | First-time setup |
+
+### VS Code Tasks
+
+Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (macOS) and type "Tasks: Run Task" to access:
+
+- 🚀 **Start Dev (All)** - Full development environment
+- ⚡ **Start Dev (Fast)** - Fast development with skipped migrations
+- 🏗️ **Build All** - Build both frontend and backend
+- 🚀 **Start Production** - Production deployment
+- 🔍 **Check Health** - Service health verification
+- ⚙️ **Setup Project** - Complete project setup
+
+### Command Line Scripts
+
+```bash
+# Development
+npm run dev:all              # Start both frontend and backend
+npm run dev:all:fast         # Fast development mode
+npm run dev:server           # Backend only
+npm run dev:client           # Frontend only
+
+# Production
+npm run build:all            # Build everything
+npm run start:all:prod       # Start production mode
+npm run deploy:prod          # Build and start production
+
+# Health Checks
+npm run check:health         # Basic health check
+npm run check:ready          # Readiness check
+npm run check:integrity      # Database integrity check
+npm run check:full           # Complete health verification
+
+# Utilities
+npm run setup                # Complete project setup
+npm run reset                # Reset project data
+npm run quick:start          # Quick development start
+npm run quick:build          # Quick build
+npm run quick:check          # Quick health check
+```
+
+### New Teammate Onboarding
+
+**Step 1: Clone and Setup**
+```bash
+git clone <repository-url>
+cd pos-grocery
+cp .env.example .env
+```
+
+**Step 2: One-Click Start**
+- **Windows**: Double-click `tools/launchers/setup-project.bat` then `tools/launchers/start-dev-all.bat`
+- **macOS/Linux**: Double-click `tools/launchers/setup-project.command` then `tools/launchers/start-dev-all.command`
+- **VS Code**: Press `Ctrl+Shift+P` → "Tasks: Run Task" → "Setup Project" → "Start Dev (All)"
+
+**Step 3: Verify**
+- Frontend: http://localhost:5173
+- Backend: http://localhost:8250
+- Health: Run "Check Health" task or launcher
+
+### VS Code Users
+1. Open the project in VS Code
+2. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac)
+3. Type "Tasks: Run Task"
+4. Select "🚀 Start Dev (All)" from the list
+
+### Command Line
+```bash
+# Setup (first time only)
+npm run setup
+
+# Start development
+npm run dev:all
+
+# Start fast development (skips migrations, reduced logging)
+npm run dev:all:fast
+
+# Start production
+npm run start:all:prod
+```
+
+## 📋 Available Launchers
+
+### Windows Launchers
+| File | Description |
+|------|-------------|
+| `setup.bat` | First-time setup (installs deps, builds project) |
+| `start-dev.bat` | Start development servers (normal mode) |
+| `start-dev-fast.bat` | Start development servers (fast mode) |
+| `start-prod.bat` | Build and start production servers |
+
+### macOS/Linux Launchers
+| File | Description |
+|------|-------------|
+| `setup.command` | First-time setup (installs deps, builds project) |
+| `start-dev.command` | Start development servers (normal mode) |
+| `start-dev-fast.command` | Start development servers (fast mode) |
+| `start-prod.command` | Build and start production servers |
+
+### VS Code Tasks
+Press `Ctrl+Shift+P` → "Tasks: Run Task" to access:
+- 🚀 **Start Dev (All)** - Normal development mode
+- ⚡ **Start Dev (Fast)** - Fast development mode
+- 🏗️ **Build All** - Build both server and client
+- 🚀 **Start Production** - Production mode
+- 🔍 **Check Health** - Health check endpoints
+- ⚙️ **Setup Project** - First-time setup
+- 🧪 **Run Tests** - Run test suite
+- 🔧 **Lint & Fix** - Code linting and fixing
+
+### NPM Scripts Reference
+```bash
+# Development
+npm run dev:all              # Start both server and client
+npm run dev:all:fast         # Start in fast mode
+npm run dev:server           # Start server only
+npm run dev:server:fast      # Start server in fast mode
+npm run dev:client           # Start client only
+
+# Production
+npm run build:all            # Build both server and client
+npm run start:prod           # Start production server
+npm run start:all:prod       # Start both in production mode
+npm run serve:prod           # Serve built frontend
+
+# Health & Status
+npm run check:health         # Check server health
+npm run check:all            # Check all services
+
+# Setup & Maintenance
+npm run setup                # Complete project setup
+npm run reset                # Reset database
+npm run lint:fix             # Fix linting issues
+npm run format               # Format code
+```
 
 ## Getting Started
 

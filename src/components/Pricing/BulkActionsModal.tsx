@@ -296,7 +296,7 @@ export function BulkActionsModal({
                         ...bulkAction,
                         source: e.target.value as any
                       })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select source tier</option>
                       <option value="price_retail">Retail</option>
@@ -350,7 +350,7 @@ export function BulkActionsModal({
                         ...bulkAction,
                         source: e.target.value as any
                       })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select base tier</option>
                       <option value="price_retail">Retail</option>
@@ -404,7 +404,7 @@ export function BulkActionsModal({
                             type: e.target.value as 'percent' | 'amount'
                           }
                         })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="percent">Percentage (%)</option>
                         <option value="amount">Fixed Amount (රු)</option>
@@ -422,7 +422,7 @@ export function BulkActionsModal({
                             operation: e.target.value as '+' | '-'
                           }
                         })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="+">Increase (+)</option>
                         <option value="-">Decrease (-)</option>
@@ -446,7 +446,7 @@ export function BulkActionsModal({
                           value: parseFloat(e.target.value) || 0
                         }
                       })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       placeholder={bulkAction.adjustment?.type === 'percent' ? '5.0' : '10.00'}
                     />
                   </div>
@@ -466,7 +466,7 @@ export function BulkActionsModal({
                           field: e.target.value as any
                         }
                       })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select tier</option>
                       <option value="price_retail">Retail</option>
@@ -490,7 +490,7 @@ export function BulkActionsModal({
                           value: parseFloat(e.target.value) || 0
                         }
                       })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="100.00"
                     />
                   </div>
@@ -509,7 +509,7 @@ export function BulkActionsModal({
                           mode: e.target.value as any
                         }
                       })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="nearest_1">To nearest 1.00</option>
                       <option value="nearest_0_50">To nearest 0.50</option>

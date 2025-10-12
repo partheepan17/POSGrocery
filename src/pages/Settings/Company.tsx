@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/Card';
+import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { FormLabel } from '../../components/ui/Form';
@@ -139,15 +139,12 @@ export default function CompanySettings() {
 
       {/* Main Form Card */}
       <Card className="bg-white shadow-xl border border-gray-200">
-        <CardHeader className="pb-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-t-xl">
-          <CardTitle className="flex items-center gap-3 text-2xl font-bold text-gray-900">
-            <Building2 className="h-7 w-7 text-blue-600" />
-            Company Information
-          </CardTitle>
-          <CardDescription className="text-gray-600 text-lg">
-            Basic company details that appear on receipts and reports
-          </CardDescription>
-        </CardHeader>
+        <CardHeader 
+          title="Company Information"
+          subtitle="Basic company details that appear on receipts and reports"
+          className="pb-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-t-xl"
+          action={<Building2 className="h-7 w-7 text-blue-600" />}
+        />
         <CardContent className="space-y-8 p-8">
           {/* Company Name and Tax ID */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -343,15 +340,12 @@ export default function CompanySettings() {
       {/* Current Information Preview */}
       {profile && (
         <Card className="bg-gradient-to-r from-gray-50 to-gray-100 shadow-lg border border-gray-200">
-          <CardHeader className="pb-6">
-            <CardTitle className="flex items-center gap-3 text-xl font-bold text-gray-900">
-              <FileText className="h-6 w-6 text-green-600" />
-              Current Information
-            </CardTitle>
-            <CardDescription className="text-gray-600 text-base">
-              Preview of your current company settings
-            </CardDescription>
-          </CardHeader>
+          <CardHeader 
+            title="Current Information"
+            subtitle="Preview of your current company settings"
+            className="pb-6"
+            action={<FileText className="h-6 w-6 text-green-600" />}
+          />
           <CardContent className="p-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="space-y-6">

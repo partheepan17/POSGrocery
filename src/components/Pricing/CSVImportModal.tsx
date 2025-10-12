@@ -3,6 +3,7 @@ import { X, Upload, Download, AlertTriangle, Check, FileText, Eye } from 'lucide
 import { Product } from '@/services/dataService';
 import { csvService } from '@/services/csvService';
 import { useAppStore } from '@/store/appStore';
+import { downloadTemplate, getTemplateConfig } from '@/utils/templateDownloader';
 
 interface CSVImportModalProps {
   isOpen: boolean;
@@ -320,7 +321,7 @@ export function CSVImportModal({ isOpen, onClose, onImportComplete }: CSVImportM
                     </div>
                   </div>
                   <button
-                    onClick={downloadTemplate}
+                    onClick={() => downloadTemplate(getTemplateConfig('pricing'))}
                     className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     <Download className="w-4 h-4 mr-2" />

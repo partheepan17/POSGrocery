@@ -109,7 +109,7 @@ class StocktakeService {
       );
 
       const sessionId = result.lastInsertRowid;
-      const session = await this.getSession(sessionId);
+    const session = await this.getSession(Number(sessionId ?? 0));
       
       if (!session) {
         throw new Error('Failed to retrieve created session');

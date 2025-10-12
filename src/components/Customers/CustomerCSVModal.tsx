@@ -61,10 +61,20 @@ export function CustomerCSVModal({ onClose, onImport }: CustomerCSVModalProps) {
 
       const headers = Object.keys(data[0]);
       const requiredHeaders = ['customer_name'];
-      const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+      const optionalHeaders = ['phone', 'customer_type', 'note', 'active'];
+      const allExpectedHeaders = [...requiredHeaders, ...optionalHeaders];
+      
+      // Check for missing required headers
+      const missingRequiredHeaders = requiredHeaders.filter(h => !headers.includes(h));
+      if (missingRequiredHeaders.length > 0) {
+        toast.error(`Missing required headers: ${missingRequiredHeaders.join(', ')}`);
+        return;
+      }
 
-      if (missingHeaders.length > 0) {
-        toast.error(`Missing required headers: ${missingHeaders.join(', ')}`);
+      // Check for unexpected headers
+      const unexpectedHeaders = headers.filter(h => !allExpectedHeaders.includes(h));
+      if (unexpectedHeaders.length > 0) {
+        toast.error(`Unexpected headers found: ${unexpectedHeaders.join(', ')}. Expected headers: ${allExpectedHeaders.join(', ')}`);
         return;
       }
 
@@ -168,6 +178,13 @@ export function CustomerCSVModal({ onClose, onImport }: CustomerCSVModalProps) {
         customer_type: 'Credit',
         note: '30-day payment terms',
         active: 'true'
+      },
+      {
+        customer_name: 'Jane Smith',
+        phone: '+94 76 987 6543',
+        customer_type: 'Other',
+        note: 'Special arrangements',
+        active: 'false'
       }
     ];
 

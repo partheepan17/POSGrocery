@@ -84,6 +84,16 @@ export default defineConfig({
   /* Expect timeout for assertions */
   expect: {
     timeout: 10 * 1000, // 10 seconds
+    // Visual regression testing configuration
+    toHaveScreenshot: {
+      threshold: 0.2, // 20% threshold for visual differences
+      mode: 'rgb', // Use RGB color mode
+      animations: 'disabled', // Disable animations for consistent screenshots
+    },
+    toMatchSnapshot: {
+      threshold: 0.2,
+      mode: 'rgb',
+    },
   },
 })
 

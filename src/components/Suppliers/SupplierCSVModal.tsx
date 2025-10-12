@@ -61,10 +61,20 @@ export function SupplierCSVModal({ onClose, onImport }: SupplierCSVModalProps) {
 
       const headers = Object.keys(data[0]);
       const requiredHeaders = ['supplier_name'];
-      const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+      const optionalHeaders = ['phone', 'email', 'address', 'tax_id', 'active'];
+      const allExpectedHeaders = [...requiredHeaders, ...optionalHeaders];
+      
+      // Check for missing required headers
+      const missingRequiredHeaders = requiredHeaders.filter(h => !headers.includes(h));
+      if (missingRequiredHeaders.length > 0) {
+        toast.error(`Missing required headers: ${missingRequiredHeaders.join(', ')}`);
+        return;
+      }
 
-      if (missingHeaders.length > 0) {
-        toast.error(`Missing required headers: ${missingHeaders.join(', ')}`);
+      // Check for unexpected headers
+      const unexpectedHeaders = headers.filter(h => !allExpectedHeaders.includes(h));
+      if (unexpectedHeaders.length > 0) {
+        toast.error(`Unexpected headers found: ${unexpectedHeaders.join(', ')}. Expected headers: ${allExpectedHeaders.join(', ')}`);
         return;
       }
 
@@ -163,6 +173,14 @@ export function SupplierCSVModal({ onClose, onImport }: SupplierCSVModalProps) {
         address: '456 Commercial Road, Kandy',
         tax_id: 'VAT987654321',
         active: 'true'
+      },
+      {
+        supplier_name: 'DEF Wholesale',
+        phone: '+94 81 555 1234',
+        email: 'orders@defwholesale.lk',
+        address: '789 Business Park, Negombo',
+        tax_id: 'VAT456789123',
+        active: 'false'
       }
     ];
 

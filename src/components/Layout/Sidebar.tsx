@@ -1,216 +1,29 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
-  ShoppingCart, 
-  Package, 
-  DollarSign, 
-  Truck, 
-  Users, 
-  Percent, 
-  Warehouse, 
-  BarChart3, 
-  Settings, 
-  Cloud,
+  ShoppingCart,
+  Package,
+  DollarSign,
+  Truck,
+  Users,
+  Percent,
+  Warehouse,
+  BarChart3,
+  Settings,
   Activity,
-  Menu,
   X,
   ClipboardCheck,
   FileInput,
-  Shield,
   UserCog,
   RotateCcw,
-  Tags,
-  Barcode,
   Tag,
-  PackagePlus,
   Clock,
-  Pause,
-  Database,
   Printer,
-  CreditCard,
-  Receipt,
-  TrendingUp,
-  FileText,
-  Calculator,
-  Zap,
-  RefreshCw,
-  AlertCircle,
-  CheckCircle,
-  Star,
-  Home,
   Search,
-  Filter,
-  Download,
-  Upload,
-  Edit,
-  Trash2,
-  Plus,
-  Minus,
-  Eye,
-  EyeOff,
-  Lock,
-  Unlock,
-  Bell,
-  MessageSquare,
   HelpCircle,
-  Info,
-  AlertTriangle,
-  Check,
-  XCircle,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUp,
-  ArrowDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
   ChevronDown,
-  MoreHorizontal,
-  MoreVertical,
-  Grid,
-  List,
-  Calendar,
-  MapPin,
-  Phone,
-  Mail,
-  Globe,
-  Wifi,
-  WifiOff,
-  Battery,
-  BatteryLow,
-  Volume2,
-  VolumeX,
-  Sun,
-  Moon,
-  Monitor,
-  Smartphone,
-  Tablet,
-  Laptop,
-  Desktop,
-  Server,
-  HardDrive,
-  Cpu,
-  MemoryStick,
-  Wrench,
-  Tool,
-  Hammer,
-  Screwdriver,
-  Key,
-  KeyRound,
-  Fingerprint,
-  Scan,
-  QrCode,
-  Camera,
-  Video,
-  Mic,
-  MicOff,
-  Headphones,
-  Speaker,
-  Volume1,
-  Play,
-  PauseCircle,
-  StopCircle,
-  SkipBack,
-  SkipForward,
-  Repeat,
-  Shuffle,
-  RotateCw,
-  Maximize,
-  Minimize,
-  Move,
-  Move3D,
-  MoveHorizontal,
-  MoveVertical,
-  MoveDiagonal,
-  MoveDiagonal2,
-  MoveUp,
-  MoveDown,
-  MoveLeft,
-  MoveRight,
-  ArrowUpDown,
-  ArrowLeftRight,
-  ArrowUpLeft,
-  ArrowUpRight,
-  ArrowDownLeft,
-  ArrowDownRight,
-  ArrowUpFromLine,
-  ArrowDownFromLine,
-  ArrowLeftFromLine,
-  ArrowRightFromLine,
-  ArrowUpToLine,
-  ArrowDownToLine,
-  ArrowLeftToLine,
-  ArrowRightToLine,
-  ArrowUpLeftFromSquare,
-  ArrowUpRightFromSquare,
-  ArrowDownLeftFromSquare,
-  ArrowDownRightFromSquare,
-  ArrowUpFromSquare,
-  ArrowDownFromSquare,
-  ArrowLeftFromSquare,
-  ArrowRightFromSquare,
-  ArrowUpToSquare,
-  ArrowDownToSquare,
-  ArrowLeftToSquare,
-  ArrowRightToSquare,
-  ArrowUpFromDot,
-  ArrowDownFromDot,
-  ArrowLeftFromDot,
-  ArrowRightFromDot,
-  ArrowUpToDot,
-  ArrowDownToDot,
-  ArrowLeftToDot,
-  ArrowRightToDot,
-  ArrowUpFromCircle,
-  ArrowDownFromCircle,
-  ArrowLeftFromCircle,
-  ArrowRightFromCircle,
-  ArrowUpToCircle,
-  ArrowDownToCircle,
-  ArrowLeftToCircle,
-  ArrowRightToCircle,
-  ArrowUpFromTriangle,
-  ArrowDownFromTriangle,
-  ArrowLeftFromTriangle,
-  ArrowRightFromTriangle,
-  ArrowUpToTriangle,
-  ArrowDownToTriangle,
-  ArrowLeftToTriangle,
-  ArrowRightToTriangle,
-  ArrowUpFromDiamond,
-  ArrowDownFromDiamond,
-  ArrowLeftFromDiamond,
-  ArrowRightFromDiamond,
-  ArrowUpToDiamond,
-  ArrowDownToDiamond,
-  ArrowLeftToDiamond,
-  ArrowRightToDiamond,
-  ArrowUpFromHexagon,
-  ArrowDownFromHexagon,
-  ArrowLeftFromHexagon,
-  ArrowRightFromHexagon,
-  ArrowUpToHexagon,
-  ArrowDownToHexagon,
-  ArrowLeftToHexagon,
-  ArrowRightToHexagon,
-  ArrowUpFromOctagon,
-  ArrowDownFromOctagon,
-  ArrowLeftFromOctagon,
-  ArrowRightFromOctagon,
-  ArrowUpToOctagon,
-  ArrowDownToOctagon,
-  ArrowLeftToOctagon,
-  ArrowRightToOctagon,
-  ArrowUpFromPentagon,
-  ArrowDownFromPentagon,
-  ArrowLeftFromPentagon,
-  ArrowRightFromPentagon,
-  ArrowUpToPentagon,
-  ArrowDownToPentagon,
-  ArrowLeftToPentagon,
-  ArrowRightToPentagon,
-  Code,
-  Terminal
+  Info
 } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { cn } from '@/utils/cn';
@@ -230,64 +43,74 @@ interface NavigationSection {
   items: NavigationItem[];
 }
 
-const navigationSections: NavigationSection[] = [
-  {
-    title: 'Operations',
-    items: [
-      { name: 'Sales', href: '/', icon: ShoppingCart, shortcut: 'Ctrl+1' },
-      { name: 'Returns', href: '/returns', icon: RotateCcw, shortcut: 'F9' },
-      { name: 'Shifts', href: '/shifts', icon: Clock, shortcut: 'Ctrl+Shift+S' },
-    ]
-  },
-  {
-    title: 'Catalog',
-    items: [
-      { name: 'Products', href: '/products', icon: Package, shortcut: 'Ctrl+2' },
-      { name: 'Price Management', href: '/pricing', icon: DollarSign, shortcut: 'Ctrl+3' },
-      { name: 'Suppliers', href: '/suppliers', icon: Truck, shortcut: 'Ctrl+4' },
-      { name: 'Customers', href: '/customers', icon: Users, shortcut: 'Ctrl+5' },
-      { name: 'Discounts', href: '/discounts', icon: Percent, shortcut: 'Ctrl+6' },
-    ]
-  },
-  {
-    title: 'Inventory',
-    items: [
-      { name: 'Stock Levels', href: '/inventory', icon: Warehouse, shortcut: 'Ctrl+7' },
-      { name: 'Labels', href: '/labels', icon: Tag, shortcut: 'Ctrl+L' },
-      { name: 'Stocktake', href: '/stocktake', icon: ClipboardCheck, shortcut: 'F12' },
-      { name: 'GRN', href: '/grn', icon: FileInput, shortcut: 'Ctrl+G' },
-    ]
-  },
-  {
-    title: 'Reports & Analytics',
-    items: [
-      { name: 'Sales Report', href: '/reports', icon: BarChart3, shortcut: 'Ctrl+8' },
-      { name: 'Audit Trail', href: '/audit', icon: Shield, shortcut: 'Ctrl+A' },
-    ]
-  },
-  {
-    title: 'Tools',
-    items: [
-      { name: 'Search', href: '/search', icon: Search, shortcut: 'Ctrl+F' },
-      { name: 'Receipt Test', href: '/tools/receipt-test', icon: Printer, shortcut: 'F2' },
-      { name: 'Navigation Test', href: '/tools/navigation-test', icon: HelpCircle, shortcut: 'F3' },
-      { name: 'Simple Test', href: '/tools/simple-test', icon: Activity, shortcut: 'F4' },
-    ]
-  },
-  {
-    title: 'Administration',
-    items: [
-      { name: 'Settings', href: '/settings', icon: Settings, shortcut: 'Ctrl+9' },
-      { name: 'Users', href: '/users', icon: UserCog, shortcut: 'Ctrl+U' },
-      { name: 'Health Check', href: '/health', icon: Activity, shortcut: 'Ctrl+H' },
-      { name: 'About', href: '/about', icon: Shield, shortcut: 'Ctrl+I' },
-    ]
-  }
-];
+// Navigation sections will be created dynamically with translations
 
 export function Sidebar() {
+  const { t } = useTranslation();
   const { sidebarOpen, setSidebarOpen } = useAppStore();
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Operations', 'Catalog', 'Inventory']));
+
+  // Navigation sections with translations
+  const navigationSections: NavigationSection[] = [
+    {
+      title: t('sidebar.operations'),
+      items: [
+        { name: t('navigation.sales'), href: '/', icon: ShoppingCart, shortcut: 'Ctrl+1' },
+        { name: t('navigation.quickSales'), href: '/quick-sales', icon: ShoppingCart, shortcut: 'Ctrl+Q' },
+        { name: t('navigation.returns'), href: '/returns', icon: RotateCcw, shortcut: 'F9' },
+        { name: t('shifts.title'), href: '/shifts', icon: Clock, shortcut: 'Ctrl+Shift+S' },
+      ]
+    },
+    {
+      title: t('sidebar.catalog'),
+      items: [
+        { name: t('navigation.products'), href: '/products', icon: Package, shortcut: 'Ctrl+2' },
+        { name: t('navigation.pricing'), href: '/pricing', icon: DollarSign, shortcut: 'Ctrl+3' },
+        { name: t('navigation.suppliers'), href: '/suppliers', icon: Truck, shortcut: 'Ctrl+4' },
+        { name: t('navigation.customers'), href: '/customers', icon: Users, shortcut: 'Ctrl+5' },
+        { name: t('navigation.discounts'), href: '/discounts', icon: Percent, shortcut: 'Ctrl+6' },
+      ]
+    },
+    {
+      title: t('sidebar.inventory'),
+      items: [
+        { name: t('inventory.stockLevels'), href: '/inventory', icon: Warehouse, shortcut: 'Ctrl+7' },
+        { name: 'Stock Dashboard', href: '/stock', icon: BarChart3, shortcut: 'Ctrl+Shift+S' },
+        { name: t('navigation.labels'), href: '/labels', icon: Tag, shortcut: 'Ctrl+L' },
+        { name: t('navigation.stocktake'), href: '/stocktake', icon: ClipboardCheck, shortcut: 'F12' },
+        { name: t('navigation.grn'), href: '/grn', icon: FileInput, shortcut: 'Ctrl+G' },
+        { name: t('sidebar.createPO'), href: '/purchasing/po', icon: FileInput, shortcut: 'Ctrl+Shift+P' },
+        { name: t('sidebar.receiveGRN'), href: '/purchasing/grn', icon: FileInput, shortcut: 'Ctrl+Shift+G' },
+        { name: t('sidebar.supplierReturn'), href: '/purchasing/supplier-return', icon: FileInput, shortcut: 'Ctrl+Shift+R' },
+      ]
+    },
+    {
+      title: t('sidebar.reports'),
+      items: [
+        { name: t('reports.salesReport'), href: '/reports', icon: BarChart3, shortcut: 'Ctrl+8' },
+        { name: t('sidebar.auditTrail'), href: '/audit', icon: Info, shortcut: 'Ctrl+A' },
+      ]
+    },
+    {
+      title: t('sidebar.tools'),
+      items: [
+        { name: t('common.search'), href: '/search', icon: Search, shortcut: 'Ctrl+F' },
+        { name: t('sidebar.receiptTest'), href: '/tools/receipt-test', icon: Printer, shortcut: 'F2' },
+        { name: t('sidebar.navigationTest'), href: '/tools/navigation-test', icon: HelpCircle, shortcut: 'F3' },
+        { name: t('sidebar.simpleTest'), href: '/tools/simple-test', icon: Activity, shortcut: 'F4' },
+        { name: t('sidebar.cashDrawer'), href: '/cash/drawer', icon: DollarSign, shortcut: 'Ctrl+D' },
+      ]
+    },
+    {
+      title: t('sidebar.administration'),
+      items: [
+        { name: t('navigation.settings'), href: '/settings', icon: Settings, shortcut: 'Ctrl+9' },
+        { name: t('navigation.users'), href: '/users', icon: UserCog, shortcut: 'Ctrl+U' },
+        { name: t('navigation.health'), href: '/health', icon: Activity, shortcut: 'Ctrl+H' },
+        { name: t('navigation.about'), href: '/about', icon: Info, shortcut: 'Ctrl+I' },
+      ]
+    }
+  ];
 
   const toggleSection = (title: string) => {
     setExpandedSections(prev => {
@@ -308,7 +131,8 @@ export function Sidebar() {
       className={({ isActive }) =>
         cn(
           "group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ease-in-out",
-          "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800",
+          "focus:outline-none focus:ring-1 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800",
+          "focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
           isActive
             ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 transform scale-[1.02]"
             : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-gray-100 hover:transform hover:scale-[1.01]"
@@ -318,6 +142,7 @@ export function Sidebar() {
         console.log('🔍 Sidebar click:', item.name, 'href:', item.href);
         setSidebarOpen(false);
       }}
+      aria-label={`Navigate to ${item.name}`}
     >
       <item.icon className={cn(
         "mr-3 h-4 w-4 flex-shrink-0 transition-colors",
@@ -346,7 +171,7 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-xl border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0",
+        "fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-xl border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 lg:z-auto",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex items-center justify-between h-14 px-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-700">
@@ -366,8 +191,8 @@ export function Sidebar() {
           </button>
         </div>
 
-        <nav className="mt-4 px-3 overflow-y-auto flex-1">
-          <div className="space-y-6">
+        <nav className="mt-4 px-3 overflow-y-auto flex-1 scrollbar-thin">
+          <div className="space-y-4">
             {navigationSections.map((section) => (
               <div key={section.title}>
                 <button
@@ -384,7 +209,7 @@ export function Sidebar() {
                   "overflow-hidden transition-all duration-300 ease-in-out",
                   expandedSections.has(section.title) ? "max-h-screen opacity-100" : "max-h-0 opacity-0"
                 )}>
-                  <div className="space-y-0.5 pb-2">
+                  <div className="space-y-1 pb-2">
                     {section.items.map(renderNavigationItem)}
                   </div>
                 </div>

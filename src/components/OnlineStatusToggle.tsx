@@ -14,7 +14,7 @@ export function OnlineStatusToggle({ onStatusChange }: OnlineStatusToggleProps) 
   const checkOnlineStatus = async () => {
     setIsChecking(true);
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/health`, {
         method: 'GET',
         timeout: 5000
@@ -51,7 +51,7 @@ export function OnlineStatusToggle({ onStatusChange }: OnlineStatusToggleProps) 
       // Going offline
       setIsOnline(false);
       onStatusChange?.(false);
-      toast.info('System set to offline mode');
+      toast('System set to offline mode');
     } else {
       // Trying to go online
       await checkOnlineStatus();
@@ -123,5 +123,6 @@ export function OnlineStatusToggle({ onStatusChange }: OnlineStatusToggleProps) 
     </div>
   );
 }
+
 
 

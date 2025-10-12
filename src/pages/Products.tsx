@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Search, Download, Upload, RefreshCw, Edit3, Copy, Eye, EyeOff, Trash2, Printer } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { dataService, Product, Category, Supplier } from '@/services/dataService';
@@ -28,16 +30,30 @@ interface StatsCounts {
 }
 
 export function Products() {
+  const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<ProductWithRelations[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<StatsCounts>({ total: 0, active: 0, inactive: 0, scale_items: 0 });
   const [filters, setFilters] = useState<FilterState>({
-    search: '',
-    category_id: '',
-    scale_items_only: false,
-    active_filter: 'all'
+    search: searchParams.get('search') || '',
+    category_id: searchParams.get('category_id') || '',
+    scale_items_only: searchParams.get('scale_items_only') === 'true',
+    active_filter: searchParams.get('status') || 'all'
+  });
+
+  // Pagination and sorting state
+  const [pagination, setPagination] = useState({
+    page: parseInt(searchParams.get('page') || '1'),
+    pageSize: parseInt(searchParams.get('pageSize') || '20'),
+    total: 0,
+    totalPages: 0
+  });
+  const [sorting, setSorting] = useState({
+    sortBy: searchParams.get('sortBy') || 'created_at',
+    sortOrder: (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc'
   });
 
   // Modals
@@ -49,6 +65,30 @@ export function Products() {
   // Refs
   const searchInputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<NodeJS.Timeout>();
+
+  // Update URL parameters
+  const updateURL = (updates: Partial<{
+    search: string;
+    category_id: string;
+    status: string;
+    scale_items_only: boolean;
+    page: number;
+    pageSize: number;
+    sortBy: string;
+    sortOrder: string;
+  }>) => {
+    const newParams = new URLSearchParams(searchParams);
+    
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === '' || value === null || value === undefined) {
+        newParams.delete(key);
+      } else {
+        newParams.set(key, value.toString());
+      }
+    });
+    
+    setSearchParams(newParams);
+  };
 
   // Load initial data
   useEffect(() => {
@@ -65,14 +105,27 @@ export function Products() {
     }, 250);
   }, [filters]);
 
+  // Reload data when pagination or sorting changes
+  useEffect(() => {
+    loadData();
+  }, [pagination.page, pagination.pageSize, sorting.sortBy, sorting.sortOrder]);
+
   const loadData = async () => {
     try {
       setLoading(true);
-      const [productsData, categoriesData, suppliersData] = await Promise.all([
-        dataService.getProducts(filters),
+      const [productsResult, categoriesData, suppliersData] = await Promise.all([
+        dataService.getProducts({
+          ...filters,
+          page: pagination.page,
+          pageSize: pagination.pageSize,
+          sortBy: sorting.sortBy,
+          sortOrder: sorting.sortOrder
+        }),
         dataService.getCategories(),
         dataService.getSuppliers(false) // Get all suppliers including inactive ones
       ]);
+
+      const productsData = productsResult.products;
 
       // Enrich products with related data
       const enrichedProducts = productsData.map((product: Product) => ({
@@ -85,9 +138,18 @@ export function Products() {
       setCategories(categoriesData);
       setSuppliers(suppliersData);
 
+      // Update pagination info
+      if (productsResult.meta) {
+        setPagination(prev => ({
+          ...prev,
+          total: productsResult.meta.total,
+          totalPages: productsResult.meta.pages
+        }));
+      }
+
       // Calculate stats
       const stats: StatsCounts = {
-        total: productsData.length,
+        total: productsResult.total || productsData.length,
         active: productsData.filter((p: Product) => p.is_active).length,
         inactive: productsData.filter((p: Product) => !p.is_active).length,
         scale_items: productsData.filter((p: Product) => p.is_scale_item).length
@@ -116,10 +178,48 @@ export function Products() {
 
   const handleSearchChange = (value: string) => {
     setFilters(prev => ({ ...prev, search: value }));
+    updateURL({ search: value, page: 1 });
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      // Clear debounce and search immediately
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      loadData();
+    }
   };
 
   const handleFilterChange = (key: keyof FilterState, value: any) => {
     setFilters(prev => ({ ...prev, [key]: value }));
+    // Reset to first page when filters change
+    setPagination(prev => ({ ...prev, page: 1 }));
+    
+    // Update URL
+    updateURL({
+      [key]: value,
+      page: 1
+    });
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPagination(prev => ({ ...prev, page: newPage }));
+    updateURL({ page: newPage });
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPagination(prev => ({ ...prev, pageSize: newPageSize, page: 1 }));
+    updateURL({ pageSize: newPageSize, page: 1 });
+  };
+
+  const handleSortChange = (newSortBy: string) => {
+    const newSortOrder = sorting.sortBy === newSortBy && sorting.sortOrder === 'asc' ? 'desc' : 'asc';
+    setSorting({
+      sortBy: newSortBy,
+      sortOrder: newSortOrder
+    });
+    updateURL({ sortBy: newSortBy, sortOrder: newSortOrder });
   };
 
   const handleExportCSV = async () => {
@@ -192,14 +292,12 @@ export function Products() {
 
   const handleToggleActive = async (product: Product) => {
     try {
-      const updatedProduct = {
-        ...product,
-        is_active: !product.is_active,
-        updated_at: new Date()
+      const updates = {
+        is_active: !product.is_active
       };
 
-      await dataService.updateProduct(product.id, updatedProduct);
-      toast.success(`Product ${updatedProduct.is_active ? 'activated' : 'deactivated'} successfully`);
+      await dataService.updateProduct(product.id, updates);
+      toast.success(`Product ${updates.is_active ? 'activated' : 'deactivated'} successfully`);
       loadData(); // Refresh the data
     } catch (error) {
       console.error('Failed to toggle product status:', error);
@@ -208,16 +306,23 @@ export function Products() {
   };
 
   const handleDeleteProduct = async (product: Product) => {
-    const confirmDelete = window.confirm(`Delete product "${product.name_en}"? This cannot be undone.`);
-    if (!confirmDelete) return;
+    const confirmMessage = `Are you sure you want to delete "${product.name_en}" (${product.sku})?\n\nThis action cannot be undone.`;
+    if (!window.confirm(confirmMessage)) return;
 
     try {
-      await dataService.deleteProduct(product.id);
-      toast.success('Product deleted');
+      const result = await dataService.deleteProduct(product.id);
+      
+      if (result.softDelete) {
+        toast.success(`Product deactivated (has references in sales/stock)`);
+      } else {
+        toast.success('Product deleted successfully');
+      }
+      
       loadData();
     } catch (error) {
       console.error('Failed to delete product:', error);
-      toast.error('Failed to delete product');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete product';
+      toast.error(errorMessage);
     }
   };
 
@@ -296,9 +401,9 @@ export function Products() {
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Products</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('products.title')}</h1>
             <p className="text-sm text-gray-600 mt-1">
-              Manage your product catalog with inline editing and bulk operations
+              {t('products.description')}
             </p>
           </div>
           <div className="flex items-center space-x-3">
@@ -307,21 +412,21 @@ export function Products() {
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Add Product
+              {t('products.addProduct')}
             </button>
             <button
               onClick={() => setShowImportModal(true)}
               className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
               <Upload className="w-4 h-4 mr-2" />
-              Import CSV
+              {t('products.importCSV')}
             </button>
             <button
               onClick={handleExportCSV}
               className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
               <Download className="w-4 h-4 mr-2" />
-              Export CSV
+              {t('products.exportCSV')}
             </button>
             <button
               onClick={loadData}
@@ -329,7 +434,7 @@ export function Products() {
               disabled={loading}
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
+              {t('common.refresh')}
             </button>
           </div>
         </div>
@@ -340,16 +445,16 @@ export function Products() {
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-              Total: {stats.total}
+              {t('products.total')}: {stats.total}
             </span>
             <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-              Active: {stats.active}
+              {t('products.active')}: {stats.active}
             </span>
             <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
-              Inactive: {stats.inactive}
+              {t('products.inactive')}: {stats.inactive}
             </span>
             <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-              Scale Items: {stats.scale_items}
+              {t('products.scaleItems')}: {stats.scale_items}
             </span>
           </div>
         </div>
@@ -357,17 +462,18 @@ export function Products() {
 
       {/* Filters */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search SKU, barcode, name... (/)"
+              placeholder={t('products.searchPlaceholder')}
               value={filters.search}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+              onKeyDown={handleSearchKeyDown}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white"
             />
           </div>
 
@@ -375,9 +481,9 @@ export function Products() {
           <select
             value={filters.category_id}
             onChange={(e) => handleFilterChange('category_id', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
           >
-            <option value="">All Categories</option>
+            <option value="">{t('products.allCategories')}</option>
             {categories.map(category => (
               <option key={category.id} value={category.id}>
                 {category.name}
@@ -400,12 +506,27 @@ export function Products() {
           <select
             value={filters.active_filter}
             onChange={(e) => handleFilterChange('active_filter', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
           >
             <option value="all">All Status</option>
             <option value="active">Active Only</option>
             <option value="inactive">Inactive Only</option>
           </select>
+
+          {/* Page Size Selector */}
+          <div className="flex items-center space-x-2">
+            <label className="text-sm font-medium text-gray-700">Per Page:</label>
+            <select
+              value={pagination.pageSize}
+              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+            >
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={200}>200</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -417,31 +538,74 @@ export function Products() {
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    SKU
+                    <button
+                      onClick={() => handleSortChange('sku')}
+                      className="flex items-center space-x-1 hover:text-gray-700"
+                    >
+                      <span>SKU</span>
+                      {sorting.sortBy === 'sku' && (
+                        <span className="text-blue-600">
+                          {sorting.sortOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </button>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Barcode
+                    <button
+                      onClick={() => handleSortChange('barcode')}
+                      className="flex items-center space-x-1 hover:text-gray-700"
+                    >
+                      <span>Barcode</span>
+                      {sorting.sortBy === 'barcode' && (
+                        <span className="text-blue-600">
+                          {sorting.sortOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </button>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name (EN)
+                    <button
+                      onClick={() => handleSortChange('name_en')}
+                      className="flex items-center space-x-1 hover:text-gray-700"
+                    >
+                      <span>Name (EN)</span>
+                      {sorting.sortBy === 'name_en' && (
+                        <span className="text-blue-600">
+                          {sorting.sortOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </button>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name (SI)
+                    <span>Name (SI)</span>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name (TA)
+                    <span>Name (TA)</span>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Unit
+                    <span>Unit</span>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
+                    <span>Category</span>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Price Retail
+                    <span>Price Retail</span>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Active
+                    <span>Active</span>
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSortChange('created_at')}
+                      className="flex items-center space-x-1 hover:text-gray-700"
+                    >
+                      <span>Created</span>
+                      {sorting.sortBy === 'created_at' && (
+                        <span className="text-blue-600">
+                          {sorting.sortOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </button>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -499,6 +663,9 @@ export function Products() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
+                        {new Date(product.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => handleEditProduct(product)}
@@ -547,6 +714,84 @@ export function Products() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="bg-white border-t border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-700">Show</span>
+              <select
+                value={pagination.pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <span className="text-sm text-gray-700">per page</span>
+            </div>
+            <div className="text-sm text-gray-700">
+              Showing {((pagination.page - 1) * pagination.pageSize) + 1} to {Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total} results
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => handlePageChange(pagination.page - 1)}
+              disabled={pagination.page <= 1}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            
+            <div className="flex items-center space-x-1">
+              {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                const pageNum = i + 1;
+                const isActive = pageNum === pagination.page;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`px-3 py-1 text-sm border rounded-md ${
+                      isActive
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              {pagination.totalPages > 5 && (
+                <>
+                  <span className="px-2 text-gray-500">...</span>
+                  <button
+                    onClick={() => handlePageChange(pagination.totalPages)}
+                    className={`px-3 py-1 text-sm border rounded-md ${
+                      pagination.page === pagination.totalPages
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {pagination.totalPages}
+                  </button>
+                </>
+              )}
+            </div>
+            
+            <button
+              onClick={() => handlePageChange(pagination.page + 1)}
+              disabled={pagination.page >= pagination.totalPages}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>

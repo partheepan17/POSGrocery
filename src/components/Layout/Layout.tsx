@@ -4,10 +4,20 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useAppStore } from '@/store/appStore';
 import { cn } from '@/utils/cn';
+import { KeyboardHelp } from '../KeyboardHelp';
+import { CommandPalette } from '../CommandPalette';
+import { useKeyboardHelp } from '@/hooks/useKeyboardHelp';
 
 export function Layout() {
   const { sidebarOpen } = useAppStore();
   const navigate = useNavigate();
+  const { 
+    isHelpOpen, 
+    setIsHelpOpen, 
+    isCommandPaletteOpen, 
+    setIsCommandPaletteOpen, 
+    commandActions 
+  } = useKeyboardHelp();
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -105,13 +115,10 @@ export function Layout() {
   }, [navigate]);
 
   return (
-    <div className="h-full flex bg-gray-50 dark:bg-gray-900">
+    <div className="h-screen flex bg-gray-50 dark:bg-gray-900 overflow-hidden">
       <Sidebar />
       
-      <div className={cn(
-        "flex-1 flex flex-col min-w-0 transition-all duration-300",
-        sidebarOpen ? "lg:ml-0" : "lg:ml-0"
-      )}>
+      <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
         <Header />
         
         <main className="flex-1 overflow-auto">
@@ -120,6 +127,19 @@ export function Layout() {
           </div>
         </main>
       </div>
+      
+      {/* Keyboard Help Modal */}
+      <KeyboardHelp
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+      />
+      
+      {/* Command Palette */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        commands={commandActions}
+      />
     </div>
   );
 }

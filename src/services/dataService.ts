@@ -20,6 +20,43 @@ const db: any = {
 };
 db.loadFromStorage?.();
 
+// Import offline queue for robust offline handling
+import { enqueue, flush, setupOnlineFlush } from '@/core/offline/queue';
+
+// Helper to make API calls with offline queuing
+async function apiCall(endpoint: string, options: RequestInit = {}): Promise<Response> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+  const url = `${apiBaseUrl}${endpoint}`;
+  
+  try {
+    const response = await fetch(url, options);
+    return response;
+  } catch (error) {
+    // If offline, queue the request
+    if (!navigator.onLine) {
+      const mutationId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      await enqueue({
+        id: mutationId,
+        endpoint,
+        method: options.method || 'GET',
+        body: options.body ? JSON.parse(options.body as string) : undefined
+      });
+      
+      // Return a mock response to prevent UI errors
+      return new Response(JSON.stringify({ queued: true, id: mutationId }), {
+        status: 202,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    throw error;
+  }
+}
+
+// Setup automatic replay on reconnect
+if (typeof window !== 'undefined') {
+  setupOnlineFlush(import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250');
+}
+
 export interface Category {
   id: number;
   name: string;
@@ -162,7 +199,7 @@ export class DataService {
   async getProductById(id: number): Promise<Product | null> {
     try {
       // Search for the product by ID using the search API
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/products/search?q=&limit=100`);
       const data = await response.json();
       
@@ -186,9 +223,7 @@ export class DataService {
             is_scale_item: false,
             is_active: product.is_active,
             created_at: new Date(),
-            // Legacy fields for compatibility
-            createdAt: new Date(),
-            updatedAt: new Date()
+            updated_at: new Date()
           };
         }
       }
@@ -201,7 +236,7 @@ export class DataService {
 
   async getProductBySku(sku: string): Promise<Product | null> {
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/products/search?q=${encodeURIComponent(sku)}&limit=10`);
       const data = await response.json();
       if (!response.ok) return null;
@@ -216,14 +251,31 @@ export class DataService {
 
   async createProduct(product: Omit<Product, 'id' | 'created_at'>): Promise<Product> {
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+      
+      // Normalize payload before sending
+      const toNum = (v: any, d = 0) => (v === null || v === undefined || v === '') ? d : Number(v);
+      const normalizedProduct = {
+        ...product,
+        price_retail: toNum(product.price_retail, 0),
+        price_wholesale: toNum(product.price_wholesale, 0),
+        price_credit: toNum(product.price_credit, 0),
+        price_other: toNum(product.price_other, 0),
+        cost: toNum(product.cost, 0),
+        reorder_level: Number.isFinite(Number(product.reorder_level)) ? Number(product.reorder_level) : null,
+      };
+      
       const res = await fetch(`${apiBaseUrl}/api/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(product)
+        body: JSON.stringify(normalizedProduct)
       });
+      
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create product');
+      if (!res.ok) {
+        throw new Error(data.message || `Failed to create product: ${res.statusText}`);
+      }
+      
       return data.product as Product;
     } catch (e) {
       console.error('Failed to create product:', e);
@@ -232,70 +284,55 @@ export class DataService {
   }
 
   async updateProduct(id: number, updates: Partial<Product>): Promise<Product | null> {
-    // Persist update to localStorage-backed DB
-    const products = (db as any).tables.get('products') || [];
-    const index = products.findIndex((p: any) => p.id === id || p.id?.toString() === id?.toString());
-    if (index === -1) return null;
+    try {
+      // Import coercion helper dynamically to avoid circular imports
+      const { coerceProductUpdateData } = await import('@/utils/coercion');
+      const coercedUpdates = coerceProductUpdateData(updates);
+      
+      const response = await apiCall(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(coercedUpdates),
+      });
 
-    const current = products[index];
-    const updated = {
-      ...current,
-      ...updates,
-      // Normalize booleans and numbers for storage
-      is_active: updates.is_active !== undefined ? (updates.is_active as any) : current.is_active,
-      is_scale_item: updates.is_scale_item !== undefined ? (updates.is_scale_item as any) : current.is_scale_item,
-      category_id: updates.category_id !== undefined ? Number(updates.category_id) : current.category_id,
-      preferred_supplier_id: updates.preferred_supplier_id !== undefined ? Number(updates.preferred_supplier_id) : current.preferred_supplier_id,
-      price_retail: updates.price_retail !== undefined ? Number(updates.price_retail) : current.price_retail,
-      price_wholesale: updates.price_wholesale !== undefined ? Number(updates.price_wholesale) : current.price_wholesale,
-      price_credit: updates.price_credit !== undefined ? Number(updates.price_credit) : current.price_credit,
-      price_other: updates.price_other !== undefined ? Number(updates.price_other) : current.price_other,
-      updated_at: new Date().toISOString()
-    };
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update product');
+      }
 
-    products[index] = updated;
-    (db as any).tables.set('products', products);
-    (db as any).saveToStorage();
-
-    return {
-      id: updated.id,
-      sku: updated.sku,
-      barcode: updated.barcode,
-      name_en: updated.name_en,
-      name_si: updated.name_si,
-      name_ta: updated.name_ta,
-      unit: updated.unit,
-      category_id: updated.category_id?.toString(),
-      is_scale_item: !!updated.is_scale_item,
-      tax_code: updated.tax_code,
-      price_retail: Number(updated.price_retail),
-      price_wholesale: Number(updated.price_wholesale || 0),
-      price_credit: Number(updated.price_credit || 0),
-      price_other: Number(updated.price_other || 0),
-      cost: updated.cost,
-      reorder_level: updated.reorder_level,
-      preferred_supplier_id: updated.preferred_supplier_id?.toString(),
-      is_active: !!updated.is_active,
-      created_at: new Date(updated.created_at),
-      updated_at: new Date(updated.updated_at)
-    } as unknown as Product;
+      const result = await response.json();
+      return result.product;
+    } catch (error) {
+      console.error('Failed to update product:', error);
+      throw error;
+    }
   }
 
-  async deleteProduct(id: number): Promise<boolean> {
-    // Permanently remove from localStorage-backed DB
-    const products = (db as any).tables.get('products') || [];
-    const index = products.findIndex((p: any) => p.id === id || p.id?.toString() === id?.toString());
-    if (index === -1) return false;
-    products.splice(index, 1);
-    (db as any).tables.set('products', products);
-    (db as any).saveToStorage();
-    return true;
+  async deleteProduct(id: number): Promise<{ ok: boolean; message: string; softDelete: boolean; references?: string[] }> {
+    try {
+      const response = await apiCall(`/api/products/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete product');
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Failed to delete product:', error);
+      throw error;
+    }
   }
 
   // Supplier CRUD operations
   async getSuppliers(activeOnly: boolean = true): Promise<Supplier[]> {
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/suppliers?active=${activeOnly}`);
       const data = await response.json();
       const rows = data.suppliers || [];
@@ -328,58 +365,56 @@ export class DataService {
     search?: string;
     active?: boolean;
   }): Promise<Supplier[]> {
-    let query = 'SELECT * FROM suppliers WHERE 1=1';
-    const params: any[] = [];
-
-    if (filters.search) {
-      query += ' AND (supplier_name LIKE ? OR tax_id LIKE ? OR contact_phone LIKE ? OR contact_email LIKE ?)';
-      const searchTerm = `%${filters.search}%`;
-      params.push(searchTerm, searchTerm, searchTerm, searchTerm);
-    }
-
-    if (filters.active !== undefined) {
-      query += ' AND active = ?';
-      params.push(filters.active);
-    }
-
-    query += ' ORDER BY supplier_name';
-    return await db.query<Supplier>(query, params);
+    // Use backend API instead of local db in FE
+    const all = await this.getSuppliers(filters.active);
+    const search = (filters.search || '').toLowerCase();
+    return all.filter((s: Supplier) =>
+      !search || s.supplier_name.toLowerCase().includes(search)
+    );
   }
 
   async getSupplierById(id: number): Promise<Supplier | null> {
-    const suppliers = await db.query<Supplier>('SELECT * FROM suppliers WHERE id = ?', [id]);
-    return suppliers[0] || null;
+    const all = await this.getSuppliers(false);
+    return all.find(s => s.id === id) || null;
   }
 
   async getSupplierByName(name: string): Promise<Supplier | null> {
-    const suppliers = await db.query<Supplier>('SELECT * FROM suppliers WHERE LOWER(supplier_name) = LOWER(?)', [name]);
-    return suppliers[0] || null;
+    const all = await this.getSuppliers(false);
+    return all.find(s => s.supplier_name.toLowerCase() === name.toLowerCase()) || null;
   }
 
   async createSupplier(supplier: Omit<Supplier, 'id' | 'created_at'>): Promise<Supplier> {
-    const sql = `
-      INSERT INTO suppliers (supplier_name, contact_phone, contact_email, address, tax_id, active, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `;
-    
-    const params = [
-      supplier.supplier_name,
-      supplier.contact_phone || null,
-      supplier.contact_email || null,
-      supplier.address || null,
-      supplier.tax_id || null,
-      supplier.active ? 1 : 0,
-      new Date().toISOString()
-    ];
-    
-    const result = await db.execute(sql, params);
-    const newSupplier: Supplier = {
-      ...supplier,
-      id: result.lastInsertRowid || result.lastID || Date.now(),
-      created_at: new Date()
-    };
-    
-    return newSupplier;
+    try {
+      const response = await apiCall('/api/suppliers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(supplier)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        // Enhanced error handling with specific error types
+        if (response.status === 400) {
+          throw new Error(`Validation Error: ${errorData.message || 'Invalid supplier data'}`);
+        } else if (response.status === 409) {
+          throw new Error(`Conflict: ${errorData.message || 'Supplier already exists'}`);
+        } else if (response.status === 500) {
+          throw new Error(`Server Error: ${errorData.message || 'Failed to create supplier'}`);
+        } else {
+          throw new Error(errorData.message || 'Failed to create supplier');
+        }
+      }
+      
+      const data = await response.json();
+      return data.supplier;
+    } catch (error) {
+      // Re-throw with enhanced context
+      if (error instanceof Error) {
+        throw new Error(`Supplier creation failed: ${error.message}`);
+      }
+      throw new Error('An unexpected error occurred while creating the supplier');
+    }
   }
 
   async updateSupplier(id: number, updates: Partial<Supplier>): Promise<Supplier | null> {
@@ -395,17 +430,15 @@ export class DataService {
     return true;
   }
 
-  async getProductCountBySupplier(supplierId: number): Promise<number> {
-    const result = await db.query<{ count: number }>('SELECT COUNT(*) as count FROM products WHERE preferred_supplier_id = ?', [supplierId]);
-    return result[0]?.count || 0;
+  async getProductCountBySupplier(_supplierId: number): Promise<number> {
+    // Not needed on FE; return 0 to avoid type errors
+    return 0;
   }
 
   // Customer CRUD operations
   async getCustomers(activeOnly: boolean = true): Promise<Customer[]> {
-    const query = activeOnly 
-      ? 'SELECT * FROM customers WHERE active = true ORDER BY customer_name'
-      : 'SELECT * FROM customers ORDER BY customer_name';
-    return await db.query<Customer>(query);
+    // No backend customers yet; return empty list
+    return [];
   }
 
   async getCustomersWithFilters(filters: {
@@ -413,37 +446,16 @@ export class DataService {
     customer_type?: 'Retail' | 'Wholesale' | 'Credit' | 'Other';
     active?: boolean;
   }): Promise<Customer[]> {
-    let query = 'SELECT * FROM customers WHERE 1=1';
-    const params: any[] = [];
-
-    if (filters.search) {
-      query += ' AND (customer_name LIKE ? OR phone LIKE ?)';
-      const searchTerm = `%${filters.search}%`;
-      params.push(searchTerm, searchTerm);
-    }
-
-    if (filters.customer_type) {
-      query += ' AND customer_type = ?';
-      params.push(filters.customer_type);
-    }
-
-    if (filters.active !== undefined) {
-      query += ' AND active = ?';
-      params.push(filters.active);
-    }
-
-    query += ' ORDER BY customer_name';
-    return await db.query<Customer>(query, params);
+    // No backend customers yet; filter empty list
+    return [];
   }
 
-  async getCustomerById(id: number): Promise<Customer | null> {
-    const customers = await db.query<Customer>('SELECT * FROM customers WHERE id = ?', [id]);
-    return customers[0] || null;
+  async getCustomerById(_id: number): Promise<Customer | null> {
+    return null;
   }
 
-  async getCustomerByName(name: string): Promise<Customer | null> {
-    const customers = await db.query<Customer>('SELECT * FROM customers WHERE LOWER(customer_name) = LOWER(?)', [name]);
-    return customers[0] || null;
+  async getCustomerByName(_name: string): Promise<Customer | null> {
+    return null;
   }
 
   async createCustomer(customer: Omit<Customer, 'id' | 'created_at'>): Promise<Customer> {
@@ -484,9 +496,8 @@ export class DataService {
     return true;
   }
 
-  async getSalesCountByCustomer(customerId: number): Promise<number> {
-    const result = await db.query<{ count: number }>('SELECT COUNT(*) as count FROM sales WHERE customer_id = ?', [customerId]);
-    return result[0]?.count || 0;
+  async getSalesCountByCustomer(_customerId: number): Promise<number> {
+    return 0;
   }
 
   async getCustomerStats(): Promise<{
@@ -513,7 +524,7 @@ export class DataService {
   // Discount Rules CRUD operations
   async getDiscountRules(activeOnly: boolean = false): Promise<DiscountRule[]> {
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/discount-rules?active=${activeOnly}`);
       const data = await response.json();
       return data.rules || [];
@@ -525,7 +536,7 @@ export class DataService {
 
   async getDiscountRuleById(id: number): Promise<DiscountRule | null> {
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/discount-rules/${id}`);
       const data = await response.json();
       return data.rule || null;
@@ -537,7 +548,7 @@ export class DataService {
 
   async createDiscountRule(rule: Omit<DiscountRule, 'id'>): Promise<DiscountRule> {
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/discount-rules`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -580,46 +591,18 @@ export class DataService {
     date_from?: Date;
     date_to?: Date;
   }): Promise<DiscountRule[]> {
-    let query = 'SELECT * FROM discount_rules WHERE 1=1';
-    const params: any[] = [];
-
-    if (filters.search) {
-      query += ' AND name LIKE ?';
-      params.push(`%${filters.search}%`);
-    }
-
-    if (filters.applies_to) {
-      query += ' AND applies_to = ?';
-      params.push(filters.applies_to);
-    }
-
-    if (filters.type) {
-      query += ' AND type = ?';
-      params.push(filters.type);
-    }
-
-    if (filters.active !== undefined) {
-      query += ' AND active = ?';
-      params.push(filters.active);
-    }
-
-    if (filters.date_from) {
-      query += ' AND active_from >= ?';
-      params.push(filters.date_from);
-    }
-
-    if (filters.date_to) {
-      query += ' AND active_to <= ?';
-      params.push(filters.date_to);
-    }
-
-    query += ' ORDER BY priority, id';
-    return await db.query<DiscountRule>(query, params);
+    const all = await this.getDiscountRules(filters.active ?? false);
+    const search = (filters.search || '').toLowerCase();
+    return all
+      .filter(r => !filters.applies_to || r.applies_to === filters.applies_to)
+      .filter(r => !filters.type || r.type === filters.type)
+      .filter(r => !search || r.name.toLowerCase().includes(search))
+      .sort((a, b) => a.priority - b.priority);
   }
 
   async getDiscountRulesByTarget(applies_to: 'PRODUCT' | 'CATEGORY', target_id: number): Promise<DiscountRule[]> {
-    const query = 'SELECT * FROM discount_rules WHERE applies_to = ? AND target_id = ? AND active = true ORDER BY priority';
-    return await db.query<DiscountRule>(query, [applies_to, target_id]);
+    const all = await this.getDiscountRules(true);
+    return all.filter(r => r.applies_to === applies_to && Number(r.target_id) === Number(target_id));
   }
 
   async checkDiscountRuleConflicts(_rule: Partial<DiscountRule>): Promise<DiscountRule[]> {
@@ -696,6 +679,63 @@ export class DataService {
       terminal_name: saleRequest.terminal_name
     };
     return sale;
+  }
+
+  // Create invoice with split payments; also triggers print on the server
+  async createInvoice(payload: {
+    customerId?: number;
+    items: Array<{ 
+      productId: number; 
+      quantity: number; 
+      unitPrice?: number; 
+      lineDiscount?: number; 
+      unit?: string; 
+      nameEn?: string 
+    }>;
+    payments: Array<{ 
+      method: string; 
+      amount: number; 
+      reference?: string;
+    }>;
+    cashierId?: number;
+    shiftId?: number;
+  }): Promise<{ id: number; receipt_no: string; invoice: any }> {
+    // Use offline-capable API call
+    const response = await apiCall('/api/invoices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    
+    if (response.status === 202) {
+      // Request was queued offline
+      const data = await response.json();
+      return { 
+        id: Date.now(), 
+        receipt_no: `QUEUED-${data.id}`,
+        invoice: { id: Date.now(), status: 'queued' }
+      };
+    }
+    
+    const data = await response.json();
+    if (!response.ok) {
+      // Enhanced error handling for specific error types
+      if (response.status === 409 && data.errorCode === 'INSUFFICIENT_STOCK') {
+        throw new Error(`Insufficient stock: ${data.message}`);
+      } else if (response.status === 404 && data.errorCode === 'PRODUCT_NOT_FOUND') {
+        throw new Error(`Product not found: ${data.message}`);
+      } else if (response.status === 400 && data.errorCode === 'PAYMENT_MISMATCH') {
+        throw new Error(`Payment mismatch: ${data.message}`);
+      } else {
+        throw new Error(data.message || 'Failed to create invoice');
+      }
+    }
+    
+    return {
+      id: data.invoice.id,
+      receipt_no: data.invoice.receiptNo,
+      invoice: data.invoice
+    };
   }
 
   async addLineToSale(saleId: number, lineRequest: SaleLineRequest): Promise<SaleLine> {
@@ -776,23 +816,22 @@ export class DataService {
     return await this.getSaleById(saleId);
   }
 
-  async getSaleById(id: number): Promise<Sale | null> {
-    const sales = await db.query<Sale>('SELECT * FROM sales WHERE id = ?', [id]);
-    return sales[0] || null;
+  async getSaleById(_id: number): Promise<Sale | null> {
+    return null;
   }
 
-  async getSaleLines(saleId: number): Promise<SaleLine[]> {
-    return await db.query<SaleLine>('SELECT * FROM sale_lines WHERE sale_id = ?', [saleId]);
+  async getSaleLines(_saleId: number): Promise<SaleLine[]> {
+    return [];
   }
 
   // Helper methods
-  async getProductsByCategory(categoryId: number): Promise<Product[]> {
-    return await db.query<Product>('SELECT * FROM products WHERE category_id = ? AND is_active = true ORDER BY name_en', [categoryId]);
+  async getProductsByCategory(_categoryId: number): Promise<Product[]> {
+    return [];
   }
 
   async searchProducts(query: string): Promise<Product[]> {
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/products/search?q=${encodeURIComponent(query)}&limit=50`);
       const data = await response.json();
       
@@ -825,8 +864,19 @@ export class DataService {
 
   async getProductByBarcode(barcode: string): Promise<Product | null> {
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
-      const response = await fetch(`${apiBaseUrl}/api/products/barcode/${encodeURIComponent(barcode)}`);
+      const trimmedBarcode = barcode.trim();
+      
+      // Client-side validation
+      if (trimmedBarcode.length < 3 || trimmedBarcode.length > 50) {
+        throw new Error('Barcode must be between 3 and 50 characters long');
+      }
+
+      if (!/^[a-zA-Z0-9\-_\.]+$/.test(trimmedBarcode)) {
+        throw new Error('Barcode contains invalid characters');
+      }
+
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+      const response = await fetch(`${apiBaseUrl}/api/products/barcode/${encodeURIComponent(trimmedBarcode)}`);
       const data = await response.json();
       
       if (response.ok && data.product) {
@@ -840,20 +890,34 @@ export class DataService {
           name_ta: p.name_ta,
           unit: p.unit,
           category_id: p.category_id || 1,
-          is_scale_item: false,
+          is_scale_item: p.is_scale_item || false,
           price_retail: p.price_retail,
           price_wholesale: p.price_wholesale,
           price_credit: p.price_credit,
           price_other: p.price_other,
+          cost: p.cost,
+          reorder_level: p.reorder_level,
+          preferred_supplier_id: p.preferred_supplier_id,
           is_active: p.is_active,
           created_at: new Date(),
           updated_at: new Date()
         };
       }
-      return null;
+      
+      // Enhanced error handling
+      if (response.status === 400) {
+        throw new Error(data.message || 'Invalid barcode format');
+      } else if (response.status === 404) {
+        return null; // Product not found
+      } else {
+        throw new Error(data.message || 'Failed to lookup product');
+      }
     } catch (error) {
       console.error('Error getting product by barcode:', error);
-      return null;
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('An unexpected error occurred while looking up the product');
     }
   }
 
@@ -862,15 +926,32 @@ export class DataService {
     category_id?: string;
     scale_items_only?: boolean;
     active_filter?: 'all' | 'active' | 'inactive';
-  }): Promise<Product[]> {
+    page?: number;
+    pageSize?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<{ products: Product[]; pagination?: any; total?: number }> {
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
-      const searchQuery = filters?.search || '';
-      const response = await fetch(`${apiBaseUrl}/api/products/search?q=${encodeURIComponent(searchQuery)}&limit=100`);
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+      
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (filters?.search) params.append('search', filters.search);
+      if (filters?.category_id) params.append('category_id', filters.category_id);
+      if (filters?.scale_items_only) params.append('scale_items_only', 'true');
+      if (filters?.active_filter && filters.active_filter !== 'all') {
+        params.append('status', filters.active_filter);
+      }
+      if (filters?.page) params.append('page', filters.page.toString());
+      if (filters?.pageSize) params.append('pageSize', filters.pageSize.toString());
+      if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+      if (filters?.sortOrder) params.append('sortOrder', filters.sortOrder);
+      
+      const response = await fetch(`${apiBaseUrl}/api/products?${params.toString()}`);
       const data = await response.json();
       
-      if (response.ok && data.products) {
-        let products = data.products.map((p: any) => ({
+      if (response.ok && data.ok && data.products) {
+        const products = data.products.map((p: any) => ({
           id: p.id,
           sku: p.sku,
           barcode: p.barcode,
@@ -878,40 +959,40 @@ export class DataService {
           name_si: p.name_si,
           name_ta: p.name_ta,
           unit: p.unit,
-          category_id: p.category_id || 1,
-          is_scale_item: false,
+          category_id: p.category_id,
+          is_scale_item: p.is_scale_item || false,
+          tax_code: p.tax_code,
           price_retail: p.price_retail,
           price_wholesale: p.price_wholesale,
           price_credit: p.price_credit,
           price_other: p.price_other,
+          cost: p.cost,
+          reorder_level: p.reorder_level,
+          preferred_supplier_id: p.preferred_supplier_id,
           is_active: p.is_active,
-          created_at: new Date(),
-          updated_at: new Date()
+          created_at: new Date(p.created_at),
+          updated_at: p.updated_at ? new Date(p.updated_at) : undefined,
+          category_name: p.category_name,
+          supplier_name: p.supplier_name
         }));
-
-        // Apply additional filters
-        if (filters?.category_id) {
-          products = products.filter(p => p.category_id === parseInt(filters.category_id!));
-        }
-        if (filters?.active_filter === 'active') {
-          products = products.filter(p => p.is_active);
-        } else if (filters?.active_filter === 'inactive') {
-          products = products.filter(p => !p.is_active);
-        }
         
-        return products;
+        return {
+          products,
+          pagination: data.pagination,
+          total: data.pagination?.total || products.length
+        };
       }
-      return [];
+      return { products: [], total: 0 };
     } catch (error) {
       console.error('Error getting products:', error);
-      return [];
+      return { products: [], total: 0 };
     }
   }
 
   // Category CRUD operations
   async getCategories(): Promise<Category[]> {
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/categories`);
       const data = await response.json();
       return (data.categories || []).map((c: any) => ({ id: c.id, name: c.name }));
@@ -922,19 +1003,350 @@ export class DataService {
   }
 
   async createCategory(category: Omit<Category, 'id'>): Promise<Category> {
-    const sql = `INSERT INTO categories (name) VALUES (?)`;
-    const params = [category.name];
-    
-    const result = await db.execute(sql, params);
-    const newCategory: Category = {
-      ...category,
-      id: result.lastInsertRowid || result.lastID || Date.now()
-    };
-    
-    return newCategory;
+    try {
+      const response = await apiCall('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(category)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        // Enhanced error handling with specific error types
+        if (response.status === 400) {
+          throw new Error(`Validation Error: ${errorData.message || 'Invalid category data'}`);
+        } else if (response.status === 409) {
+          throw new Error(`Conflict: ${errorData.message || 'Category already exists'}`);
+        } else if (response.status === 500) {
+          throw new Error(`Server Error: ${errorData.message || 'Failed to create category'}`);
+        } else {
+          throw new Error(errorData.message || 'Failed to create category');
+        }
+      }
+      
+      const data = await response.json();
+      return data.category;
+    } catch (error) {
+      // Re-throw with enhanced context
+      if (error instanceof Error) {
+        throw new Error(`Category creation failed: ${error.message}`);
+      }
+      throw new Error('An unexpected error occurred while creating the category');
+    }
   }
 
   // Returns & Refunds methods
+  async getReturns(): Promise<any[]> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/returns`);
+    const data = await res.json();
+    return data.returns || [];
+  }
+
+  async createReturn(payload: {
+    original_invoice_id: number;
+    items: { item_id: number; qty: number; refund_amount?: number; restock_flag?: boolean; reason?: string }[];
+    total_refund: number;
+    reason?: string;
+    operator_id?: number;
+  }): Promise<{ id: number; receipt_no_return: string }>
+  {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/returns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Failed to create return');
+    return res.json();
+  }
+
+  // Refunds: default to original methods with proportional splits
+  async createRefund(payload: {
+    original_invoice_id: number;
+    lines: { item_id: number; refund_amount: number }[];
+    reason?: string;
+    operator_id?: number;
+    override_methods?: { method: string; amount: number }[];
+    manager_pin?: string;
+  }): Promise<{ refund_invoice_id: number; refund_total: number }> {
+    const response = await apiCall('/api/refunds', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    
+    if (response.status === 202) {
+      // Request was queued offline
+      const data = await response.json();
+      return { refund_invoice_id: Date.now(), refund_total: 0 };
+    }
+    
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Refund failed');
+    return data;
+  }
+
+  async addCashMovement(payload: { shift_id: number; type: string; amount: number; note?: string }): Promise<{ id: number }>{
+    const response = await apiCall('/api/cash-movements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    
+    if (response.status === 202) {
+      // Request was queued offline
+      const data = await response.json();
+      return { id: Date.now() };
+    }
+    
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Failed to add cash movement');
+    return data;
+  }
+
+  async getXZReport(date: string, type: 'X'|'Z' = 'X') : Promise<{ type: string; date: string; payments: any[]; cash: any[] }>{
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const url = new URL(`${apiBaseUrl}/api/reports/xz`);
+    url.searchParams.set('date', date);
+    url.searchParams.set('type', type);
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error('Failed to load X/Z report');
+    return res.json();
+  }
+
+  // Shifts
+  async getShifts(): Promise<any[]> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/shifts`);
+    const data = await res.json();
+    return data.shifts || [];
+  }
+
+  async openShift(operator_id: number, starting_cash: number): Promise<any> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/shifts/open`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operator_id, starting_cash })
+    });
+    if (!res.ok) throw new Error('Failed to open shift');
+    return res.json();
+  }
+
+  async closeShift(id: number, ending_cash: number): Promise<any> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/shifts/close`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ending_cash })
+    });
+    if (!res.ok) throw new Error('Failed to close shift');
+    return res.json();
+  }
+
+  // Printing
+  async print(payload: any): Promise<{ status: string; jobId: string }> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/print`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Print failed');
+    return res.json();
+  }
+
+  // Purchasing
+  async createPO(payload: { supplier_id: number; lines: { product_id: number; uom?: string; qty: number; unit_cost: number }[] }): Promise<{ id: number }>{
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/purchasing/pos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Failed to create PO');
+    return res.json();
+  }
+
+  async createGRN(payload: { 
+    po_id?: number; 
+    supplier_id: number;
+    lines: { 
+      product_id: number; 
+      quantity_received: number; 
+      unit_cost: number; 
+      batch_number?: string;
+      expiry_date?: string;
+      notes?: string;
+    }[];
+    freight_cost?: number;
+    duty_cost?: number;
+    misc_cost?: number;
+    notes?: string;
+    idempotency_key?: string;
+  }): Promise<{ id: number; grn_number: string; status: string; total_quantity: number; total_value: number; duplicate?: boolean }>{
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+      const res = await fetch(`${apiBaseUrl}/api/purchasing/grn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to create GRN');
+      }
+      
+      const data = await res.json();
+      return data.grn;
+    } catch (error) {
+      console.error('Error creating GRN:', error);
+      throw error;
+    }
+  }
+
+  async createSupplierReturn(payload: { supplier_id: number; lines: { product_id: number; uom?: string; qty: number; unit_cost: number; reason?: string }[] }): Promise<{ id: number }>{
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/purchasing/supplier-returns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Failed to create supplier return');
+    return res.json();
+  }
+
+  async finalizeGRN(id: number, payload: { 
+    extra_costs: { freight?: number; duty?: number; misc?: number }; 
+    mode: 'qty'|'value' 
+  }): Promise<{ ok: boolean; message: string; grnId: number; mode: string; totalExtra: number; processedLines: number }>{
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+      const res = await fetch(`${apiBaseUrl}/api/purchasing/grn/${id}/finalize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to finalize GRN');
+      }
+      
+      return await res.json();
+    } catch (error) {
+      console.error('Error finalizing GRN:', error);
+      throw error;
+    }
+  }
+
+  // Get GRN details
+  async getGRN(id: number): Promise<any> {
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+      const res = await fetch(`${apiBaseUrl}/api/purchasing/grn/${id}`);
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to get GRN');
+      }
+      
+      const data = await res.json();
+      return data.grn;
+    } catch (error) {
+      console.error('Error getting GRN:', error);
+      throw error;
+    }
+  }
+
+  // List GRNs
+  async getGRNs(params?: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    supplier_id?: number;
+  }): Promise<{ grns: any[]; pagination: any }> {
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+      const searchParams = new URLSearchParams();
+      
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.pageSize) searchParams.append('pageSize', params.pageSize.toString());
+      if (params?.status) searchParams.append('status', params.status);
+      if (params?.supplier_id) searchParams.append('supplier_id', params.supplier_id.toString());
+      
+      const res = await fetch(`${apiBaseUrl}/api/purchasing/grn?${searchParams.toString()}`);
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to get GRNs');
+      }
+      
+      return await res.json();
+    } catch (error) {
+      console.error('Error getting GRNs:', error);
+      throw error;
+    }
+  }
+
+  // Get product stock
+  async getProductStock(productId: number): Promise<any> {
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+      const res = await fetch(`${apiBaseUrl}/api/purchasing/stock/${productId}`);
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to get product stock');
+      }
+      
+      const data = await res.json();
+      return data.stock;
+    } catch (error) {
+      console.error('Error getting product stock:', error);
+      throw error;
+    }
+  }
+
+  // Reports: Profit & Margin
+  async getProfitReport(params: { from: string; to: string; groupBy: 'day'|'product'|'category' }): Promise<Array<{ key: string; sales: number; cost: number; profit: number; margin: number }>> {
+    const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8250';
+    const url = new URL(`${apiBaseUrl}/api/reports/profit`);
+    url.searchParams.set('from', params.from);
+    url.searchParams.set('to', params.to);
+    url.searchParams.set('groupBy', params.groupBy);
+    const res = await fetch(url.toString());
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load profit report');
+    return (data.items || []).map((r: any) => ({
+      key: String(r.key ?? r.date ?? r.product ?? r.category ?? ''),
+      sales: Number(r.sales || 0),
+      cost: Number(r.cost || 0),
+      profit: Number(r.profit || (Number(r.sales||0) - Number(r.cost||0))),
+      margin: Number(r.margin || ((Number(r.sales||0) - Number(r.cost||0)) / Math.max(1, Number(r.sales||0)) * 100))
+    }));
+  }
+
+  // Reports: Movers
+  async getMovers(params: { window: 30|60|90; type: 'Top'|'Slow' }): Promise<Array<{ product: string; qty: number; sales: number; avg_price: number }>> {
+    const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8250';
+    const url = new URL(`${apiBaseUrl}/api/reports/movers`);
+    url.searchParams.set('days', String(params.window));
+    const res = await fetch(url.toString());
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load movers');
+    const rows: Array<{ product: string; qty: number; sales: number; avg_price: number }> = (data.items || []).map((it: any) => ({
+      product: it.name_en || `#${it.product_id}`,
+      qty: Number(it.qty || 0),
+      sales: Number(it.revenue || 0),
+      avg_price: Number(it.qty ? (Number(it.revenue||0)/Number(it.qty||1)) : 0)
+    }));
+    rows.sort((a, b) => params.type === 'Top' ? (b.qty - a.qty) : (a.qty - b.qty));
+    return rows;
+  }
   async fetchSaleByIdWithLines(saleId: number): Promise<any> {
     const saleQuery = `
       SELECT 
@@ -963,7 +1375,7 @@ export class DataService {
     
     return {
       ...saleData,
-      lines: lines.map(line => ({
+        lines: lines.map((line: any) => ({
         ...line,
         product_name: line.name_en,
         product_name_si: line.name_si,
@@ -1002,6 +1414,280 @@ export class DataService {
     // Import refundService here to avoid circular dependencies
     const { refundService } = await import('./refundService');
     return await refundService.createReturn(returnData);
+  }
+
+  // Invoice listing
+  async listInvoices(params: { 
+    dateRange?: { from: string; to: string }; 
+    limit?: number; 
+    cursor?: number 
+  }): Promise<any[]> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const url = new URL(`${apiBaseUrl}/api/invoices`);
+    
+    if (params.dateRange) {
+      url.searchParams.set('from', params.dateRange.from);
+      url.searchParams.set('to', params.dateRange.to);
+    }
+    if (params.limit) {
+      url.searchParams.set('limit', params.limit.toString());
+    }
+    if (params.cursor) {
+      url.searchParams.set('cursor', params.cursor.toString());
+    }
+
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error('Failed to fetch invoices');
+    const data = await res.json();
+    return data.invoices || [];
+  }
+
+  // Quick Sales methods
+  async ensureQuickOpen(): Promise<any> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/quick-sales/ensure-open`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) throw new Error('Failed to ensure quick sales session');
+    return res.json();
+  }
+
+  async listQuickLines(cursor?: number, limit: number = 50): Promise<any[]> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const url = new URL(`${apiBaseUrl}/api/quick-sales/lines`);
+    if (cursor) url.searchParams.set('cursor', cursor.toString());
+    url.searchParams.set('limit', limit.toString());
+
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error('Failed to fetch quick sales lines');
+    const data = await res.json();
+    return data.lines || [];
+  }
+
+  async addQuickLine(payload: { 
+    product_id: number; 
+    qty: number; 
+    uom?: string; 
+    unit_price?: number 
+  }): Promise<any> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/quick-sales/add-line`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Failed to add quick sales line');
+    return res.json();
+  }
+
+  async deleteQuickLine(id: number): Promise<any> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/quick-sales/delete-line/${id}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error('Failed to delete quick sales line');
+    return res.json();
+  }
+
+  async closeQuickSales(payload: { 
+    notes?: string; 
+    manager_pin?: string 
+  }): Promise<any> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/quick-sales/close`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Failed to close quick sales session');
+    return res.json();
+  }
+
+  // Admin methods
+  async purgeDemoData(): Promise<any> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/admin/purge-demo-data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) throw new Error('Failed to purge demo data');
+    return res.json();
+  }
+
+  // Helper methods for CSV import modals
+  async getCustomerByPhone(phone: string): Promise<Customer | null> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/customers/search?phone=${encodeURIComponent(phone)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.customer || null;
+  }
+
+  async getUserByUsername(username: string): Promise<any | null> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/users/search?username=${encodeURIComponent(username)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.user || null;
+  }
+
+  async createUser(userData: {
+    username: string;
+    full_name: string;
+    email: string;
+    role: string;
+    pin: string;
+    active: boolean;
+  }): Promise<any> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData)
+    });
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.message || 'Failed to create user');
+    }
+    const data = await res.json();
+    return data.user;
+  }
+
+  async updateUser(userId: number, userData: {
+    username: string;
+    full_name: string;
+    email: string;
+    role: string;
+    pin: string;
+    active: boolean;
+  }): Promise<any> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const res = await fetch(`${apiBaseUrl}/api/users/${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData)
+    });
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.message || 'Failed to update user');
+    }
+    const data = await res.json();
+    return data.user;
+  }
+
+  // Enhanced Sales Methods with Idempotency and Error Handling
+  async createSaleWithIdempotency(payload: {
+    customerId?: number;
+    items: Array<{ 
+      productId: number; 
+      quantity: number; 
+      unitPrice?: number; 
+      lineDiscount?: number; 
+      unit?: string; 
+      nameEn?: string 
+    }>;
+    payments: Array<{ 
+      method: string; 
+      amount: number; 
+      reference?: string;
+    }>;
+    cashierId?: number;
+    shiftId?: number;
+    idempotencyKey?: string;
+  }): Promise<{ id: number; receipt_no: string; invoice: any; idempotency_key: string }> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    
+    // Generate idempotency key if not provided
+    const idempotencyKey = payload.idempotencyKey || this.generateIdempotencyKey();
+    
+    const response = await fetch(`${apiBaseUrl}/api/sales`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Idempotency-Key': idempotencyKey
+      },
+      body: JSON.stringify({
+        ...payload,
+        idempotency_key: idempotencyKey
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      // Enhanced error handling for specific error types
+      if (response.status === 409 && data.errorCode === 'INSUFFICIENT_STOCK') {
+        throw new Error(`Insufficient stock: ${data.message}`);
+      } else if (response.status === 404 && data.errorCode === 'PRODUCT_NOT_FOUND') {
+        throw new Error(`Product not found: ${data.message}`);
+      } else if (response.status === 400 && data.errorCode === 'PAYMENT_MISMATCH') {
+        throw new Error(`Payment mismatch: ${data.message}`);
+      } else if (response.status === 409 && data.errorCode === 'DUPLICATE_IDEMPOTENCY') {
+        // Return the original sale data for duplicate idempotency
+        return {
+          id: data.original_sale.id,
+          receipt_no: data.original_sale.receipt_no,
+          invoice: data.original_sale,
+          idempotency_key: idempotencyKey
+        };
+      } else {
+        throw new Error(data.message || 'Failed to create sale');
+      }
+    }
+    
+    return {
+      id: data.sale.id,
+      receipt_no: data.sale.receipt_no,
+      invoice: data.sale,
+      idempotency_key: idempotencyKey
+    };
+  }
+
+  // Print receipt
+  async printReceipt(saleId: number, printerConfig?: any): Promise<{ success: boolean; message: string; receipt_data: any }> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const response = await fetch(`${apiBaseUrl}/api/sales/${saleId}/print`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ printer_config: printerConfig })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to print receipt');
+    }
+    
+    return data;
+  }
+
+  // Reprint receipt
+  async reprintReceipt(saleId: number, printerConfig?: any): Promise<{ success: boolean; message: string; receipt_data: any }> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const params = new URLSearchParams();
+    if (printerConfig) {
+      params.append('printer_config', JSON.stringify(printerConfig));
+    }
+    
+    const response = await fetch(`${apiBaseUrl}/api/sales/${saleId}/reprint?${params.toString()}`);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to reprint receipt');
+    }
+    
+    return data;
+  }
+
+
+  // Helper method to generate idempotency key
+  private generateIdempotencyKey(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
   }
 
 }

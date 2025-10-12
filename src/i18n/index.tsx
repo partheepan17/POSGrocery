@@ -541,9 +541,22 @@ interface I18nProviderProps {
   defaultLanguage?: Language;
 }
 
-export function I18nProvider({ children, defaultLanguage = 'en' }: I18nProviderProps) {
-  const [language, setLanguage] = React.useState<Language>(defaultLanguage);
+const STORAGE_KEY = 'app-language';
+
+export function I18nProvider({ children, defaultLanguage = 'si' }: I18nProviderProps) {
+  const [language, setLanguage] = React.useState<Language>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY) as Language | null;
+      return (saved || defaultLanguage) as Language;
+    } catch {
+      return defaultLanguage;
+    }
+  });
   const t = useTranslation(language);
+
+  React.useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, language); } catch {}
+  }, [language]);
 
   const contextValue: I18nContextType = {
     language,

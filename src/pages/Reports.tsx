@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Download, RefreshCw, Filter, Copy, TrendingUp, DollarSign, ShoppingCart, Tag, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { reportService, ReportFilters, ReportKPIs } from '@/services/reportService';
@@ -10,6 +11,7 @@ import { SimpleLine } from '@/components/Charts/SimpleLine';
 type TabType = 'summary' | 'tier' | 'products' | 'categories' | 'discounts';
 
 export function Reports() {
+  const { t } = useTranslation();
   const { settings } = useAppStore();
   const [activeTab, setActiveTab] = useState<TabType>('summary');
   const [loading, setLoading] = useState(false);
@@ -256,7 +258,7 @@ export function Reports() {
             </button>
             <button
               onClick={handleExport}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-1 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
               title="Export current tab data (Ctrl+E)"
             >
               <Download className="w-4 h-4 mr-2" />
@@ -264,7 +266,7 @@ export function Reports() {
             </button>
             <button
               onClick={loadData}
-              className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:ring-1 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -285,7 +287,7 @@ export function Reports() {
                 type="date"
                 value={filters.from.toISOString().split('T')[0]}
                 onChange={(e) => setFilters(prev => ({ ...prev, from: new Date(e.target.value) }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               />
             </div>
             <div>
@@ -294,7 +296,7 @@ export function Reports() {
                 type="date"
                 value={filters.to.toISOString().split('T')[0]}
                 onChange={(e) => setFilters(prev => ({ ...prev, to: new Date(e.target.value) }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               />
             </div>
 
@@ -304,7 +306,7 @@ export function Reports() {
               <select
                 value={filters.tier || ''}
                 onChange={(e) => setFilters(prev => ({ ...prev, tier: e.target.value as any || undefined }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               >
                 <option value="">All</option>
                 <option value="Retail">Retail</option>

@@ -1,0 +1,109 @@
+name: Accessibility Testing
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/a11y/**'
+      - 'package.json'
+      - 'package-lock.json'
+  push:
+    branches: [main, develop]
+
+jobs:
+  accessibility-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Install Playwright browsers
+      run: npx playwright install --with-deps
+      
+    - name: Build application
+      run: npm run build
+      
+    - name: Start application
+      run: |
+        npm run dev:server &
+        sleep 10
+        npm run dev:client &
+        sleep 15
+        
+    - name: Run accessibility tests
+      run: npm run test:a11y
+      env:
+        CI: true
+        
+    - name: Upload accessibility report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: accessibility-report
+        path: test-results/
+        
+    - name: Comment PR with accessibility results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Read test results
+          const resultsPath = 'test-results/results.json';
+          if (fs.existsSync(resultsPath)) {
+            const results = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+            const failedTests = results.suites.filter(suite => 
+              suite.specs.some(spec => spec.tests.some(test => test.results.some(result => result.status === 'failed')))
+            );
+            
+            if (failedTests.length > 0) {
+              const comment = `## ❌ Accessibility Test Failures
+              
+              The following accessibility tests failed:
+              
+              ${failedTests.map(suite => 
+                `- **${suite.title}**: ${suite.specs.map(spec => 
+                  spec.tests.map(test => 
+                    test.results.filter(result => result.status === 'failed').map(result => 
+                      `  - ${spec.title}: ${result.error?.message || 'Test failed'}`
+                    ).join('\n')
+                  ).join('\n')
+                ).join('\n')}`
+              ).join('\n')}
+              
+              Please review and fix the accessibility issues before merging.`;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } else {
+              const comment = `## ✅ Accessibility Tests Passed
+              
+              All accessibility tests passed successfully!`;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+          }
+
+
+

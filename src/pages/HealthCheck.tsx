@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Activity, 
   RefreshCw, 
@@ -41,6 +42,7 @@ interface HealthCheckState {
 }
 
 const HealthCheck: React.FC = () => {
+  const { t } = useTranslation();
   const [state, setState] = useState<HealthCheckState>({
     report: null,
     loading: false,
@@ -275,10 +277,10 @@ const HealthCheck: React.FC = () => {
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold mb-2">
-                    System Health Dashboard
+                    {t('health.title')}
                   </h1>
                   <p className="text-blue-100 text-lg">
-                    Real-time monitoring and diagnostics for your POS system
+                    {t('health.description')}
                   </p>
                 </div>
               </div>
@@ -288,15 +290,15 @@ const HealthCheck: React.FC = () => {
                 <div className="flex gap-4">
                   <div className="bg-white/20 backdrop-blur rounded-lg p-3 text-center min-w-[80px]">
                     <div className="text-2xl font-bold">{statusInfo?.okCount || 0}</div>
-                    <div className="text-xs text-blue-100">Healthy</div>
+                    <div className="text-xs text-blue-100">{t('health.healthy')}</div>
                   </div>
                   <div className="bg-white/20 backdrop-blur rounded-lg p-3 text-center min-w-[80px]">
                     <div className="text-2xl font-bold">{statusInfo?.warnCount || 0}</div>
-                    <div className="text-xs text-blue-100">Warnings</div>
+                    <div className="text-xs text-blue-100">{t('health.warnings')}</div>
                   </div>
                   <div className="bg-white/20 backdrop-blur rounded-lg p-3 text-center min-w-[80px]">
                     <div className="text-2xl font-bold">{statusInfo?.failCount || 0}</div>
-                    <div className="text-xs text-blue-100">Issues</div>
+                    <div className="text-xs text-blue-100">{t('health.issues')}</div>
                   </div>
                 </div>
               )}
@@ -351,7 +353,7 @@ const HealthCheck: React.FC = () => {
                 title="Export CSV (Ctrl+E)"
               >
                 <Download className="h-4 w-4" />
-                {state.exporting ? 'Exporting...' : 'Export Report'}
+                {state.exporting ? t('health.exporting') : t('health.exportReport')}
               </button>
 
               <button
@@ -363,10 +365,10 @@ const HealthCheck: React.FC = () => {
                   "text-white shadow-lg hover:shadow-xl transform hover:scale-105",
                   "disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 )}
-                title="Run Manual Backup"
+                title={t('health.runBackup')}
               >
                 <Shield className={cn("h-4 w-4", state.runningBackup && "animate-pulse")} />
-                {state.runningBackup ? 'Backing up...' : 'Create Backup'}
+                {state.runningBackup ? t('health.backingUp') : t('health.createBackup')}
               </button>
 
               {state.report && (
@@ -377,10 +379,10 @@ const HealthCheck: React.FC = () => {
                     "bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800",
                     "text-white shadow-lg hover:shadow-xl transform hover:scale-105"
                   )}
-                  title="Copy Summary"
+                  title={t('health.copySummary')}
                 >
                   <Copy className="h-4 w-4" />
-                  Copy Summary
+                  {t('health.copySummary')}
                 </button>
               )}
             </div>
@@ -419,19 +421,19 @@ const HealthCheck: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-green-500"></div>
                       <span className="text-gray-700 dark:text-gray-300">
-                        <span className="font-semibold">{statusInfo.okCount}</span> Healthy
+                        <span className="font-semibold">{statusInfo.okCount}</span> {t('health.healthy')}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-amber-500"></div>
                       <span className="text-gray-700 dark:text-gray-300">
-                        <span className="font-semibold">{statusInfo.warnCount}</span> Warnings
+                        <span className="font-semibold">{statusInfo.warnCount}</span> {t('health.warnings')}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-red-500"></div>
                       <span className="text-gray-700 dark:text-gray-300">
-                        <span className="font-semibold">{statusInfo.failCount}</span> Critical
+                        <span className="font-semibold">{statusInfo.failCount}</span> {t('health.critical')}
                       </span>
                     </div>
                   </div>
@@ -469,7 +471,7 @@ const HealthCheck: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-xl font-bold text-red-800 dark:text-red-200">
-                  Critical Issues Detected
+                  {t('health.criticalIssues')}
                 </h3>
                 <p className="text-sm text-red-700 dark:text-red-300">
                   {failingItems.length} issue{failingItems.length !== 1 ? 's' : ''} require{failingItems.length === 1 ? 's' : ''} immediate attention
@@ -534,7 +536,7 @@ const HealthCheck: React.FC = () => {
                   className={cn(
                     "w-full pl-12 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl",
                     "bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100",
-                    "focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white dark:focus:bg-gray-800",
+                    "focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:bg-white dark:focus:bg-gray-800",
                     "transition-all duration-200"
                   )}
                 />

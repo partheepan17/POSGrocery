@@ -164,7 +164,7 @@ export function BatchSelector({
                       <select
                         value={item.price_tier}
                         onChange={(e) => handleFieldChange(index, 'price_tier', e.target.value)}
-                        className="w-full text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="retail">Retail</option>
                         <option value="wholesale">Wholesale</option>
@@ -180,7 +180,7 @@ export function BatchSelector({
                       <select
                         value={item.language || 'EN'}
                         onChange={(e) => handleFieldChange(index, 'language', e.target.value)}
-                        className="w-full text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="EN">English</option>
                         <option value="SI">Sinhala</option>
@@ -201,7 +201,7 @@ export function BatchSelector({
                         value={item.packedDate || ''}
                         onChange={(e) => handleFieldChange(index, 'packedDate', e.target.value || null)}
                         className={cn(
-                          "w-full text-xs border rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+                          "w-full text-xs border rounded-md px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500",
                           dateErrors[index]?.some(e => e.includes('packed')) 
                             ? "border-red-300" 
                             : "border-gray-300"
@@ -219,7 +219,7 @@ export function BatchSelector({
                         value={item.expiryDate || ''}
                         onChange={(e) => handleFieldChange(index, 'expiryDate', e.target.value || null)}
                         className={cn(
-                          "w-full text-xs border rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+                          "w-full text-xs border rounded-md px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500",
                           dateErrors[index]?.some(e => e.includes('expiry')) 
                             ? "border-red-300" 
                             : "border-gray-300"
@@ -242,7 +242,7 @@ export function BatchSelector({
                         value={item.mrp || ''}
                         onChange={(e) => handleFieldChange(index, 'mrp', e.target.value ? parseFloat(e.target.value) : null)}
                         placeholder="0.00"
-                        className="w-full text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                     
@@ -256,7 +256,7 @@ export function BatchSelector({
                         value={item.batchNo || ''}
                         onChange={(e) => handleFieldChange(index, 'batchNo', e.target.value || null)}
                         placeholder="e.g., B001, LOT123"
-                        className="w-full text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                   </div>
@@ -272,7 +272,7 @@ export function BatchSelector({
                         value={item.custom_line1 || ''}
                         onChange={(e) => handleFieldChange(index, 'custom_line1', e.target.value || undefined)}
                         placeholder="Optional custom text"
-                        className="w-full text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
 
@@ -285,7 +285,7 @@ export function BatchSelector({
                         value={item.custom_line2 || ''}
                         onChange={(e) => handleFieldChange(index, 'custom_line2', e.target.value || undefined)}
                         placeholder="Optional custom text"
-                        className="w-full text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                   </div>
@@ -309,7 +309,7 @@ export function BatchSelector({
                 max="999"
                 value={item.qty}
                 onChange={(e) => handleQtyChange(index, parseInt(e.target.value) || 1)}
-                className="w-16 text-center text-sm border border-gray-300 rounded-md py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-16 text-center text-sm border border-gray-300 rounded-md py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
               
               <button

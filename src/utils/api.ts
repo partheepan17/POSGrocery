@@ -1,10 +1,14 @@
+export function getApiBaseUrl(): string {
+  const env = (import.meta as any).env?.VITE_API_BASE_URL?.toString().trim();
+  if (env) return env.replace(/\/+$/, '');
+  return window.location.origin;
+}
+
 /**
  * API utility functions
  */
 
-export const getApiBaseUrl = (): string => {
-  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
-};
+// removed duplicate getApiBaseUrl
 
 export const apiRequest = async (endpoint: string, options: RequestInit = {}): Promise<Response> => {
   const baseUrl = getApiBaseUrl();

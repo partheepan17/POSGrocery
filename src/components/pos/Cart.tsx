@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Trash2, Tag, Lock } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { formatCurrency } from '@/lib/currency';
 import { validateQuantity } from '@/lib/validation';
+import BatchPicker from '@/components/pos/BatchPicker';
+import PromoBadge from '@/components/pos/PromoBadge';
 
 interface CartProps {
   onItemUpdate?: (item: any) => void;
@@ -10,6 +13,7 @@ interface CartProps {
 }
 
 export function Cart({ onItemUpdate, onItemRemove }: CartProps) {
+  const { t } = useTranslation();
   const { 
     items, 
     priceTier, 
@@ -31,6 +35,19 @@ export function Cart({ onItemUpdate, onItemRemove }: CartProps) {
 
   // Debounce timer map
   const timers = useMemo(() => new Map<string, any>(), []);
+  const [batchOpenFor, setBatchOpenFor] = useState<string | null>(null);
+  const [selectedBatches, setSelectedBatches] = useState<Record<string, { id: number; code?: string; expiry?: string }>>({});
+  const [uomsByProduct, setUomsByProduct] = useState<Record<number, Array<{ code: string; conv_to_base: number; price_override?: number }>>>({});
+  const [uomByItem, setUomByItem] = useState<Record<string, string>>({});
+
+  const fetchUOMs = async (productId: number) => {
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+      const res = await fetch(`${apiBaseUrl}/api/products/${productId}/uom`);
+      const data = await res.json();
+      setUomsByProduct(prev => ({ ...prev, [productId]: data.uoms || [] }));
+    } catch {}
+  };
 
   const onQtyInput = (itemId: string, value: string) => {
     setQtyDraft(prev => ({ ...prev, [itemId]: value }));
@@ -67,8 +84,8 @@ export function Cart({ onItemUpdate, onItemRemove }: CartProps) {
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl text-gray-400 mb-4">🛒</div>
-          <h3 className="text-xl font-semibold text-gray-300 mb-2">Cart is Empty</h3>
-          <p className="text-gray-400">Scan items or search to add products</p>
+          <h3 className="text-xl font-semibold text-gray-300 mb-2">{t('cart.empty')}</h3>
+          <p className="text-gray-400">{t('cart.emptyDescription')}</p>
         </div>
       </div>
     );
@@ -77,7 +94,7 @@ export function Cart({ onItemUpdate, onItemRemove }: CartProps) {
   return (
     <div className="flex-1 bg-gray-900 p-6 flex flex-col">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-white">Cart</h2>
+        <h2 className="text-xl font-bold text-white">{t('cart.title')}</h2>
         <div className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium">{priceTier}</div>
       </div>
 
@@ -85,10 +102,10 @@ export function Cart({ onItemUpdate, onItemRemove }: CartProps) {
         <table className="min-w-full text-sm text-gray-100">
           <thead className="bg-gray-800 text-gray-300 uppercase text-xs">
             <tr>
-              <th className="px-3 py-2 text-left">Product</th>
-              <th className="px-3 py-2 text-right">Qty (3dp)</th>
-              <th className="px-3 py-2 text-right">Discount</th>
-              <th className="px-3 py-2 text-right">Line Total</th>
+              <th className="px-3 py-2 text-left">{t('cart.product')}</th>
+              <th className="px-3 py-2 text-right">{t('cart.quantity')}</th>
+              <th className="px-3 py-2 text-right">{t('cart.discount')}</th>
+              <th className="px-3 py-2 text-right">{t('cart.lineTotal')}</th>
               <th className="px-3 py-2"> </th>
             </tr>
           </thead>
@@ -98,6 +115,31 @@ export function Cart({ onItemUpdate, onItemRemove }: CartProps) {
                 <td className="px-3 py-2">
                   <div className="font-medium text-white">{item.name}</div>
                   <div className="text-xs text-gray-400">{item.sku} • {item.unit} • {formatCurrency(item.current_price)} ea</div>
+                  {/* Promo badges placeholder; integrate with discount engine reasons if available */}
+                  {/* <div className="mt-1 flex gap-1"><PromoBadge text="Bundle" why="Bundle 3 for 1000" /></div> */}
+                  <div className="mt-1">
+                    {selectedBatches[item.id] ? (
+                      <div className="text-xs text-emerald-400">Batch: {selectedBatches[item.id].code || `#${selectedBatches[item.id].id}`} {selectedBatches[item.id].expiry ? `• Exp ${selectedBatches[item.id].expiry}` : ''}</div>
+                    ) : (
+                      <button
+                        onClick={() => setBatchOpenFor(batchOpenFor === item.id ? null : item.id)}
+                        className="text-xs text-blue-400 hover:text-blue-300"
+                      >{t('cart.selectBatch')}</button>
+                    )}
+                    {batchOpenFor === item.id && (
+                      <div className="mt-2 p-2 bg-gray-800 rounded border border-gray-700">
+                        <BatchPicker
+                          productId={Number(item.product_id || item.id)}
+                          onSelect={(b) => {
+                            if (b) {
+                              setSelectedBatches(prev => ({ ...prev, [item.id]: { id: b.id, code: b.batch_code, expiry: b.expiry } }));
+                            }
+                            setBatchOpenFor(null);
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </td>
                 <td className="px-3 py-2 align-middle text-right">
                   <input
@@ -108,6 +150,33 @@ export function Cart({ onItemUpdate, onItemRemove }: CartProps) {
                     onChange={(e) => onQtyInput(item.id, e.target.value)}
                     className="w-28 px-2 py-1 bg-gray-800 border border-gray-600 rounded text-right"
                   />
+                  <div className="mt-1 flex items-center justify-end gap-2 text-xs">
+                    <select
+                      className="px-1 py-0.5 bg-gray-800 border border-gray-600 rounded"
+                      value={uomByItem[item.id] || 'BASE'}
+                      onFocus={() => fetchUOMs(Number(item.product_id || item.id))}
+                      onChange={(e) => {
+                        const code = e.target.value;
+                        setUomByItem(prev => ({ ...prev, [item.id]: code }));
+                        const uoms = uomsByProduct[Number(item.product_id || item.id)] || [];
+                        const found = uoms.find(u => u.code === code);
+                        if (found) {
+                          // Convert displayed qty to base qty for storage
+                          const current = parseFloat(qtyDraft[item.id] ?? item.qty.toFixed(3)) || item.qty;
+                          const baseQty = current * found.conv_to_base;
+                          onQtyInput(item.id, String(baseQty.toFixed(3)));
+                        }
+                      }}
+                    >
+                      <option value="BASE">{item.unit?.toUpperCase?.() || 'BASE'}</option>
+                      {(uomsByProduct[Number(item.product_id || item.id)] || []).map((u) => (
+                        <option key={u.code} value={u.code}>{u.code}</option>
+                      ))}
+                    </select>
+                    {uomByItem[item.id] && uomByItem[item.id] !== 'BASE' && (
+                      <span className="text-gray-400">UOM</span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-3 py-2 text-right">
                   {isRetailTier ? (
@@ -117,8 +186,8 @@ export function Cart({ onItemUpdate, onItemRemove }: CartProps) {
                         onChange={(e) => handleDiscountChange(item.id, e.target.value as 'FIXED_AMOUNT' | 'PERCENTAGE', item.line_discount_value || 0)}
                         className="px-2 py-1 bg-gray-800 border border-gray-600 rounded"
                       >
-                        <option value="FIXED_AMOUNT">Fixed</option>
-                        <option value="PERCENTAGE">%</option>
+                        <option value="FIXED_AMOUNT">{t('cart.fixed')}</option>
+                        <option value="PERCENTAGE">{t('cart.percentage')}</option>
                       </select>
                       <input
                         type="number"
@@ -133,7 +202,7 @@ export function Cart({ onItemUpdate, onItemRemove }: CartProps) {
                       <Tag className="w-4 h-4 text-green-400" />
                     </div>
                   ) : (
-                    <div className="flex items-center justify-end gap-2 text-gray-500"><Lock className="w-4 h-4" /> Disabled</div>
+                    <div className="flex items-center justify-end gap-2 text-gray-500"><Lock className="w-4 h-4" /> {t('cart.disabled')}</div>
                   )}
                 </td>
                 <td className="px-3 py-2 text-right text-gray-300">{/* Auto discount placeholder */}0.00</td>

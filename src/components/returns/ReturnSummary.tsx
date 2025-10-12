@@ -89,7 +89,7 @@ export function ReturnSummary({ onReturnProcessed }: ReturnSummaryProps) {
   // Handle manager PIN verification
   const handleManagerPinVerify = async (pin: string): Promise<boolean> => {
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/auth/verify-pin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -106,7 +106,7 @@ export function ReturnSummary({ onReturnProcessed }: ReturnSummaryProps) {
 
   // Process return
   const handleProcessReturn = async () => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
     const validation = validateForm();
     if (!validation.isValid) {
       setError(validation.error || 'Validation failed');
@@ -277,7 +277,7 @@ export function ReturnSummary({ onReturnProcessed }: ReturnSummaryProps) {
               value={refundRef}
               onChange={(e) => setRefundRef(e.target.value)}
               placeholder="Enter reference number"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20"
             />
           </div>
         )}
@@ -303,7 +303,7 @@ export function ReturnSummary({ onReturnProcessed }: ReturnSummaryProps) {
         <button
           onClick={handleProcessReturn}
           disabled={isProcessing || totals.total === 0}
-          className={`w-full px-4 py-3 bg-${refundInfo.color}-600 hover:bg-${refundInfo.color}-700 text-white rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 font-medium shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-${refundInfo.color}-500/50 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed`}
+          className={`w-full px-4 py-3 bg-${refundInfo.color}-600 hover:bg-${refundInfo.color}-700 text-white rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 font-medium shadow-lg hover:shadow-xl focus:outline-none focus:ring-1 focus:ring-${refundInfo.color}-500/50 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           {isProcessing ? (
             <>
@@ -335,7 +335,7 @@ export function ReturnSummary({ onReturnProcessed }: ReturnSummaryProps) {
                 value={managerPin}
                 onChange={(e) => setManagerPin(e.target.value)}
                 placeholder="Enter manager PIN"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 mb-4"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 mb-4"
                 autoFocus
               />
               <div className="flex space-x-3">

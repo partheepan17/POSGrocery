@@ -9,7 +9,7 @@ export function NotFound() {
         <p className="mt-2 text-gray-500">The page you're looking for doesn't exist.</p>
         <Link 
           to="/" 
-          className="mt-8 inline-flex items-center rounded-md bg-primary-500 px-6 py-3 text-lg text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+          className="mt-8 inline-flex items-center rounded-md bg-primary-500 px-6 py-3 text-lg text-white hover:bg-primary-600 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:ring-offset-2"
         >
           Go to Home
         </Link>

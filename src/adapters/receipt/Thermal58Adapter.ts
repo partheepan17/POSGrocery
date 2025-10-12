@@ -64,7 +64,7 @@ export class Thermal58Adapter implements ReceiptAdapter {
     };
 
     // Generate items HTML
-    const itemsHtml = invoice.items.map(item => {
+    const itemsHtml = invoice.items.map((item: any) => {
       const localizedName = item[itemNameField] || item.name_en;
       const qtyFormatted = formatQuantity(item.qty, item.unit);
       const unitPriceFormatted = formatCurrency(applyRounding(item.unitPrice));
@@ -74,13 +74,17 @@ export class Thermal58Adapter implements ReceiptAdapter {
         <div class="item-row">
           <div class="item-name">${this.truncateText(localizedName, 20)}</div>
           <div class="item-details">
-            ${qtyFormatted}${item.unit} × ${unitPriceFormatted}
+            ${qtyFormatted}${item.unit}${item.uom ? ' ('+String(item.uom)+')' : ''} × ${unitPriceFormatted}
           </div>
           <div class="item-total">${totalFormatted}</div>
       `;
       
       if (item.lineDiscount > 0) {
         itemHtml += `<div class="item-discount">${localizedContent.discount}: ${formatCurrency(applyRounding(item.lineDiscount))}</div>`;
+      }
+      // Weight math line for kg items
+      if (item.unit === 'kg') {
+        itemHtml += `<div class="item-details">${item.unitPrice.toFixed(2)} × ${item.qty.toFixed(3)}kg</div>`;
       }
       
       itemHtml += '</div>';

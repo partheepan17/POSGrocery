@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, AlertCircle, CheckCircle } from 'lucide-react';
+import { Search, AlertCircle, CheckCircle, Calendar, FileText } from 'lucide-react';
 import { useReturnStore } from '@/store/returnStore';
 import { toast } from 'react-hot-toast';
+import { dataService } from '@/services/dataService';
 
 interface ReturnLookupProps {
   onInvoiceFound?: (invoice: any) => void;
@@ -9,6 +10,13 @@ interface ReturnLookupProps {
 
 export function ReturnLookup({ onInvoiceFound }: ReturnLookupProps) {
   const [isScanning, setIsScanning] = useState(false);
+  const [showInvoiceList, setShowInvoiceList] = useState(false);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  const [dateRange, setDateRange] = useState({
+    from: new Date().toISOString().split('T')[0],
+    to: new Date().toISOString().split('T')[0]
+  });
   const scanTimeoutRef = useRef<NodeJS.Timeout>();
   
   const { 
@@ -65,7 +73,8 @@ export function ReturnLookup({ onInvoiceFound }: ReturnLookupProps) {
   // Handle lookup
   const handleLookup = async () => {
     if (!lookupValue.trim()) {
-      setError('Please enter a receipt number');
+      // If lookup field is empty, show today's invoices
+      await loadInvoices();
       return;
     }
 
@@ -74,7 +83,7 @@ export function ReturnLookup({ onInvoiceFound }: ReturnLookupProps) {
 
     try {
       // Fetch invoice details via returns lookup API (receipt barcode or number)
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const invoiceResponse = await fetch(`${apiBaseUrl}/api/returns/lookup?receipt=${encodeURIComponent(lookupValue.trim())}`);
       const invoiceData = await invoiceResponse.json();
 
@@ -146,6 +155,42 @@ export function ReturnLookup({ onInvoiceFound }: ReturnLookupProps) {
     }
   };
 
+  // Load invoices for the selected date range
+  const loadInvoices = async () => {
+    setLoadingInvoices(true);
+    setError(null);
+    
+    try {
+      const invoices = await dataService.listInvoices({
+        dateRange: {
+          from: dateRange.from,
+          to: dateRange.to
+        },
+        limit: 50
+      });
+      
+      setInvoices(invoices);
+      setShowInvoiceList(true);
+      
+      if (invoices.length === 0) {
+        setError('No invoices found for the selected date range');
+      }
+    } catch (error) {
+      console.error('Error loading invoices:', error);
+      setError('Failed to load invoices');
+    } finally {
+      setLoadingInvoices(false);
+    }
+  };
+
+  // Handle invoice selection
+  const handleInvoiceSelect = async (invoice: any) => {
+    setLookupValue(invoice.receipt_no);
+    setShowInvoiceList(false);
+    // Trigger the normal lookup process
+    await handleLookup();
+  };
+
   // Round currency helper
   const roundCurrency = (amount: number): number => {
     return Math.round((amount + Number.EPSILON) * 100) / 100;
@@ -158,6 +203,31 @@ export function ReturnLookup({ onInvoiceFound }: ReturnLookupProps) {
       </h2>
       
       <div className="space-y-4">
+        {/* Date Filter */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              From Date
+            </label>
+            <input
+              type="date"
+              value={dateRange.from}
+              onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+              className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              To Date
+            </label>
+            <input
+              type="date"
+              value={dateRange.to}
+              onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+              className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
         {/* Input */}
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -170,7 +240,7 @@ export function ReturnLookup({ onInvoiceFound }: ReturnLookupProps) {
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="🔍 Search Sales: Enter receipt number or scan receipt barcode..."
-            className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+            className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent text-lg"
             autoComplete="off"
             disabled={isLoading}
           />
@@ -184,18 +254,18 @@ export function ReturnLookup({ onInvoiceFound }: ReturnLookupProps) {
         {/* Find Button */}
         <button
           onClick={handleLookup}
-          disabled={isLoading || !lookupValue.trim()}
+          disabled={isLoading || loadingInvoices}
           className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 font-medium"
         >
-          {isLoading ? (
+          {isLoading || loadingInvoices ? (
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              <span>Looking up...</span>
+              <span>{loadingInvoices ? 'Loading invoices...' : 'Looking up...'}</span>
             </>
           ) : (
             <>
               <Search className="w-4 h-4" />
-              <span>Find Past Sale</span>
+              <span>{lookupValue.trim() ? 'Find Past Sale' : 'Find'}</span>
             </>
           )}
         </button>
@@ -222,6 +292,49 @@ export function ReturnLookup({ onInvoiceFound }: ReturnLookupProps) {
         <p className="text-sm text-gray-600 dark:text-gray-400">
           • Sales Search: Enter receipt number or scan receipt barcode to find past transactions for returns
         </p>
+
+        {/* Invoice List */}
+        {showInvoiceList && (
+          <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h3 className="text-md font-medium text-gray-900 dark:text-white mb-3 flex items-center">
+              <FileText className="w-4 h-4 mr-2" />
+              Invoices ({invoices.length})
+            </h3>
+            <div className="max-h-64 overflow-y-auto space-y-2">
+              {invoices.map((invoice) => (
+                <div
+                  key={invoice.id}
+                  onClick={() => handleInvoiceSelect(invoice)}
+                  className="p-3 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-medium text-gray-900 dark:text-white">
+                        Receipt: {invoice.receipt_no}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {new Date(invoice.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-medium text-gray-900 dark:text-white">
+                        {roundCurrency(invoice.total_amount || 0).toFixed(2)}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {invoice.customer_name || 'Walk-in'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {invoices.length === 0 && (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                No invoices found for the selected date range
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

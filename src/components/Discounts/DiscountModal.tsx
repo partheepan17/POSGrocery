@@ -298,7 +298,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
               type="text"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500 ${
                 errors.name ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="e.g., Sugar Discount 10/kg"
@@ -319,7 +319,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
                   applies_to: e.target.value as 'PRODUCT' | 'CATEGORY',
                   target_id: 0 // Reset target when changing applies_to
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               >
                 <option value="PRODUCT">Product</option>
                 <option value="CATEGORY">Category</option>
@@ -334,7 +334,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
               <select
                 value={formData.target_id}
                 onChange={(e) => setFormData(prev => ({ ...prev, target_id: parseInt(e.target.value) }))}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
                   errors.target_id ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
@@ -358,7 +358,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
               <select
                 value={formData.type}
                 onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as 'PERCENT' | 'AMOUNT' }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               >
                 <option value="PERCENT">Percentage</option>
                 <option value="AMOUNT">Fixed Amount</option>
@@ -377,7 +377,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
                   max={formData.type === 'PERCENT' ? '100' : undefined}
                   value={formData.value}
                   onChange={(e) => setFormData(prev => ({ ...prev, value: parseFloat(e.target.value) || 0 }))}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500 ${
                     errors.value ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="0"
@@ -406,7 +406,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
                 ...prev, 
                 max_qty_or_weight: e.target.value ? parseFloat(e.target.value) : undefined 
               }))}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-500 ${
                 errors.max_qty_or_weight ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="Leave empty for no limit"
@@ -427,7 +427,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
                 type="date"
                 value={formData.active_from}
                 onChange={(e) => setFormData(prev => ({ ...prev, active_from: e.target.value }))}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
                   errors.active_from ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
@@ -442,7 +442,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
                 type="date"
                 value={formData.active_to}
                 onChange={(e) => setFormData(prev => ({ ...prev, active_to: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               />
             </div>
           </div>
@@ -457,7 +457,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
               min="1"
               value={formData.priority}
               onChange={(e) => setFormData(prev => ({ ...prev, priority: parseInt(e.target.value) || 10 }))}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
                 errors.priority ? 'border-red-500' : 'border-gray-300'
               }`}
             />

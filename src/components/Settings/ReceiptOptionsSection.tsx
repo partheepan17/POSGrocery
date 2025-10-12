@@ -69,7 +69,7 @@ export function ReceiptOptionsSection({ settings, updateSettings, onSettingsChan
                     onChange={(e) => handleInputChange(fieldName, e.target.value)}
                     placeholder={`Enter footer text for ${lang.name} receipts...`}
                     rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-none"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     This text will appear at the bottom of receipts in {lang.name}

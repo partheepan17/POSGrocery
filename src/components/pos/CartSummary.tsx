@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CreditCard, AlertCircle } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { useUIStore } from '@/store/uiStore';
+import { useAppStore } from '@/store/appStore';
 import { formatCurrency } from '@/lib/currency';
 import { validatePercentageDiscount, validateFixedDiscount } from '@/lib/validation';
 import { toast } from 'react-hot-toast';
@@ -25,6 +27,7 @@ export function CartSummary({
   onStartReturn,
   onShiftReports
 }: CartSummaryProps) {
+  const { t } = useTranslation();
   const { 
     items, 
     totals, 
@@ -35,6 +38,15 @@ export function CartSummary({
   } = useCartStore();
   
   const { printLanguage, setPrintLanguage } = useUIStore();
+  const { settings } = useAppStore();
+  
+  // Initialize print language from settings if not set
+  useEffect(() => {
+    if (!printLanguage) {
+      const defaultLang = settings.storeInfo?.defaultReceiptLanguage?.toLowerCase() as 'en' | 'si' | 'ta' || 'si';
+      setPrintLanguage(defaultLang);
+    }
+  }, [printLanguage, settings.storeInfo?.defaultReceiptLanguage, setPrintLanguage]);
   
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -67,7 +79,7 @@ export function CartSummary({
   // Handle payment
   const handlePayment = (paymentType: string) => {
     if (!hasItems) {
-      toast.error('Cart is empty');
+      toast.error(t('cart.empty'));
       return;
     }
     onPayment?.(paymentType);
@@ -81,33 +93,33 @@ export function CartSummary({
   // Handle new sale
   const handleNewSale = () => {
     clearCart();
-    toast.success('New sale started');
+    toast.success(t('sales.newSaleStarted'));
   };
 
   return (
     <div className="w-80 bg-gray-900 p-6 flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-white">Cart</h2>
+        <h2 className="text-xl font-bold text-white">{t('cart.title')}</h2>
         <div className="flex items-center space-x-2">
           <button
             onClick={onHoldSale}
             className="px-3 py-1 bg-orange-600 text-white rounded text-sm hover:bg-orange-700"
           >
-            Held (F2)
+            {t('cart.held')} (F2)
           </button>
           <button
             onClick={handleNewSale}
             className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
           >
-            New Sale
+            {t('sales.newSale')}
           </button>
         </div>
       </div>
 
       {/* Status */}
       <div className="flex items-center justify-between mb-4 text-sm">
-        <span className="text-green-400">Online • {new Date().toLocaleTimeString()}</span>
+        <span className="text-green-400">{t('common.online')} • {new Date().toLocaleTimeString()}</span>
         <span className="px-2 py-1 bg-blue-600 text-white rounded text-xs">
           {priceTier}
         </span>
@@ -115,7 +127,7 @@ export function CartSummary({
 
       {/* Discount */}
       <div className="mb-6">
-        <h3 className="text-lg font-bold text-white mb-4">Discount</h3>
+        <h3 className="text-lg font-bold text-white mb-4">{t('cart.discount')}</h3>
         <div className="space-y-3">
           <div className="flex gap-2">
             <button
@@ -126,7 +138,7 @@ export function CartSummary({
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
-              Fixed Amount
+              {t('cart.fixedAmount')}
             </button>
             <button
               onClick={() => handleDiscountTypeChange('PERCENTAGE')}
@@ -136,7 +148,7 @@ export function CartSummary({
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
-              Percentage (%)
+              {t('cart.percentage')} (%)
             </button>
           </div>
           <div className="flex gap-2">
@@ -148,51 +160,51 @@ export function CartSummary({
               value={manualDiscount.value || ''}
               onChange={(e) => handleDiscountValueChange(parseFloat(e.target.value) || 0)}
               placeholder={manualDiscount.type === 'PERCENTAGE' ? '0.0' : '0'}
-              className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20"
             />
             <button
               onClick={() => setManualDiscount({ type: 'FIXED_AMOUNT', value: 0 })}
               className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500 text-sm"
             >
-              Clear
+              {t('common.clear')}
             </button>
           </div>
           {manualDiscount.value > 0 && (
-            <div className="text-sm text-blue-400">Discount: {formatCurrency(totals.manual_discount_amount)}</div>
+            <div className="text-sm text-blue-400">{t('cart.discount')}: {formatCurrency(totals.manual_discount_amount)}</div>
           )}
           {!isRetailTier && (
-            <div className="text-xs text-amber-400">Discount applies to current total</div>
+            <div className="text-xs text-amber-400">{t('cart.discountAppliesToTotal')}</div>
           )}
         </div>
       </div>
 
       {/* Totals */}
       <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 mb-6">
-        <h3 className="text-lg font-bold text-white mb-4">Totals</h3>
+        <h3 className="text-lg font-bold text-white mb-4">{t('cart.totals')}</h3>
         <div className="space-y-2">
           <div className="flex justify-between text-gray-300">
-            <span>Gross:</span>
+            <span>{t('cart.gross')}:</span>
             <span>{formatCurrency(totals.gross)}</span>
           </div>
           {totals.item_discounts_total > 0 && (
             <div className="flex justify-between text-green-400">
-              <span>Item Discounts:</span>
+              <span>{t('cart.itemDiscounts')}:</span>
               <span>-{formatCurrency(totals.item_discounts_total)}</span>
             </div>
           )}
           {totals.manual_discount_amount > 0 && (
             <div className="flex justify-between text-blue-400">
-              <span>Discount:</span>
+              <span>{t('cart.discount')}:</span>
               <span>-{formatCurrency(totals.manual_discount_amount)}</span>
             </div>
           )}
           <div className="flex justify-between text-gray-300">
-            <span>Tax:</span>
+            <span>{t('cart.tax')}:</span>
             <span>{formatCurrency(totals.tax_total)}</span>
           </div>
           <div className="border-t border-gray-600 pt-2">
             <div className="flex justify-between text-green-400 font-bold text-lg">
-              <span>Net Total:</span>
+              <span>{t('cart.netTotal')}:</span>
               <span>{formatCurrency(totals.net_total)}</span>
             </div>
           </div>
@@ -201,43 +213,43 @@ export function CartSummary({
 
       {/* Payment Buttons */}
       <div className="mb-6">
-        <h3 className="text-lg font-bold text-white mb-4">Complete Sale</h3>
-        <p className="text-sm text-gray-300 mb-4">Select payment method to complete transaction</p>
+        <h3 className="text-lg font-bold text-white mb-4">{t('cart.completeSale')}</h3>
+        <p className="text-sm text-gray-300 mb-4">{t('cart.selectPaymentMethod')}</p>
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => handlePayment('CASH')}
             disabled={!hasItems || isProcessing}
             className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
-            Cash (F7)
+            {t('payment.cash')} (F7)
           </button>
           <button
             onClick={() => handlePayment('CARD')}
             disabled={!hasItems || isProcessing}
             className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
-            Card (F8)
+            {t('payment.card')} (F8)
           </button>
           <button
             onClick={() => handlePayment('WALLET')}
             disabled={!hasItems || isProcessing}
             className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
-            Wallet/QR (F9)
+            {t('payment.wallet')} (F9)
           </button>
           <button
             onClick={() => handlePayment('CREDIT')}
             disabled={!hasItems || isProcessing}
             className="px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
-            Credit (F10)
+            {t('payment.credit')} (F10)
           </button>
         </div>
         <button
           onClick={onStartReturn}
           className="w-full mt-2 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
         >
-          Returns (F11)
+          {t('navigation.returns')} (F11)
         </button>
       </div>
 

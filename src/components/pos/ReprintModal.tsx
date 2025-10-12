@@ -29,7 +29,7 @@ export function ReprintModal({ isOpen, onClose, onReprint }: ReprintModalProps) 
   const fetchInvoices = async () => {
     setLoading(true);
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/invoices?date=${selectedDate}`);
       
       if (response.ok) {
@@ -107,7 +107,7 @@ export function ReprintModal({ isOpen, onClose, onReprint }: ReprintModalProps) 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search by invoice number or customer name..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 />
               </div>
             </div>
@@ -121,7 +121,7 @@ export function ReprintModal({ isOpen, onClose, onReprint }: ReprintModalProps) 
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 />
               </div>
             </div>
@@ -201,5 +201,13 @@ export function ReprintModal({ isOpen, onClose, onReprint }: ReprintModalProps) 
     </div>
   );
 }
+
+
+
+
+
+
+
+
 
 

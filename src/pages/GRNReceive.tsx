@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { FormLabel, Textarea } from '../components/ui/Form';
@@ -24,7 +24,7 @@ import {
 import { grnService } from '../services/grnService';
 import { dataService } from '../services/dataService';
 import { GRN, GRNLine, GRNStatus, Product, Supplier } from '../types';
-import { useTranslation } from '../i18n';
+import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../store/settingsStore';
 
 interface GRNLineWithProduct extends GRNLine {
@@ -335,7 +335,7 @@ export default function GRNReceive() {
           {/* Header */}
           <Card>
             <CardHeader>
-              <CardTitle>GRN Details</CardTitle>
+              <h3 >GRN Details</h3 >
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -403,7 +403,7 @@ export default function GRNReceive() {
           {/* Add Item */}
           <Card>
             <CardHeader>
-              <CardTitle>Add Item</CardTitle>
+              <h3 >Add Item</h3 >
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -455,7 +455,7 @@ export default function GRNReceive() {
           {/* Lines Table */}
           <Card>
             <CardHeader>
-              <CardTitle>GRN Lines</CardTitle>
+              <h3 >GRN Lines</h3 >
             </CardHeader>
             <CardContent>
               {lines.length === 0 ? (
@@ -558,7 +558,7 @@ export default function GRNReceive() {
           {/* Totals */}
           <Card>
             <CardHeader>
-              <CardTitle>Totals</CardTitle>
+              <h3 >Totals</h3 >
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex justify-between">
@@ -625,7 +625,7 @@ export default function GRNReceive() {
           {/* Tools */}
           <Card>
             <CardHeader>
-              <CardTitle>Tools</CardTitle>
+              <h3 >Tools</h3 >
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -676,7 +676,7 @@ export default function GRNReceive() {
           {/* Preview */}
           <Card>
             <CardHeader>
-              <CardTitle>GRN Preview</CardTitle>
+              <h3 >GRN Preview</h3 >
             </CardHeader>
             <CardContent>
               <div className="bg-muted p-4 rounded-lg min-h-[400px]">

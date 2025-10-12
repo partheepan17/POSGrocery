@@ -12,7 +12,7 @@ interface Notification {
   timestamp: Date;
   read: boolean;
   priority: 'low' | 'medium' | 'high';
-  category?: string;
+  category?: 'sales' | 'inventory' | 'system' | 'security' | 'maintenance';
   actions?: {
     label: string;
     onClick: () => void;
@@ -108,9 +108,6 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                 )}>
                   {notification.title}
                 </h4>
-                {!notification.read && (
-                  <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
-                )}
               </div>
               
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
@@ -197,6 +194,15 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
       .filter((cat, index, arr) => cat && arr.indexOf(cat) === index);
     return ['all', ...cats];
   }, [notifications]);
+
+  const categoryLabels = {
+    all: 'All Categories',
+    sales: 'Sales',
+    inventory: 'Inventory',
+    system: 'System',
+    security: 'Security',
+    maintenance: 'Maintenance'
+  };
 
   const filteredNotifications = React.useMemo(() => {
     let filtered = notifications;
@@ -293,7 +299,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
             >
               {categories.map(cat => (
                 <option key={cat} value={cat}>
-                  {cat === 'all' ? 'All Categories' : cat}
+                  {categoryLabels[cat as keyof typeof categoryLabels] || cat}
                 </option>
               ))}
             </select>

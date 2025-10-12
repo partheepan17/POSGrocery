@@ -1,14 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, Sun, Moon, Monitor, Maximize, Minimize, Search, Bell, User, ChevronDown, Settings, LogOut, HelpCircle, Clock, ShoppingCart } from 'lucide-react';
+import { Menu, Sun, Moon, Monitor, Maximize, Minimize, Search, Bell, User, ChevronDown, Settings, LogOut, HelpCircle, Clock, ShoppingCart, Keyboard, Bug, Package, Warehouse, Calculator, Power } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/store/appStore';
 import { useUIStore } from '@/store/uiStore';
 import { OnlineStatusToggle } from '@/components/OnlineStatusToggle';
+import HeaderStatus from '@/components/Layout/HeaderStatus';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { NotificationCenter } from '@/components/ui/NotificationCenter';
+import { useNotificationService } from '@/services/notificationService';
+import { MobileNav } from '@/components/Layout/MobileNav';
+import { OnScreenKeyboard } from '@/components/ui/OnScreenKeyboard';
+import { Calculator as CalculatorComponent } from '@/components/ui/Calculator';
 import { authService } from '@/services/authService';
 import { cn } from '@/utils/cn';
+import { useKeyboardHelp } from '@/hooks/useKeyboardHelp';
+import { DevTools } from '../dev/DevTools';
+import { OfflineQueueStatus } from '../OfflineQueueStatus';
 
 export function Header() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { 
     theme, 
     setTheme, 
@@ -18,6 +30,8 @@ export function Header() {
     toggleFullscreen 
   } = useAppStore();
   
+  const { setIsHelpOpen, setIsCommandPaletteOpen } = useKeyboardHelp();
+  
   const { 
     userRole, 
     userName, 
@@ -26,16 +40,32 @@ export function Header() {
     updateTime 
   } = useUIStore();
   
+  // Enhanced notification system
+  const {
+    notifications,
+    addNotification,
+    markAsRead,
+    markAllAsRead,
+    dismiss,
+    clearAll,
+    unreadCount
+  } = useNotificationService();
+  
   const [searchOpen, setSearchOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [devToolsOpen, setDevToolsOpen] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const [systemOnline, setSystemOnline] = useState(true);
 
   // Health check
   const checkOnlineStatus = async () => {
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8100';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
       const response = await fetch(`${apiBaseUrl}/api/health`);
       const data = await response.json();
       setIsOnline(data.status === 'ok');
@@ -61,6 +91,20 @@ export function Header() {
     const healthInterval = setInterval(checkOnlineStatus, 15000);
     return () => clearInterval(healthInterval);
   }, []);
+
+  // Initialize system notifications (only in development)
+  useEffect(() => {
+    if (import.meta.env.DEV && notifications.length === 0) {
+      // Add a single system notification for development
+      addNotification({
+        type: 'info',
+        title: 'System Ready',
+        message: 'POS system is running in development mode',
+        priority: 'low',
+        category: 'system'
+      });
+    }
+  }, [notifications.length, addNotification]);
 
   // Close dropdowns when clicking outside
   React.useEffect(() => {
@@ -89,13 +133,26 @@ export function Header() {
 
   const handleHelpClick = () => {
     setUserMenuOpen(false);
-    navigate('/health'); // Help & Support goes to Health Check for now
+    setIsHelpOpen(true);
   };
 
   const handleSignOut = async () => {
     setUserMenuOpen(false);
     await authService.logout();
     navigate('/login');
+  };
+
+  const handleSystemToggle = () => {
+    setSystemOnline(!systemOnline);
+    // Here you would typically make an API call to toggle system status
+    console.log('System status toggled:', !systemOnline ? 'Online' : 'Offline');
+  };
+
+  const formatDate = (date: Date) => {
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
   };
 
   // POS action handlers
@@ -124,119 +181,100 @@ export function Header() {
   };
 
   return (
-    <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-b border-gray-200/50 dark:border-gray-700/50 h-16 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-40">
-      {/* Left Section */}
+    <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-b border-gray-200/50 dark:border-gray-700/50 h-16 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-40 flex-shrink-0">
+      {/* Left Section - Terminal Name */}
       <div className="flex items-center gap-4">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 lg:hidden transition-all duration-200 hover:scale-105"
+          className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105"
+          title="Toggle Sidebar"
         >
           <Menu className="w-5 h-5" />
         </button>
         
         <div className="hidden lg:block">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-sm">VP</span>
-            </div>
             <div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                Point of Sale
+                Machine 1
               </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 -mt-1">
-                Terminal System
-              </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Center Section - Status and Navigation */}
-      <div className="hidden lg:flex items-center space-x-3 px-2">
-        {/* Online Status Toggle */}
-        <OnlineStatusToggle onStatusChange={(status) => setIsOnline(status)} />
-        
-        {/* Time */}
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          {currentTime.toLocaleTimeString()}
+      {/* Center Section - Status and Time */}
+      <div className="hidden xl:flex items-center space-x-4 px-4 flex-1 max-w-6xl mx-auto">
+        {/* Status Section */}
+        <div className="flex items-center space-x-3">
+          {/* API Status */}
+          <div className={cn(
+            "px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap",
+            isOnline 
+              ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200" 
+              : "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200"
+          )}>
+            API: {isOnline ? 'Online' : 'Offline'}
+          </div>
+          
+          {/* Device Status */}
+          <div className={cn(
+            "px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap",
+            systemOnline 
+              ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200" 
+              : "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200"
+          )}>
+            Devices: {systemOnline ? 'Online' : 'Offline'}
+          </div>
+          
+          {/* System Toggle */}
+          <button
+            onClick={handleSystemToggle}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
+              systemOnline 
+                ? "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800" 
+                : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+            )}
+            title={`Toggle system ${systemOnline ? 'offline' : 'online'}`}
+          >
+            <Power className="w-4 h-4 inline mr-1" />
+            {systemOnline ? 'Online' : 'Offline'}
+          </button>
+          
+          {/* Date and Time */}
+          <div className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap font-mono">
+            {formatDate(currentTime)} {currentTime.toLocaleTimeString()}
+          </div>
         </div>
-        
-        {/* Retail */}
-        <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-sm">
-          Retail
-        </div>
-        
-        {/* Cashier Admin */}
-        <div className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded text-sm">
-          {userRole === 'manager' ? 'MANAGER' : 'CASHIER'} {userName}
-        </div>
-        
-        {/* Sales */}
+      </div>
+
+      {/* Mobile Navigation Menu */}
+      <div className="xl:hidden flex items-center space-x-1">
         <button
-          onClick={() => navigate('/pos')}
-          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+          onClick={() => setMobileNavOpen(true)}
+          className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200"
+          title={t('common.navigation')}
         >
-          Sales
-        </button>
-        
-        {/* Returns */}
-        <button
-          onClick={() => navigate('/returns')}
-          className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 text-sm"
-        >
-          Returns
-        </button>
-        
-        {/* Products */}
-        <button
-          onClick={() => navigate('/products')}
-          className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-        >
-          Products
-        </button>
-        
-        {/* Inventory */}
-        <button
-          onClick={() => navigate('/inventory')}
-          className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
-        >
-          Inventory
+          <Menu className="w-5 h-5" />
         </button>
       </div>
 
       {/* Right Section */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-3">
         {/* Enhanced Search */}
         <div className="relative" data-dropdown>
           <button 
-            onClick={() => setSearchOpen(!searchOpen)}
+            onClick={() => setIsCommandPaletteOpen(true)}
             className={cn(
               "p-2.5 rounded-lg transition-all duration-200 hover:scale-105",
-              searchOpen 
-                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400" 
-                : "text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80"
+              "text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80"
             )}
-            title="Search (Ctrl+K)"
+            title="Command Palette (Ctrl+K)"
           >
           <Search className="w-5 h-5" />
         </button>
 
-          {searchOpen && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search products, customers..."
-                  className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  autoFocus
-                />
-              </div>
-              <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                Press <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-600 rounded">Ctrl+K</kbd> to search anywhere
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Enhanced Notifications */}
@@ -244,100 +282,133 @@ export function Header() {
           <button 
             onClick={() => setNotificationsOpen(!notificationsOpen)}
             className={cn(
-              "p-2.5 rounded-lg transition-all duration-200 hover:scale-105 relative",
+              "p-3 rounded-xl transition-all duration-200 hover:scale-105 relative shadow-sm",
               notificationsOpen 
-                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400" 
-                : "text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80"
+                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400 shadow-md" 
+                : "text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 hover:shadow-md"
             )}
             title="Notifications"
           >
             <Bell className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
-              <span className="text-[10px] text-white font-bold">3</span>
-            </span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                <span className="text-[10px] text-white font-bold">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              </span>
+            )}
           </button>
           
           {notificationsOpen && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50">
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Notifications</h3>
-              </div>
-              <div className="max-h-80 overflow-y-auto">
-                <div className="p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-900 dark:text-gray-100">Low stock alert</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Milk (2L) - Only 5 units left</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">2 minutes ago</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-900 dark:text-gray-100">Sale completed</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Transaction #1234 - $45.67</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">5 minutes ago</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2"></div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-900 dark:text-gray-100">System update</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">New features available</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">1 hour ago</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="p-3 border-t border-gray-200 dark:border-gray-700">
-                <button className="w-full text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
-                  View all notifications
-                </button>
-              </div>
+            <div className="absolute right-0 top-full mt-2 w-96 z-[60]">
+              <NotificationCenter
+                notifications={notifications}
+                onMarkAsRead={markAsRead}
+                onMarkAllAsRead={markAllAsRead}
+                onDismiss={dismiss}
+                onClearAll={clearAll}
+                maxHeight="500px"
+              />
             </div>
           )}
         </div>
 
 
-        {/* Enhanced Theme Toggle */}
-        <button
-          onClick={handleThemeToggle}
-          className="p-2.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105"
-          title={`Current theme: ${theme}`}
-        >
-          <div className="relative">
-          {getThemeIcon()}
-            <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-blue-500 rounded-full opacity-60"></div>
-          </div>
-        </button>
+        {/* Action Buttons Group */}
+        <div className="flex items-center gap-1">
+          {/* On-Screen Keyboard Button */}
+          <button
+            onClick={() => setKeyboardOpen(true)}
+            className="p-3 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105 hover:shadow-md"
+            title="On-Screen Keyboard"
+          >
+            <Keyboard className="w-5 h-5" />
+          </button>
 
+          {/* Calculator Button */}
+          <button
+            onClick={() => setCalculatorOpen(true)}
+            className="p-3 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105 hover:shadow-md"
+            title="Calculator"
+          >
+            <Calculator className="w-5 h-5" />
+          </button>
 
-        {/* Enhanced Fullscreen Toggle */}
-        <button
-          onClick={toggleFullscreen}
-          className="p-2.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105"
-          title={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-        >
-          {fullscreen ? (
-            <Minimize className="w-5 h-5" />
-          ) : (
-            <Maximize className="w-5 h-5" />
+          {/* Dev Tools Button (Development Only) */}
+          {import.meta.env.DEV && (
+            <button
+              onClick={() => setDevToolsOpen(true)}
+              className="p-3 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105 hover:shadow-md"
+              title="Developer Tools"
+            >
+              <Bug className="w-5 h-5" />
+            </button>
           )}
-        </button>
+
+          {/* Settings Button */}
+          <button
+            onClick={() => navigate('/settings')}
+            className="p-3 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105 hover:shadow-md"
+            title="Settings"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+
+          {/* Help & Support Button */}
+          <button
+            onClick={() => navigate('/help-support')}
+            className="p-3 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105 hover:shadow-md"
+            title="Help & Support"
+          >
+            <HelpCircle className="w-5 h-5" />
+          </button>
+
+          {/* Language Switcher */}
+          <LanguageSwitcher />
+
+          {/* Enhanced Theme Toggle */}
+          <button
+            onClick={handleThemeToggle}
+            className="p-3 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105 hover:shadow-md"
+            title={`Current theme: ${theme}`}
+          >
+            <div className="relative">
+              {getThemeIcon()}
+              <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-blue-500 rounded-full opacity-60"></div>
+            </div>
+          </button>
+
+          {/* Enhanced Fullscreen Toggle */}
+          <button
+            onClick={toggleFullscreen}
+            className="p-3 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105 hover:shadow-md"
+            title={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            {fullscreen ? (
+              <Minimize className="w-5 h-5" />
+            ) : (
+              <Maximize className="w-5 h-5" />
+            )}
+          </button>
+
+          {/* Help & Support Button */}
+          <button
+            onClick={() => navigate('/help-support')}
+            className="p-3 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105 hover:shadow-md"
+            title="Help & Support"
+          >
+            <HelpCircle className="w-5 h-5" />
+          </button>
+        </div>
 
         {/* Enhanced User Menu */}
-        <div className="relative ml-3" data-dropdown>
+        <div className="relative ml-2" data-dropdown>
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105"
+            className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105 hover:shadow-md"
           >
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
-              <User className="w-4 h-4 text-white" />
+            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+              <User className="w-5 h-5 text-white" />
             </div>
             <div className="hidden sm:block text-left">
               <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -345,7 +416,7 @@ export function Header() {
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400 -mt-0.5">
                 Administrator
-          </div>
+              </div>
             </div>
             <ChevronDown className={cn(
               "w-4 h-4 text-gray-400 transition-transform duration-200",
@@ -354,10 +425,10 @@ export function Header() {
           </button>
           
           {userMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
+            <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 py-3 z-[60] backdrop-blur-sm">
               <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
                     <User className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -370,31 +441,31 @@ export function Header() {
               <div className="py-2">
                 <button 
                   onClick={handleProfileClick}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-3 transition-colors"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-3 transition-colors rounded-lg mx-2"
                 >
                   <User className="w-4 h-4" />
-                  <span>Profile</span>
+                  <span>{t('common.profile')}</span>
                 </button>
                 <button 
                   onClick={handleSettingsClick}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-3 transition-colors"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-3 transition-colors rounded-lg mx-2"
                 >
                   <Settings className="w-4 h-4" />
-                  <span>Settings</span>
+                  <span>{t('navigation.settings')}</span>
                 </button>
                 <button 
                   onClick={handleHelpClick}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-3 transition-colors"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-3 transition-colors rounded-lg mx-2"
                 >
                   <HelpCircle className="w-4 h-4" />
-                  <span>Help & Support</span>
+                  <span>{t('common.help')} & Support</span>
                 </button>
                 <button 
                   onClick={() => { setUserMenuOpen(false); navigate('/about'); }}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-3 transition-colors"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-3 transition-colors rounded-lg mx-2"
                 >
                   <HelpCircle className="w-4 h-4" />
-                  <span>About & License</span>
+                  <span>{t('navigation.about')} & License</span>
                 </button>
               </div>
               
@@ -402,6 +473,30 @@ export function Header() {
           )}
         </div>
       </div>
+
+      {/* Dev Tools Modal */}
+      <DevTools
+        isOpen={devToolsOpen}
+        onClose={() => setDevToolsOpen(false)}
+      />
+      
+      {/* On-Screen Keyboard */}
+      <OnScreenKeyboard
+        isOpen={keyboardOpen}
+        onClose={() => setKeyboardOpen(false)}
+      />
+      
+      {/* Calculator */}
+      <CalculatorComponent
+        isOpen={calculatorOpen}
+        onClose={() => setCalculatorOpen(false)}
+      />
+      
+      {/* Mobile Navigation */}
+      <MobileNav
+        isOpen={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+      />
     </header>
   );
 }

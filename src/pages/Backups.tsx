@@ -409,7 +409,7 @@ export function Backups() {
               <select
                 value={providerConfig[field.key] || ''}
                 onChange={(e) => handleConfigChange(field.key, e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 required={field.required}
               >
                 <option value="">Select...</option>
@@ -436,7 +436,7 @@ export function Backups() {
                   value={providerConfig[field.key] || ''}
                   onChange={(e) => handleConfigChange(field.key, e.target.value)}
                   placeholder={field.placeholder}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   required={field.required}
                 />
                 {field.type === 'password' && field.key === 'encryptionKey' && (
@@ -475,7 +475,7 @@ export function Backups() {
                 value={providerConfig.encryptionKey || ''}
                 onChange={(e) => handleConfigChange('encryptionKey', e.target.value)}
                 placeholder="Enter a secure encryption key (min 8 characters)"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
               <div className="absolute right-2 top-2 flex space-x-1">
@@ -608,7 +608,7 @@ export function Backups() {
               type="time"
               value={dailyTime}
               onChange={(e) => setDailyTime(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
             <p className="text-xs text-gray-500 mt-1">24-hour format (e.g., 22:30 for 10:30 PM)</p>
           </div>
@@ -664,7 +664,7 @@ export function Backups() {
               onChange={(e) => setKeepDaily(parseInt(e.target.value) || 30)}
               min="1"
               max="365"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
             <p className="text-xs text-gray-500 mt-1">Default: 30 days</p>
           </div>
@@ -677,7 +677,7 @@ export function Backups() {
               onChange={(e) => setKeepConfig(parseInt(e.target.value) || 5)}
               min="1"
               max="50"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
             <p className="text-xs text-gray-500 mt-1">Default: 5 backups</p>
           </div>
@@ -811,7 +811,7 @@ export function Backups() {
               type="date"
               value={logFilters.fromDate.toISOString().split('T')[0]}
               onChange={(e) => setLogFilters(prev => ({ ...prev, fromDate: new Date(e.target.value) }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           
@@ -821,7 +821,7 @@ export function Backups() {
               type="date"
               value={logFilters.toDate.toISOString().split('T')[0]}
               onChange={(e) => setLogFilters(prev => ({ ...prev, toDate: new Date(e.target.value) }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           
@@ -830,7 +830,7 @@ export function Backups() {
             <select
               value={logFilters.type}
               onChange={(e) => setLogFilters(prev => ({ ...prev, type: e.target.value as any }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Types</option>
               <option value="Created">Created</option>
@@ -846,7 +846,7 @@ export function Backups() {
             <select
               value={logFilters.result}
               onChange={(e) => setLogFilters(prev => ({ ...prev, result: e.target.value as any }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Results</option>
               <option value="Success">Success</option>
@@ -1017,7 +1017,7 @@ export function Backups() {
                 onChange={(e) => setManagerPin(e.target.value)}
                 placeholder="Enter 4-6 digit PIN"
                 maxLength={6}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-center text-lg tracking-widest"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-red-500 focus:border-red-500 text-center text-lg tracking-widest"
                 onKeyDown={(e) => e.key === 'Enter' && handlePinSubmit()}
               />
             </div>

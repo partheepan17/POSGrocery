@@ -1,0 +1,49 @@
+[Unit]
+Description=POS Grocery System
+Documentation=https://github.com/your-org/pos-grocery
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pos
+Group=pos
+WorkingDirectory=/opt/pos-grocery/server
+ExecStart=/usr/bin/node dist/index.js
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+# Logging configuration
+StandardOutput=append:/var/log/pos/pos-grocery.log
+StandardError=append:/var/log/pos/pos-grocery-error.log
+SyslogIdentifier=pos-grocery
+
+# Environment
+Environment=NODE_ENV=production
+Environment=PORT=8250
+EnvironmentFile=-/opt/pos-grocery/server/.env
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=32768
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/pos-grocery/data
+ReadWritePaths=/opt/pos-grocery/logs
+ReadWritePaths=/var/log/pos
+
+# Process management
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Health check
+ExecStartPost=/bin/sleep 5
+ExecStartPost=/bin/bash -c 'curl -f http://localhost:8250/health || exit 1'
+
+[Install]
+WantedBy=multi-user.target

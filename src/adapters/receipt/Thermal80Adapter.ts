@@ -104,6 +104,7 @@ export class Thermal80Adapter implements ReceiptAdapter {
         const unitPriceFormatted = formatCurrency(applyRounding(item.unitPrice));
         const lineDisc = item.lineDiscount ? formatCurrency(applyRounding(item.lineDiscount)) : '-';
         const totalFormatted = formatCurrency(applyRounding(item.total));
+        const weightMath = item.unit === 'kg' ? `<div class="item-details">${item.unitPrice.toFixed(2)} × ${item.qty.toFixed(3)}kg</div>` : '';
         return `
           <div class="item-row" style="display:flex; margin:4px 0;">
             <div style="flex: 6">${this.truncateText(localizedName, 30)}</div>
@@ -112,6 +113,7 @@ export class Thermal80Adapter implements ReceiptAdapter {
             <div style="flex: 3; text-align:right;">${lineDisc}</div>
             <div style="flex: 3; text-align:right;">${totalFormatted}</div>
           </div>
+          ${weightMath}
         `;
       }).join('')}
     `;

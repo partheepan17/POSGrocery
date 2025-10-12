@@ -4,6 +4,7 @@ import { ShoppingCart, Search, CreditCard, Printer, Plus, Minus, Trash2, Downloa
 import { posService, POSHeldSale } from '@/services/posService';
 import { dataService, Product, Customer } from '@/services/dataService';
 import { useAppStore } from '@/store/appStore';
+import { useCartStore } from '@/store/cartStore';
 import { toast } from 'react-hot-toast';
 import { createPrintAdapter } from '@/adapters/PrintAdapter';
 import { ReceiptPayload } from '@/types/receipt';
@@ -34,11 +35,22 @@ interface CartLine {
 export function Sales() {
   const navigate = useNavigate();
   const { theme, currentUser, currentSession, settings, holdsSettings } = useAppStore();
+  const { 
+    items: cartLines, 
+    addItem, 
+    updateItemQuantity, 
+    removeItem, 
+    clearCart, 
+    priceTier, 
+    setPriceTier, 
+    setCustomer,
+    manualDiscount,
+    setManualDiscount,
+    totals
+  } = useCartStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [priceTier, setPriceTier] = useState<'Retail' | 'Wholesale' | 'Credit' | 'Other'>('Retail');
   const [printLanguage, setPrintLanguage] = useState<'EN' | 'SI' | 'TA'>('SI');
-  const [cartLines, setCartLines] = useState<CartLine[]>([]);
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [currentSale, setCurrentSale] = useState<any>(null);
@@ -85,10 +97,6 @@ export function Sales() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Manual discount states
-  const [manualDiscount, setManualDiscount] = useState({
-    amount: 0,
-    type: 'amount' as 'amount' | 'percent'
-  });
 
   // Shift states
   const [currentShift, setCurrentShift] = useState<any>(null);
@@ -142,17 +150,17 @@ export function Sales() {
         payment_method: paymentDetails.type.toUpperCase(),
         payment_reference: paymentData.reference,
         payment_notes: paymentData.notes,
-        total_amount: totals.net,
+        total_amount: totals.net_total,
         tax_amount: totals.tax_total,
-        discount_amount: totals.discount,
-        manual_discount: totals.manualDiscount,
+        discount_amount: totals.item_discounts_total,
+        manual_discount: totals.manual_discount_amount,
         items: cartLines.map(line => ({
           product_id: line.product_id,
           quantity: line.qty,
-          unit_price: line.unit_price,
-          discount_amount: line.line_discount,
-          tax_amount: line.tax,
-          total_amount: line.total
+          unit_price: line.current_price,
+          discount_amount: line.line_discount_value || 0,
+          tax_amount: line.tax_amount,
+          total_amount: line.line_total
         }))
       };
 
@@ -172,14 +180,13 @@ export function Sales() {
       // Update payment data
       setPaymentData(prev => ({
         ...prev,
-        [paymentDetails.type]: totals.net,
+        [paymentDetails.type]: totals.net_total,
         change: paymentData.change || 0
       }));
       
       // Clear cart and start new sale
-      setCartLines([]);
+      clearCart();
       setPaymentData({ cash: 0, card: 0, wallet: 0, change: 0 });
-      setManualDiscount({ amount: 0, type: 'amount' });
       setPaymentDetails({ type: 'cash', reference: '', cardNumber: '', cardType: '', notes: '' });
       setShowPaymentModal(false);
       startNewSale();
@@ -261,18 +268,17 @@ export function Sales() {
         lines: cartLines.map(line => ({
           product_id: line.product_id,
           quantity: line.qty,
-          unit_price: line.unit_price,
-          discount_amount: line.line_discount,
-          tax_amount: line.tax,
-          total_amount: line.total
+          unit_price: line.current_price,
+          discount_amount: line.line_discount_value || 0,
+          tax_amount: line.tax_amount,
+          total_amount: line.line_total
         }))
       };
 
       await holdService.createHold(holdInput);
       
       // Clear cart after successful hold
-      setCartLines([]);
-      setManualDiscount({ amount: 0, type: 'amount' });
+      clearCart();
       setShowHoldCreateModal(false);
       
       // Reload hold count
@@ -322,7 +328,7 @@ export function Sales() {
           total: line.total_amount
         }));
 
-        setCartLines(resumedLines);
+        // Cart lines are now managed by the cart store
         setPriceTier(resumedHold.price_tier as any);
         
         if (resumedHold.customer_id) {
@@ -533,7 +539,7 @@ export function Sales() {
         language: printLanguage
       });
       setCurrentSale(sale);
-      setCartLines([]);
+      clearCart();
     } catch (error) {
       console.error('Failed to start sale:', error);
       toast.error('Failed to start new sale');
@@ -552,18 +558,24 @@ export function Sales() {
       const numericOnly = /^\d{7,}$/;
       if (numericOnly.test(term)) {
         console.log('🔍 Barcode scan detected for:', term);
-      const byBarcode = await dataService.getProductByBarcode(term);
-        console.log('📦 Product found by barcode:', byBarcode ? byBarcode.name_en : 'None');
-        if (byBarcode) {
+        
+        // Use centralized barcode service
+        const { barcodeService } = await import('@/services/barcodeService');
+        const barcodeResult = await barcodeService.searchBarcode(term, {
+          debounceMs: 0,
+          retryAttempts: 2,
+          timeout: 5000
+        });
+        
+        console.log('📦 Product found by barcode:', barcodeResult.found ? barcodeResult.product?.name_en : 'None');
+        if (barcodeResult.found && barcodeResult.product) {
           // Clear search immediately to prevent race conditions
           setSearchTerm('');
           setSearchResults([]);
           if (searchInputRef.current) {
             searchInputRef.current.value = '';
           }
-          await handleAddToCart(byBarcode);
-          // Re-apply discounts after barcode add with fresh lines state
-          setCartLines(prev => prev);
+          await handleAddToCart(barcodeResult.product);
           return;
         }
       }
@@ -622,56 +634,9 @@ export function Sales() {
         await startNewSale();
       }
 
-      // Check if product already exists in cart
-      const existingLineIndex = cartLines.findIndex(line => line.product_id === product.id);
-      
-      if (existingLineIndex >= 0) {
-        // Update existing line quantity
-        const updatedLines = [...cartLines];
-        updatedLines[existingLineIndex].qty += 1;
-        updatedLines[existingLineIndex].total = updatedLines[existingLineIndex].qty * updatedLines[existingLineIndex].unit_price;
-        // Keep POS service in sync so printing sees correct quantities
-        try {
-          await posService.addLine({
-            sale_id: (posService.getCurrentSale() || currentSale).id,
-            product_id: product.id,
-            qty: 1,
-            unit_price: getPriceForTier(product, priceTier)
-          });
-        } catch (e) {
-          console.warn('POS sync add failed', e);
-        }
-        
-        const linesWithDiscounts = await applyDiscountsToCart(updatedLines);
-        setCartLines(linesWithDiscounts);
-        
-        toast.success(`${product.name_en} quantity increased`);
-      } else {
-        // Add new line
-        await posService.addLine({
-          sale_id: (posService.getCurrentSale() || currentSale).id,
-          product_id: product.id,
-          qty: 1,
-          unit_price: getPriceForTier(product, priceTier)
-        });
-
-        const newLine: CartLine = {
-          id: Date.now(),
-          product_id: product.id,
-          product: product,
-          qty: 1,
-          unit_price: getPriceForTier(product, priceTier),
-          line_discount: 0,
-          tax: 0,
-          total: getPriceForTier(product, priceTier)
-        };
-
-        const updatedLines = [...cartLines, newLine];
-        const linesWithDiscounts = await applyDiscountsToCart(updatedLines);
-        setCartLines(linesWithDiscounts);
-        
-        toast.success(`${product.name_en} added to cart`);
-      }
+      // Use cart store's addItem method
+      await addItem(product, 1);
+      toast.success(`${product.name_en} added to cart`);
     } catch (error) {
       console.error('Failed to add to cart:', error);
       toast.error('Failed to add item to cart');
@@ -733,7 +698,7 @@ export function Sales() {
   };
 
   const handleQuantityChange = async (lineId: number, change: number) => {
-    const line = cartLines.find(l => l.id === lineId);
+    const line = cartLines.find(l => l.id === lineId.toString());
     if (!line) return;
 
     // Allow decimal quantities for weight-based items
@@ -746,18 +711,8 @@ export function Sales() {
     }
 
     try {
-      posService.updateLineQty(lineId, newQty);
-      
-      // Update quantity and totals on the line, then reapply discounts
-      const updatedLines = cartLines.map(l => {
-        if (l.id !== lineId) return l;
-        const lineSubtotal = l.unit_price * newQty;
-        const lineTax = 0; // tax recalculated later if needed
-        const lineTotal = lineSubtotal + lineTax - 0;
-        return { ...l, qty: newQty, tax: lineTax, total: lineTotal, line_discount: 0, applied_rules: [] };
-      });
-      const linesWithDiscounts = await applyDiscountsToCart(updatedLines);
-      setCartLines(linesWithDiscounts);
+      // Use cart store's updateItemQuantity method
+      await updateItemQuantity(lineId.toString(), newQty);
     } catch (error) {
       console.error('Failed to update quantity:', error);
       toast.error('Failed to update quantity');
@@ -765,7 +720,7 @@ export function Sales() {
   };
 
   const handleQuantityInput = async (lineId: number, value: string) => {
-    const line = cartLines.find(l => l.id === lineId);
+    const line = cartLines.find(l => l.id === lineId.toString());
     if (!line) return;
 
     const parsed = line.product.unit === 'kg' ? parseFloat(value || '0') : parseInt(value || '0', 10);
@@ -773,17 +728,8 @@ export function Sales() {
     const newQty = Math.max(0, line.product.unit === 'kg' ? parseFloat(newQtyRaw.toFixed(3)) : Math.round(newQtyRaw));
 
     try {
-      posService.updateLineQty(lineId, newQty);
-
-      const updatedLines = cartLines.map(l => {
-        if (l.id !== lineId) return l;
-        const lineSubtotal = l.unit_price * newQty;
-        const lineTax = 0;
-        const lineTotal = lineSubtotal + lineTax - 0;
-        return { ...l, qty: newQty, tax: lineTax, total: lineTotal, line_discount: 0, applied_rules: [] };
-      });
-        const linesWithDiscounts = await applyDiscountsToCart(updatedLines);
-        setCartLines(linesWithDiscounts);
+      // Use cart store's updateItemQuantity method
+      await updateItemQuantity(lineId.toString(), newQty);
     } catch (error) {
       console.error('Failed to set quantity:', error);
       toast.error('Failed to set quantity');
@@ -792,13 +738,8 @@ export function Sales() {
 
   const handleRemoveLine = async (lineId: number) => {
     try {
-      await posService.removeLine(lineId);
-      
-      // Remove line and reapply discounts to remaining items
-      const updatedLines = cartLines.filter(l => l.id !== lineId);
-      const linesWithDiscounts = await applyDiscountsToCart(updatedLines);
-      setCartLines(linesWithDiscounts);
-      
+      // Use cart store's removeItem method
+      removeItem(lineId.toString());
       toast.success('Item removed from cart');
     } catch (error) {
       console.error('Failed to remove line:', error);
@@ -824,22 +765,22 @@ export function Sales() {
         return { ...l, product } as typeof l & { product: Product };
       }));
       const calcTotals = detailedLines.reduce((acc, item) => {
-        acc.gross += item.qty * item.unit_price;
-        acc.discount += item.line_discount;
-        acc.tax += item.tax || 0;
+        acc.gross += item.qty * item.current_price;
+        acc.discount += item.line_discount_value || 0;
+        acc.tax += item.tax_amount || 0;
         return acc;
       }, { gross: 0, discount: 0, tax: 0 });
       const netTotal = calcTotals.gross - calcTotals.discount + calcTotals.tax;
       // Aggregate same product lines (by product_id and unit_price)
       const aggregated = new Map<string, typeof detailedLines[number]>();
       for (const l of detailedLines) {
-        const key = `${l.product_id}@${l.unit_price}`;
+        const key = `${l.product_id}@${l.current_price}`;
         const existing = aggregated.get(key);
         if (existing) {
           existing.qty += l.qty;
-          existing.line_discount += l.line_discount;
-          existing.tax += l.tax;
-          existing.total += l.total;
+          existing.line_discount_value = (existing.line_discount_value || 0) + (l.line_discount_value || 0);
+          existing.tax_amount = (existing.tax_amount || 0) + (l.tax_amount || 0);
+          existing.line_total = (existing.line_total || 0) + (l.line_total || 0);
         } else {
           aggregated.set(key, { ...l });
         }
@@ -863,7 +804,7 @@ export function Sales() {
           items: printableLines.map(item => {
             const computedQty = item.qty && item.qty > 0 
               ? item.qty 
-              : Math.max(1, Math.round(((item.total + item.line_discount - item.tax) / (item.unit_price || 1))));
+              : Math.max(1, Math.round(((item.line_total + (item.line_discount_value || 0) - (item.tax_amount || 0)) / (item.current_price || 1))));
             return ({
             sku: (item as any).product?.sku || 'Unknown',
             name_en: (item as any).product?.name_en || 'Unknown Product',
@@ -871,17 +812,17 @@ export function Sales() {
             name_ta: (item as any).product?.name_ta,
             unit: (item as any).product?.unit || 'pc',
             qty: computedQty,
-            unitPrice: item.unit_price,
-            lineDiscount: item.line_discount,
-            tax: item.tax,
-            total: item.total
+            unitPrice: item.current_price,
+            lineDiscount: item.line_discount_value || 0,
+            tax: item.tax_amount,
+            total: item.line_total
             });
           }),
           totals: {
             gross: totals.gross,
-            discount: totals.discount,
+            discount: totals.item_discounts_total,
             tax: totals.tax_total,
-            net: totals.net
+            net: totals.net_total
           },
           payments: {
             cash: paymentData.cash,
@@ -908,9 +849,8 @@ export function Sales() {
       toast.success(`Receipt printed successfully - Receipt #${receiptNumber}`);
       
       // Clear cart after successful print
-      setCartLines([]);
+      clearCart();
       setPaymentData({ cash: 0, card: 0, wallet: 0, change: 0 });
-      setManualDiscount({ amount: 0, type: 'amount' });
       setPaymentDetails({ type: 'cash', reference: '', cardNumber: '', cardType: '', notes: '' });
       startNewSale();
     } catch (error) {
@@ -932,9 +872,13 @@ export function Sales() {
       const printAdapter = createPrintAdapter();
       const sourceLines = cartLines.length > 0 ? cartLines : posService.getCurrentLines();
       const calcTotals = sourceLines.reduce((acc, item) => {
-        acc.gross += item.qty * item.unit_price;
-        acc.discount += item.line_discount;
-        acc.tax += item.tax;
+        const unitPrice = 'current_price' in item ? item.current_price : (item as any).unit_price;
+        const discount = 'line_discount_value' in item ? (item.line_discount_value || 0) : ((item as any).line_discount || 0);
+        const tax = 'tax_amount' in item ? (item.tax_amount || 0) : ((item as any).tax || 0);
+        
+        acc.gross += item.qty * unitPrice;
+        acc.discount += discount;
+        acc.tax += tax;
         return acc;
       }, { gross: 0, discount: 0, tax: 0 });
       const netTotal = calcTotals.gross - calcTotals.discount + calcTotals.tax;
@@ -958,10 +902,10 @@ export function Sales() {
             name_ta: (item as any).product?.name_ta,
             unit: (item as any).product?.unit || 'pc',
             qty: item.qty,
-            unitPrice: item.unit_price,
-            lineDiscount: item.line_discount,
-            tax: item.tax,
-            total: item.total
+            unitPrice: 'current_price' in item ? item.current_price : (item as any).unit_price,
+            lineDiscount: 'line_discount_value' in item ? (item.line_discount_value || 0) : ((item as any).line_discount || 0),
+            tax: 'tax_amount' in item ? item.tax_amount : ((item as any).tax || 0),
+            total: 'line_total' in item ? item.line_total : ((item as any).total || 0)
           })),
           totals: {
             gross: calcTotals.gross,
@@ -1003,21 +947,21 @@ export function Sales() {
     const taxRate = SETTINGS.TAX_RATE;
 
     // line subtotal is qty * unit_price minus any line discount ALREADY applied per line (if any UI field exists)
-    const gross = cartLines.reduce((acc, l) => acc + (l.unit_price * l.qty), 0);
+    const gross = cartLines.reduce((acc, l) => acc + (l.current_price * l.qty), 0);
 
     const lineDiscounts = cartLines.reduce((acc, l) => {
       // assume we store l.line_discount_value (absolute) or derive from type; normalize to absolute
-      const v = l.line_discount ? Number(l.line_discount) : 0;
+      const v = l.line_discount_value ? Number(l.line_discount_value) : 0;
       return acc + v;
     }, 0);
 
     const baseForManual = Math.max(0, gross - lineDiscounts); // FIX: manual discount must apply AFTER line discounts
 
     let manualDiscountValue = 0;
-    if (manualDiscount?.type === 'percent') {
-      manualDiscountValue = Math.min(baseForManual, baseForManual * (Number(manualDiscount.amount || 0) / 100));
-    } else if (manualDiscount?.type === 'amount') {
-      manualDiscountValue = Math.min(baseForManual, Number(manualDiscount.amount || 0));
+    if (manualDiscount?.type === 'PERCENTAGE') {
+      manualDiscountValue = Math.min(baseForManual, baseForManual * (Number(manualDiscount.value || 0) / 100));
+    } else if (manualDiscount?.type === 'FIXED_AMOUNT') {
+      manualDiscountValue = Math.min(baseForManual, Number(manualDiscount.value || 0));
     }
 
     const discountedSubtotal = Math.max(0, baseForManual - manualDiscountValue);
@@ -1036,7 +980,7 @@ export function Sales() {
     };
   };
 
-  const totals = getSaleTotals();
+  const calculatedTotals = getSaleTotals();
 
   return (
     <div className="h-full flex flex-col lg:flex-row bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-100">
@@ -1314,7 +1258,7 @@ export function Sales() {
                 type="checkbox"
                 checked={showBarcodeOnReceipt}
                 onChange={(e) => setShowBarcodeOnReceipt(e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-1"
               />
               <span className="text-sm text-gray-300">Include barcode on receipt</span>
             </label>
@@ -1357,23 +1301,15 @@ export function Sales() {
                 <div key={line.id} className="bg-gray-800 rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <div className="font-medium text-white">{line.product.name_en}</div>
+                      <div className="font-medium text-white">{line.name}</div>
                       <div className="text-sm text-gray-400">
-                        SKU: {line.product.sku} | රු {line.unit_price.toLocaleString()} each
+                        SKU: {line.sku} | රු {line.current_price.toLocaleString()} each
                       </div>
-                      {line.applied_rules && line.applied_rules.length > 0 && (
-                        <div className="flex items-center mt-1">
-                          <Tag className="w-3 h-3 text-green-400 mr-1" />
-                          <span className="text-xs text-green-400">
-                            Promo applied: {line.applied_rules.map(r => r.rule_name).join(', ')}
-                          </span>
-                        </div>
-                      )}
                     </div>
                     <div className="flex items-center space-x-3">
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => handleQuantityChange(line.id, -1)}
+                          onClick={() => handleQuantityChange(parseInt(line.id), -1)}
                           className="p-1 bg-gray-700 text-white rounded hover:bg-gray-600"
                         >
                           <Minus className="w-4 h-4" />
@@ -1381,14 +1317,14 @@ export function Sales() {
                         <input
                           type="number"
                           inputMode="decimal"
-                          step={line.product.unit === 'kg' ? 0.1 : 1}
+                          step={line.unit === 'kg' ? 0.1 : 1}
                           min={0}
                           value={line.qty}
-                          onChange={(e) => handleQuantityInput(line.id, e.target.value)}
-                          className="w-16 text-center bg-gray-700 text-white rounded px-2 py-1 border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          onChange={(e) => handleQuantityInput(parseInt(line.id), e.target.value)}
+                          className="w-16 text-center bg-gray-700 text-white rounded px-2 py-1 border border-gray-600 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         />
                         <button
-                          onClick={() => handleQuantityChange(line.id, 1)}
+                          onClick={() => handleQuantityChange(parseInt(line.id), 1)}
                           className="p-1 bg-gray-700 text-white rounded hover:bg-gray-600"
                         >
                           <Plus className="w-4 h-4" />
@@ -1396,16 +1332,16 @@ export function Sales() {
                       </div>
                       <div className="text-right">
                         <div className="font-medium text-white">
-                          රු {line.total.toLocaleString()}
+                          රු {line.line_total.toLocaleString()}
                         </div>
-                        {line.line_discount > 0 && (
+                        {line.line_discount_value && line.line_discount_value > 0 && (
                           <div className="text-xs text-green-400">
-                            Savings: රු {line.line_discount.toLocaleString()}
+                            Savings: රු {line.line_discount_value.toLocaleString()}
                           </div>
                         )}
                       </div>
                       <button
-                        onClick={() => handleRemoveLine(line.id)}
+                        onClick={() => handleRemoveLine(parseInt(line.id))}
                         className="p-1 bg-red-600 text-white rounded hover:bg-red-700"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1473,9 +1409,9 @@ export function Sales() {
           <div className="space-y-3">
             <div className="flex gap-2">
               <button
-                onClick={() => setManualDiscount(prev => ({ ...prev, type: 'amount' }))}
+                onClick={() => setManualDiscount({ value: manualDiscount.value, type: 'FIXED_AMOUNT' })}
                 className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  manualDiscount.type === 'amount'
+                  manualDiscount.type === 'FIXED_AMOUNT'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
@@ -1484,9 +1420,9 @@ export function Sales() {
                 Fixed Amount
               </button>
               <button
-                onClick={() => setManualDiscount(prev => ({ ...prev, type: 'percent' }))}
+                onClick={() => setManualDiscount({ value: manualDiscount.value, type: 'PERCENTAGE' })}
                 className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  manualDiscount.type === 'percent'
+                  manualDiscount.type === 'PERCENTAGE'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
@@ -1499,40 +1435,40 @@ export function Sales() {
               <input
                 type="number"
                 min="0"
-                step={manualDiscount.type === 'percent' ? '0.1' : '1'}
-                max={manualDiscount.type === 'percent' ? '100' : undefined}
-                value={manualDiscount.amount || 0}
+                step={manualDiscount.type === 'PERCENTAGE' ? '0.1' : '1'}
+                max={manualDiscount.type === 'PERCENTAGE' ? '100' : undefined}
+                value={manualDiscount.value || 0}
                 onChange={(e) => {
                   const value = parseFloat(e.target.value) || 0;
-                  const maxValue = manualDiscount.type === 'percent' ? 100 : totals.gross;
+                  const maxValue = manualDiscount.type === 'PERCENTAGE' ? 100 : totals.gross;
                   const clampedValue = Math.min(value, maxValue);
-                  setManualDiscount(prev => ({ 
-                    ...prev, 
-                    amount: clampedValue 
-                  }));
+                  setManualDiscount({ 
+                    type: manualDiscount.type,
+                    value: clampedValue 
+                  });
                 }}
-                placeholder={manualDiscount.type === 'percent' ? '0.0' : '0'}
-                className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                placeholder={manualDiscount.type === 'PERCENTAGE' ? '0.0' : '0'}
+                className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20"
                 data-testid="manual-discount-value"
-                aria-label={`Manual discount ${manualDiscount.type === 'percent' ? 'percentage' : 'amount'}`}
+                aria-label={`Manual discount ${manualDiscount.type === 'PERCENTAGE' ? 'percentage' : 'amount'}`}
                 aria-describedby="manual-discount-help"
               />
               <button
-                onClick={() => setManualDiscount({ amount: 0, type: 'amount' })}
+                onClick={() => setManualDiscount({ value: 0, type: 'FIXED_AMOUNT' })}
                 className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500 text-sm"
               >
                 Clear
               </button>
             </div>
-            {manualDiscount.amount > 0 && (
+            {manualDiscount.value > 0 && (
               <div className="text-sm text-blue-400" id="manual-discount-help">
-                Manual Discount: රු {totals.manualDiscount.toLocaleString()}
-                {manualDiscount.type === 'percent' && (
+                Manual Discount: රු {totals.manual_discount_amount.toLocaleString()}
+                {manualDiscount.type === 'PERCENTAGE' && (
                   <span className="text-xs text-gray-400 ml-2">
                     (Max: 100%)
                   </span>
                 )}
-                {manualDiscount.type === 'amount' && (
+                {manualDiscount.type === 'FIXED_AMOUNT' && (
                   <span className="text-xs text-gray-400 ml-2">
                     (Max: රු {totals.gross.toLocaleString()})
                   </span>
@@ -1550,16 +1486,16 @@ export function Sales() {
               <span>Gross:</span>
               <span>රු {totals.gross.toLocaleString()}</span>
             </div>
-            {totals.lineDiscounts > 0 && (
+            {totals.item_discounts_total > 0 && (
               <div className="flex justify-between text-green-400">
                 <span>Item Savings:</span>
-                <span>රු {totals.lineDiscounts.toLocaleString()}</span>
+                <span>රු {totals.item_discounts_total.toLocaleString()}</span>
               </div>
             )}
-            {totals.manualDiscount > 0 && (
+            {totals.manual_discount_amount > 0 && (
               <div className="flex justify-between text-blue-400">
                 <span>Manual Discount:</span>
-                <span>රු {totals.manualDiscount.toLocaleString()}</span>
+                <span>රු {totals.manual_discount_amount.toLocaleString()}</span>
               </div>
             )}
             <div className="flex justify-between text-gray-300">
@@ -1569,7 +1505,7 @@ export function Sales() {
             <div className="border-t border-gray-600 pt-2">
               <div className="flex justify-between text-green-400 font-bold text-lg" data-testid="net-total">
                 <span>Net Total:</span>
-                <span>රු {totals.net.toLocaleString()}</span>
+                <span>රු {totals.net_total.toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -1825,7 +1761,7 @@ export function Sales() {
                 <select
                   value={movementType}
                   onChange={(e) => setMovementType(e.target.value as any)}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="CASH_IN">Cash In</option>
                   <option value="CASH_OUT">Cash Out</option>
@@ -1843,7 +1779,7 @@ export function Sales() {
                   value={movementAmount}
                   onChange={(e) => setMovementAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                 />
               </div>
               <div>
@@ -1853,7 +1789,7 @@ export function Sales() {
                   value={movementReason}
                   onChange={(e) => setMovementReason(e.target.value)}
                   placeholder="Enter reason..."
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                 />
               </div>
             </div>
@@ -1880,7 +1816,7 @@ export function Sales() {
       {showPaymentModal && (
         <PaymentModal
           paymentType={paymentDetails.type.toUpperCase()}
-          total={totals.net}
+          total={totals.net_total}
           onClose={() => setShowPaymentModal(false)}
           onConfirm={processPayment}
         />

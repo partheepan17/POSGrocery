@@ -5,7 +5,9 @@ import { formatCurrency } from '@/lib/currency';
 interface PrintPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onPrint: () => void;
+  onPrint: () => Promise<void>;
+  onPrintSuccess?: () => void;
+  onPrintError?: (error: string) => void;
   printData: {
     receipt_no: string;
     date: string;
@@ -29,7 +31,21 @@ interface PrintPreviewModalProps {
   } | null;
 }
 
-export function PrintPreviewModal({ isOpen, onClose, onPrint, printData }: PrintPreviewModalProps) {
+export function PrintPreviewModal({ isOpen, onClose, onPrint, onPrintSuccess, onPrintError, printData }: PrintPreviewModalProps) {
+  const [isPrinting, setIsPrinting] = React.useState(false);
+
+  const handlePrint = async () => {
+    setIsPrinting(true);
+    try {
+      await onPrint();
+      onPrintSuccess?.();
+    } catch (error) {
+      onPrintError?.(error instanceof Error ? error.message : 'Print failed');
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   if (!isOpen || !printData) return null;
 
   return (
@@ -136,16 +152,26 @@ export function PrintPreviewModal({ isOpen, onClose, onPrint, printData }: Print
             Cancel
           </button>
           <button
-            onClick={onPrint}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={handlePrint}
+            disabled={isPrinting}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Printer className="w-4 h-4" />
-            Print Receipt
+            {isPrinting ? 'Printing...' : 'Print Receipt'}
           </button>
         </div>
       </div>
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
 
 

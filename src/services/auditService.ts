@@ -380,7 +380,7 @@ class AuditService {
         [cutoffDate.toISOString()]
       );
 
-      const deletedCount = result.changes || 0;
+      const deletedCount = (result as any).changes || 0;
       
       if (deletedCount > 0) {
         await this.log({

@@ -164,7 +164,7 @@ export function VirtualizedTable({
                               if (e.key === 'Escape') onCancelEdit();
                             }}
                             onBlur={onSaveEdit}
-                            className={`w-full px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500 ${
+                            className={`w-full px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 ${
                               isPriceBlocked(product, 'price_retail') 
                                 ? 'border-red-500 bg-red-50' 
                                 : 'border-blue-500'
@@ -201,7 +201,7 @@ export function VirtualizedTable({
                               if (e.key === 'Escape') onCancelEdit();
                             }}
                             onBlur={onSaveEdit}
-                            className={`w-full px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500 ${
+                            className={`w-full px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 ${
                               isPriceBlocked(product, 'price_wholesale') 
                                 ? 'border-red-500 bg-red-50' 
                                 : 'border-blue-500'
@@ -238,7 +238,7 @@ export function VirtualizedTable({
                               if (e.key === 'Escape') onCancelEdit();
                             }}
                             onBlur={onSaveEdit}
-                            className={`w-full px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500 ${
+                            className={`w-full px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 ${
                               isPriceBlocked(product, 'price_credit') 
                                 ? 'border-red-500 bg-red-50' 
                                 : 'border-blue-500'
@@ -275,7 +275,7 @@ export function VirtualizedTable({
                               if (e.key === 'Escape') onCancelEdit();
                             }}
                             onBlur={onSaveEdit}
-                            className={`w-full px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500 ${
+                            className={`w-full px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 ${
                               isPriceBlocked(product, 'price_other') 
                                 ? 'border-red-500 bg-red-50' 
                                 : 'border-blue-500'

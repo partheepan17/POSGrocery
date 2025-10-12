@@ -215,14 +215,35 @@ const UsersCSVModal: React.FC<UsersCSVModalProps> = ({
   };
 
   const downloadTemplate = () => {
-    const template = 'name,role,active,pin\nJohn Doe,CASHIER,true,1234\nJane Smith,MANAGER,true,5678';
-    const blob = new Blob([template], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'users-template.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    const templateData = [
+      {
+        name: 'John Doe',
+        role: 'CASHIER',
+        active: 'true',
+        pin: '1234'
+      },
+      {
+        name: 'Jane Smith',
+        role: 'MANAGER',
+        active: 'true',
+        pin: '5678'
+      },
+      {
+        name: 'Admin User',
+        role: 'ADMIN',
+        active: 'true',
+        pin: '9999'
+      },
+      {
+        name: 'Auditor User',
+        role: 'AUDITOR',
+        active: 'false',
+        pin: ''
+      }
+    ];
+
+    csvService.exportData(templateData, 'users_template.csv');
+    toast.success('Template downloaded');
   };
 
   if (!isOpen) return null;

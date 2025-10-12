@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Plus,
   Upload,
@@ -42,6 +43,7 @@ import PinResetDialog from '@/components/Users/PinResetDialog';
 import UsersCSVModal from '@/components/Users/UsersCSVModal';
 
 const Users: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { currentUser } = useAppStore();
   

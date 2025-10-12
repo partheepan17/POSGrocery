@@ -142,21 +142,48 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
   };
 
   const handleCreateCategory = async () => {
-    if (!newCategoryData.name.trim()) {
+    const trimmedName = newCategoryData.name.trim();
+    
+    if (!trimmedName) {
       toast.error('Category name is required');
       return;
     }
 
+    // Client-side validation
+    if (trimmedName.length > 100) {
+      toast.error('Category name cannot exceed 100 characters');
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9\s\-_]+$/.test(trimmedName)) {
+      toast.error('Category name can only contain letters, numbers, spaces, hyphens, and underscores');
+      return;
+    }
+
     try {
-      const newCategory = await dataService.createCategory({ name: newCategoryData.name });
+      const newCategory = await dataService.createCategory({ name: trimmedName });
       setLocalCategories(prev => [...prev, newCategory]);
       setFormData(prev => ({ ...prev, category_id: newCategory.id.toString() }));
       setNewCategoryData({ name: '' });
       setShowNewCategory(false);
-      toast.success('Category created successfully');
+      toast.success(`Category "${newCategory.name}" created successfully`);
     } catch (error) {
       console.error('Failed to create category:', error);
-      toast.error('Failed to create category');
+      
+      // Enhanced error handling with specific messages
+      if (error instanceof Error) {
+        if (error.message.includes('Conflict:')) {
+          toast.error(error.message.replace('Conflict: ', ''));
+        } else if (error.message.includes('Validation Error:')) {
+          toast.error(error.message.replace('Validation Error: ', ''));
+        } else if (error.message.includes('Server Error:')) {
+          toast.error('Server error occurred. Please try again.');
+        } else {
+          toast.error(error.message);
+        }
+      } else {
+        toast.error('Failed to create category. Please try again.');
+      }
     }
   };
 
@@ -274,9 +301,20 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
       }
 
       const productData = {
-        ...formData,
+        name_en: formData.name_en,
+        name_si: formData.name_si,
+        name_ta: formData.name_ta,
+        sku: formData.sku,
+        barcode: formData.barcode,
         category_id: parseInt(formData.category_id),
-        preferred_supplier_id: formData.preferred_supplier_id ? parseInt(formData.preferred_supplier_id) : undefined
+        preferred_supplier_id: formData.preferred_supplier_id ? parseInt(formData.preferred_supplier_id) : undefined,
+        price_retail: formData.price_retail,
+        price_wholesale: formData.price_wholesale,
+        price_credit: formData.price_credit,
+        price_other: formData.price_other,
+        unit: formData.unit,
+        is_scale_item: formData.is_scale_item,
+        is_active: formData.is_active
       };
       
       if (product) {
@@ -345,7 +383,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   type="text"
                   value={formData.sku}
                   onChange={(e) => handleInputChange('sku', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white transition-colors ${
                     errors.sku ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="e.g., RICE5"
@@ -361,7 +399,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   type="text"
                   value={formData.barcode}
                   onChange={(e) => handleInputChange('barcode', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white transition-colors"
                   placeholder="e.g., 4791234567890"
                 />
               </div>
@@ -374,7 +412,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   type="text"
                   value={formData.name_en}
                   onChange={(e) => handleInputChange('name_en', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white transition-colors ${
                     errors.name_en ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="e.g., Rice 5kg"
@@ -390,7 +428,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   type="text"
                   value={formData.name_si}
                   onChange={(e) => handleInputChange('name_si', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white transition-colors"
                   placeholder="e.g., හාල් 5kg"
                 />
               </div>
@@ -403,7 +441,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   type="text"
                   value={formData.name_ta}
                   onChange={(e) => handleInputChange('name_ta', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white transition-colors"
                   placeholder="e.g., அரிசி 5kg"
                 />
               </div>
@@ -415,7 +453,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                 <select
                   value={formData.unit}
                   onChange={(e) => handleInputChange('unit', e.target.value as 'pc' | 'kg')}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                     errors.unit ? 'border-red-500' : 'border-gray-300'
                   }`}
                 >
@@ -429,11 +467,11 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Category *
                 </label>
-                <div className="flex space-x-2">
+                <div className="flex gap-3">
                   <select
                     value={formData.category_id}
                     onChange={(e) => handleInputChange('category_id', e.target.value)}
-                    className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`flex-1 px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                       errors.category_id ? 'border-red-500' : 'border-gray-300'
                     }`}
                   >
@@ -447,7 +485,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   <button
                     type="button"
                     onClick={() => setShowNewCategory(true)}
-                    className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
+                    className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-1 focus:ring-green-500 focus:ring-offset-1 flex items-center justify-center min-w-[44px] transition-colors"
                     title="Add New Category"
                   >
                     <Plus className="w-4 h-4" />
@@ -471,7 +509,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   min="0"
                   value={formData.price_retail}
                   onChange={(e) => handleInputChange('price_retail', parseFloat(e.target.value) || 0)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white transition-colors ${
                     errors.price_retail ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="0.00"
@@ -489,7 +527,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   min="0"
                   value={formData.price_wholesale}
                   onChange={(e) => handleInputChange('price_wholesale', parseFloat(e.target.value) || 0)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white transition-colors ${
                     errors.price_wholesale ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="0.00"
@@ -507,7 +545,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   min="0"
                   value={formData.price_credit}
                   onChange={(e) => handleInputChange('price_credit', parseFloat(e.target.value) || 0)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white transition-colors ${
                     errors.price_credit ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="0.00"
@@ -525,7 +563,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   min="0"
                   value={formData.price_other}
                   onChange={(e) => handleInputChange('price_other', parseFloat(e.target.value) || 0)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white transition-colors ${
                     errors.price_other ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="0.00"
@@ -541,7 +579,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   type="text"
                   value={formData.tax_code}
                   onChange={(e) => handleInputChange('tax_code', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white transition-colors"
                   placeholder="e.g., TAX001"
                 />
               </div>
@@ -555,7 +593,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   min="0"
                   value={formData.reorder_level}
                   onChange={(e) => handleInputChange('reorder_level', parseInt(e.target.value) || 0)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white transition-colors ${
                     errors.reorder_level ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="0"
@@ -571,7 +609,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   <select
                     value={formData.preferred_supplier_id}
                     onChange={(e) => handleInputChange('preferred_supplier_id', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white transition-colors"
                   >
                     <option value="">Select Supplier</option>
                     {localSuppliers.map(supplier => (
@@ -625,14 +663,14 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? (product ? 'Saving...' : 'Creating...') : (product ? 'Save Changes (Ctrl+Enter)' : 'Create Product (Ctrl+Enter)')}
             </button>
@@ -662,7 +700,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   type="text"
                   value={newCategoryData.name}
                   onChange={(e) => setNewCategoryData({ name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   placeholder="e.g., Electronics"
                   autoFocus
                 />
@@ -708,7 +746,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   type="text"
                   value={newSupplierData.supplier_name}
                   onChange={(e) => setNewSupplierData(prev => ({ ...prev, supplier_name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   placeholder="e.g., ABC Suppliers"
                   autoFocus
                 />
@@ -721,7 +759,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   type="tel"
                   value={newSupplierData.contact_phone}
                   onChange={(e) => setNewSupplierData(prev => ({ ...prev, contact_phone: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   placeholder="e.g., +94 11 1234567"
                 />
               </div>
@@ -733,7 +771,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   type="email"
                   value={newSupplierData.contact_email}
                   onChange={(e) => setNewSupplierData(prev => ({ ...prev, contact_email: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   placeholder="e.g., contact@abcsuppliers.com"
                 />
               </div>
@@ -744,7 +782,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                 <textarea
                   value={newSupplierData.address}
                   onChange={(e) => setNewSupplierData(prev => ({ ...prev, address: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   rows={2}
                   placeholder="e.g., 123 Main Street, Colombo 01"
                 />
@@ -757,7 +795,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
                   type="text"
                   value={newSupplierData.tax_id}
                   onChange={(e) => setNewSupplierData(prev => ({ ...prev, tax_id: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   placeholder="e.g., 123456789V"
                 />
               </div>

@@ -208,7 +208,7 @@ const UserModal: React.FC<UserModalProps> = ({
               type="text"
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
                 errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
               }`}
               placeholder="Enter user name"
@@ -227,7 +227,7 @@ const UserModal: React.FC<UserModalProps> = ({
             <select
               value={formData.role}
               onChange={(e) => handleInputChange('role', e.target.value as Role)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               disabled={loading}
             >
               <option value="CASHIER">Cashier</option>
@@ -244,7 +244,7 @@ const UserModal: React.FC<UserModalProps> = ({
               id="active"
               checked={formData.active}
               onChange={(e) => handleInputChange('active', e.target.checked)}
-              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600"
               disabled={loading}
             />
             <label htmlFor="active" className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -263,7 +263,7 @@ const UserModal: React.FC<UserModalProps> = ({
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                className={`w-full pl-10 pr-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full pl-10 pr-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 }`}
                 placeholder="user@example.com"
@@ -286,7 +286,7 @@ const UserModal: React.FC<UserModalProps> = ({
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
-                className={`w-full pl-10 pr-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full pl-10 pr-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.phone ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 }`}
                 placeholder="+1 (555) 123-4567"
@@ -309,7 +309,7 @@ const UserModal: React.FC<UserModalProps> = ({
                 type={showPin ? "text" : "password"}
                 value={formData.pin}
                 onChange={(e) => handleInputChange('pin', e.target.value)}
-                className={`w-full pl-10 pr-10 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full pl-10 pr-10 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.pin ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 }`}
                 placeholder="4-6 digits"

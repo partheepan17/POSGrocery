@@ -276,7 +276,7 @@ export function BackupsSection({ settings, updateSettings, onSettingsChange }: B
                           value={settings.backupSettings.credentials?.[cred.key] || ''}
                           onChange={(e) => handleCredentialChange(cred.key, e.target.value)}
                           placeholder={`Enter ${cred.label.toLowerCase()}`}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
                     ))}
@@ -303,7 +303,7 @@ export function BackupsSection({ settings, updateSettings, onSettingsChange }: B
                 type="time"
                 value={settings.backupSettings.schedule.dailyTime}
                 onChange={(e) => handleScheduleChange('dailyTime', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Automatic daily backup will run at this time
@@ -350,7 +350,7 @@ export function BackupsSection({ settings, updateSettings, onSettingsChange }: B
                 max="365"
                 value={settings.backupSettings.retention.keepDaily}
                 onChange={(e) => handleRetentionChange('keepDaily', parseInt(e.target.value))}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Number of daily backups to retain
@@ -367,7 +367,7 @@ export function BackupsSection({ settings, updateSettings, onSettingsChange }: B
                 max="100"
                 value={settings.backupSettings.retention.keepConfigChange}
                 onChange={(e) => handleRetentionChange('keepConfigChange', parseInt(e.target.value))}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Number of settings-change backups to retain
@@ -428,7 +428,7 @@ export function BackupsSection({ settings, updateSettings, onSettingsChange }: B
                   value={managerPin}
                   onChange={(e) => setManagerPin(e.target.value)}
                   placeholder="Enter manager PIN"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>

@@ -294,7 +294,7 @@ export function CartSummary({
               value={manualDiscount.value || ''}
               onChange={(e) => handleManualDiscountValueChange(parseFloat(e.target.value) || 0)}
               placeholder={manualDiscount.type === 'PERCENTAGE' ? '0.0' : '0'}
-              className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20"
             />
             <button
               onClick={clearManualDiscount}

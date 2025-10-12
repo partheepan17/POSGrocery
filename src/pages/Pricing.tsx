@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, Download, Upload, RefreshCw, Calculator, AlertTriangle, ArrowRight, Edit3, Trash2, Plus } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { dataService, Product, Category } from '@/services/dataService';
@@ -70,6 +71,7 @@ interface ImportResults {
 }
 
 export function Pricing() {
+  const { t } = useTranslation();
   const { settings } = useAppStore();
   const [products, setProducts] = useState<ProductWithCategory[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -503,7 +505,7 @@ export function Pricing() {
               placeholder="Search SKU, name, barcode... (/)"
               value={filters.search}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -511,7 +513,7 @@ export function Pricing() {
           <select
             value={filters.category_id}
             onChange={(e) => handleFilterChange('category_id', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="">All Categories</option>
             {categories.map(category => (
@@ -525,7 +527,7 @@ export function Pricing() {
           <select
             value={filters.missing_price_filter}
             onChange={(e) => handleFilterChange('missing_price_filter', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="any">Any Missing Price</option>
             <option value="retail">Missing Retail</option>
@@ -538,7 +540,7 @@ export function Pricing() {
           <select
             value={filters.active_filter}
             onChange={(e) => handleFilterChange('active_filter', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">All Status</option>
             <option value="active">Active Only</option>
@@ -643,7 +645,7 @@ export function Pricing() {
                               if (e.key === 'Escape') handleCancelEdit();
                             }}
                             onBlur={handleSaveEdit}
-                            className={`w-full px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500 ${
+                            className={`w-full px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 ${
                               isPriceBlocked(product, 'price_retail') 
                                 ? 'border-red-500 bg-red-50' 
                                 : 'border-blue-500'
@@ -680,7 +682,7 @@ export function Pricing() {
                               if (e.key === 'Escape') handleCancelEdit();
                             }}
                             onBlur={handleSaveEdit}
-                            className={`w-full px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500 ${
+                            className={`w-full px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 ${
                               isPriceBlocked(product, 'price_wholesale') 
                                 ? 'border-red-500 bg-red-50' 
                                 : 'border-blue-500'
@@ -717,7 +719,7 @@ export function Pricing() {
                               if (e.key === 'Escape') handleCancelEdit();
                             }}
                             onBlur={handleSaveEdit}
-                            className={`w-full px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500 ${
+                            className={`w-full px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 ${
                               isPriceBlocked(product, 'price_credit') 
                                 ? 'border-red-500 bg-red-50' 
                                 : 'border-blue-500'
@@ -754,7 +756,7 @@ export function Pricing() {
                               if (e.key === 'Escape') handleCancelEdit();
                             }}
                             onBlur={handleSaveEdit}
-                            className={`w-full px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500 ${
+                            className={`w-full px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 ${
                               isPriceBlocked(product, 'price_other') 
                                 ? 'border-red-500 bg-red-50' 
                                 : 'border-blue-500'

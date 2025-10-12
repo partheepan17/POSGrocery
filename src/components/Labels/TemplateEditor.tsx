@@ -150,7 +150,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   type="text"
                   value={editedPreset.name}
                   onChange={(e) => updatePreset({ name: e.target.value })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               
@@ -161,7 +161,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                 <select
                   value={editedPreset.type}
                   onChange={(e) => updatePreset({ type: e.target.value as 'product' | 'shelf' })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="product">Product Label</option>
                   <option value="shelf">Shelf Label</option>
@@ -177,7 +177,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                 <select
                   value={editedPreset.paper}
                   onChange={(e) => updatePreset({ paper: e.target.value as 'THERMAL' | 'A4' })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="THERMAL">Thermal Roll</option>
                   <option value="A4">A4 Sheet</option>
@@ -196,7 +196,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   onChange={(e) => updatePreset({
                     size: { ...editedPreset.size, width_mm: parseInt(e.target.value) || 50 }
                   })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               
@@ -212,7 +212,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   onChange={(e) => updatePreset({
                     size: { ...editedPreset.size, height_mm: parseInt(e.target.value) || 30 }
                   })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -230,7 +230,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                 <select
                   value={editedPreset.barcode.symbology}
                   onChange={(e) => updateBarcode({ symbology: e.target.value as BarcodeSymbology })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="EAN13">EAN-13</option>
                   <option value="CODE128">Code 128</option>
@@ -244,7 +244,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                 <select
                   value={editedPreset.barcode.source}
                   onChange={(e) => updateBarcode({ source: e.target.value as 'barcode' | 'sku' })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="barcode">Product Barcode</option>
                   <option value="sku">Product SKU</option>
@@ -277,7 +277,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                 <select
                   value={editedPreset.fields.line1}
                   onChange={(e) => updateFields({ line1: e.target.value as any })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="name_en">Product Name (English)</option>
                   <option value="name_si">Product Name (Sinhala)</option>
@@ -293,7 +293,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                 <select
                   value={editedPreset.fields.line2 || ''}
                   onChange={(e) => updateFields({ line2: (e.target.value as 'sku' | 'category' | 'custom') || undefined })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">None</option>
                   <option value="sku">Product SKU</option>
@@ -326,7 +326,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                     <select
                       value={editedPreset.fields.price.source}
                       onChange={(e) => updatePrice({ source: e.target.value as any })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="retail">Retail Price</option>
                       <option value="wholesale">Wholesale Price</option>
@@ -375,7 +375,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                 <select
                   value={editedPreset.fields.languageMode || 'preset'}
                   onChange={(e) => updateFields({ languageMode: e.target.value as 'preset' | 'per_item' })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="preset">Use preset default language</option>
                   <option value="per_item">Allow per-item language selection</option>
@@ -453,7 +453,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   <select
                     value={editedPreset.fields.dateFormat || 'YYYY-MM-DD'}
                     onChange={(e) => updateFields({ dateFormat: e.target.value as any })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="YYYY-MM-DD">YYYY-MM-DD (2024-03-15)</option>
                     <option value="DD/MM/YYYY">DD/MM/YYYY (15/03/2024)</option>
@@ -473,7 +473,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                     value={editedPreset.fields.mrpLabel || 'MRP'}
                     onChange={(e) => updateFields({ mrpLabel: e.target.value })}
                     placeholder="MRP"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 
@@ -486,7 +486,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                     value={editedPreset.fields.batchLabel || 'Batch'}
                     onChange={(e) => updateFields({ batchLabel: e.target.value })}
                     placeholder="Batch"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               </div>
@@ -501,7 +501,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                     value={editedPreset.fields.packedLabel || 'Packed'}
                     onChange={(e) => updateFields({ packedLabel: e.target.value })}
                     placeholder="Packed"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 
@@ -514,7 +514,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                     value={editedPreset.fields.expiryLabel || 'Expiry'}
                     onChange={(e) => updateFields({ expiryLabel: e.target.value })}
                     placeholder="Expiry"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               </div>
@@ -551,7 +551,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                 <select
                   value={editedPreset.style.align}
                   onChange={(e) => updateStyle({ align: e.target.value as any })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="left">Left</option>
                   <option value="center">Center</option>

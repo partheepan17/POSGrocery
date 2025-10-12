@@ -21,6 +21,7 @@ interface FormData {
 interface ValidationErrors {
   supplier_name?: string;
   contact_email?: string;
+  contact_phone?: string;
 }
 
 export function SupplierModal({ supplier, onClose, onSave }: SupplierModalProps) {
@@ -52,15 +53,23 @@ export function SupplierModal({ supplier, onClose, onSave }: SupplierModalProps)
 
   const validateForm = async (): Promise<boolean> => {
     const newErrors: ValidationErrors = {};
+    const trimmedName = formData.supplier_name.trim();
 
     // Supplier name validation
-    if (!formData.supplier_name.trim()) {
+    if (!trimmedName) {
       newErrors.supplier_name = 'Supplier name is required';
     } else {
-      // Check for duplicate name (case-insensitive)
-      const existingSupplier = await dataService.getSupplierByName(formData.supplier_name.trim());
-      if (existingSupplier && existingSupplier.id !== supplier?.id) {
-        newErrors.supplier_name = 'A supplier with this name already exists';
+      // Length validation
+      if (trimmedName.length > 100) {
+        newErrors.supplier_name = 'Supplier name cannot exceed 100 characters';
+      } else if (!/^[a-zA-Z0-9\s\-_\.]+$/.test(trimmedName)) {
+        newErrors.supplier_name = 'Supplier name can only contain letters, numbers, spaces, hyphens, underscores, and periods';
+      } else {
+        // Check for duplicate name (case-insensitive)
+        const existingSupplier = await dataService.getSupplierByName(trimmedName);
+        if (existingSupplier && existingSupplier.id !== supplier?.id) {
+          newErrors.supplier_name = 'A supplier with this name already exists';
+        }
       }
     }
 
@@ -69,6 +78,14 @@ export function SupplierModal({ supplier, onClose, onSave }: SupplierModalProps)
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.contact_email.trim())) {
         newErrors.contact_email = 'Please enter a valid email address';
+      }
+    }
+
+    // Phone validation
+    if (formData.contact_phone.trim()) {
+      const phoneRegex = /^[\+]?[0-9\s\-\(\)]{7,20}$/;
+      if (!phoneRegex.test(formData.contact_phone.trim())) {
+        newErrors.contact_phone = 'Please enter a valid phone number';
       }
     }
 
@@ -96,16 +113,30 @@ export function SupplierModal({ supplier, onClose, onSave }: SupplierModalProps)
 
       if (supplier?.id) {
         await dataService.updateSupplier(supplier.id, supplierData);
-        toast.success('Supplier updated successfully');
+        toast.success(`Supplier "${supplierData.supplier_name}" updated successfully`);
       } else {
         await dataService.createSupplier(supplierData);
-        toast.success('Supplier created successfully');
+        toast.success(`Supplier "${supplierData.supplier_name}" created successfully`);
       }
 
       onSave();
     } catch (error) {
       console.error('Error saving supplier:', error);
-      toast.error('Failed to save supplier');
+      
+      // Enhanced error handling with specific messages
+      if (error instanceof Error) {
+        if (error.message.includes('Conflict:')) {
+          toast.error(error.message.replace('Conflict: ', ''));
+        } else if (error.message.includes('Validation Error:')) {
+          toast.error(error.message.replace('Validation Error: ', ''));
+        } else if (error.message.includes('Server Error:')) {
+          toast.error('Server error occurred. Please try again.');
+        } else {
+          toast.error(error.message);
+        }
+      } else {
+        toast.error('Failed to save supplier. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -145,7 +176,7 @@ export function SupplierModal({ supplier, onClose, onSave }: SupplierModalProps)
               type="text"
               value={formData.supplier_name}
               onChange={(e) => handleInputChange('supplier_name', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
                 errors.supplier_name ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="Enter supplier name"
@@ -165,9 +196,14 @@ export function SupplierModal({ supplier, onClose, onSave }: SupplierModalProps)
               type="tel"
               value={formData.contact_phone}
               onChange={(e) => handleInputChange('contact_phone', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.contact_phone ? 'border-red-500' : 'border-gray-300'
+              }`}
               placeholder="Enter phone number"
             />
+            {errors.contact_phone && (
+              <p className="text-red-500 text-sm mt-1">{errors.contact_phone}</p>
+            )}
           </div>
 
           {/* Email */}
@@ -179,7 +215,7 @@ export function SupplierModal({ supplier, onClose, onSave }: SupplierModalProps)
               type="email"
               value={formData.contact_email}
               onChange={(e) => handleInputChange('contact_email', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
                 errors.contact_email ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="Enter email address"
@@ -198,7 +234,7 @@ export function SupplierModal({ supplier, onClose, onSave }: SupplierModalProps)
               type="text"
               value={formData.tax_id}
               onChange={(e) => handleInputChange('tax_id', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Enter tax identification number"
             />
           </div>
@@ -212,7 +248,7 @@ export function SupplierModal({ supplier, onClose, onSave }: SupplierModalProps)
               value={formData.address}
               onChange={(e) => handleInputChange('address', e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Enter supplier address"
             />
           </div>
