@@ -83,3 +83,17 @@ CREATE INDEX IF NOT EXISTS idx_stock_ledger_product ON stock_ledger(product_id);
 CREATE INDEX IF NOT EXISTS idx_stock_ledger_type ON stock_ledger(movement_type);
 CREATE INDEX IF NOT EXISTS idx_stock_ledger_reference ON stock_ledger(reference_type, reference_id);
 CREATE INDEX IF NOT EXISTS idx_stock_ledger_date ON stock_ledger(created_at);
+
+
+
+
+
+
+
+
+
+
+
+
+
+

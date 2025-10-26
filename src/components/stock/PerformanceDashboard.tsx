@@ -75,7 +75,7 @@ export function PerformanceDashboard() {
   // Load performance data
   useEffect(() => {
     loadPerformanceData();
-    const interval = setInterval(loadPerformanceData, 30000); // Update every 30 seconds
+    const interval = setInterval(loadPerformanceData, 300000); // Update every 5 minutes instead of 30 seconds
     return () => clearInterval(interval);
   }, []);
 

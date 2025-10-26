@@ -269,3 +269,5 @@ export function HelpSupport() {
     </div>
   );
 }
+
+export default HelpSupport;

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/utils/cn';
 import { WifiOff, RefreshCw, AlertTriangle, CheckCircle } from 'lucide-react';
-import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 
 interface OfflineBannerProps {
   className?: string;

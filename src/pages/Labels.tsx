@@ -18,7 +18,12 @@ type Tab = 'products' | 'grn' | 'csv' | 'history';
 export function Labels() {
   const [activeTab, setActiveTab] = useState<Tab>('products');
   const [selectedPreset, setSelectedPreset] = useState<LabelPreset | null>(null);
-  const [batch, setBatch] = useState<LabelBatch>({ items: [], preset: null as any });
+  const [batch, setBatch] = useState<LabelBatch>({ 
+    id: '', 
+    items: [], 
+    preset: null as any, 
+    created_at: new Date().toISOString() 
+  });
   const [loading, setLoading] = useState(false);
   
   // Modal states
@@ -39,7 +44,7 @@ export function Labels() {
   // Batch analysis for date legend and quick actions
   const batchAnalysis = useMemo(() => {
     const hasDateFields = batch.items.some(item => item.packedDate || item.expiryDate);
-    const dateFormat = batch.preset?.fields.dateFormat || 'YYYY-MM-DD';
+    const dateFormat = (batch.preset?.fields && !Array.isArray(batch.preset.fields) && batch.preset.fields.dateFormat) || 'YYYY-MM-DD';
     const languages = [...new Set(batch.items.map(item => item.language).filter(Boolean))];
     
     return {
@@ -47,7 +52,7 @@ export function Labels() {
       dateFormat,
       languages,
       totalItems: batch.items.length,
-      totalLabels: batch.items.reduce((sum, item) => sum + item.qty, 0)
+      totalLabels: batch.items.reduce((sum, item) => sum + (item.qty || 1), 0)
     };
   }, [batch.items, batch.preset]);
 
@@ -64,8 +69,8 @@ export function Labels() {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const productsData = await dataService.getProducts();
-      setProducts(productsData);
+      const productsResult = await dataService.getProducts();
+      setProducts(Array.isArray(productsResult) ? productsResult : []);
     } catch (error) {
       console.error('Failed to load products:', error);
       toast.error('Failed to load products');
@@ -654,3 +659,5 @@ function ProductsTab({
     </div>
   );
 }
+
+export default Labels;

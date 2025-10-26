@@ -97,4 +97,6 @@ export function SimpleTest() {
   );
 }
 
+export default SimpleTest;
+
 

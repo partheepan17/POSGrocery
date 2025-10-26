@@ -37,7 +37,7 @@ async function runBenchmarks(): Promise<BenchmarkResult[]> {
   // Initialize database
   console.log('📊 Initializing database...');
   initDatabase();
-  const db = getDatabase();
+  // Database initialized for benchmarking
   console.log('✅ Database initialized');
   
   // Initialize prepared statements

@@ -4,6 +4,7 @@ import { ArrowLeft, Printer, AlertCircle } from 'lucide-react';
 import { useReturnStore } from '@/store/returnStore';
 import { keyboardManager, POS_SHORTCUTS } from '@/lib/keyboard';
 import { toast } from 'react-hot-toast';
+import { healthCheckService, HealthCheckResult } from '@/services/healthCheckService';
 
 // Components
 import { ReturnLookup } from '@/components/returns/ReturnLookup';
@@ -24,37 +25,29 @@ export default function ReturnsPage() {
     error 
   } = useReturnStore();
 
-  // Health check
-  const checkOnlineStatus = async () => {
-    try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
-      const response = await fetch(`${apiBaseUrl}/api/health`);
-      const data = await response.json();
-      setIsOnline(data.status === 'ok');
-    } catch (error) {
-      setIsOnline(false);
-    }
-  };
-
-  // Health check on mount
+  // Use centralized health check service
   useEffect(() => {
-    checkOnlineStatus();
-    const healthInterval = setInterval(checkOnlineStatus, 15000);
-    return () => clearInterval(healthInterval);
+    const unsubscribe = healthCheckService.subscribe((result: HealthCheckResult) => {
+      setIsOnline(result.isOnline);
+    });
+    
+    return unsubscribe;
   }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
     // Returns shortcut (already active)
     keyboardManager.register({
-      ...POS_SHORTCUTS.RETURNS,
+      key: 'r',
+      ctrlKey: true,
+      description: 'Go to Returns',
       action: () => navigate('/returns')
     });
 
     // Print return receipt
     keyboardManager.register({
       key: 'P',
-      ctrl: true,
+      ctrlKey: true,
       action: () => handlePrintReturnReceipt(),
       description: 'Print Return Receipt'
     });
@@ -78,7 +71,7 @@ export default function ReturnsPage() {
 
     setIsPrinting(true);
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || `${window.location.protocol}//${window.location.host}`;
       const response = await fetch(`${apiBaseUrl}/api/print`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

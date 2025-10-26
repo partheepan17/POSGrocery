@@ -22,7 +22,7 @@ export function BatchSelector({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [dateErrors, setDateErrors] = useState<Record<number, string[]>>({});
 
-  const totalLabels = items.reduce((sum, item) => sum + item.qty, 0);
+  const totalLabels = items.reduce((sum, item) => sum + ((item.qty || 0) || 0), 0);
 
   const handleQtyChange = (index: number, newQty: number) => {
     const qty = Math.max(0, Math.min(999, newQty));
@@ -296,8 +296,8 @@ export function BatchSelector({
             {/* Quantity Controls */}
             <div className="flex items-center space-x-2 ml-4">
               <button
-                onClick={() => handleQtyChange(index, item.qty - 1)}
-                disabled={item.qty <= 1}
+                onClick={() => handleQtyChange(index, (item.qty || 0) - 1)}
+                disabled={(item.qty || 0) <= 1}
                 className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Minus className="w-4 h-4" />
@@ -307,14 +307,14 @@ export function BatchSelector({
                 type="number"
                 min="1"
                 max="999"
-                value={item.qty}
+                value={(item.qty || 0)}
                 onChange={(e) => handleQtyChange(index, parseInt(e.target.value) || 1)}
                 className="w-16 text-center text-sm border border-gray-300 rounded-md py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
               
               <button
-                onClick={() => handleQtyChange(index, item.qty + 1)}
-                disabled={item.qty >= 999}
+                onClick={() => handleQtyChange(index, (item.qty || 0) + 1)}
+                disabled={(item.qty || 0) >= 999}
                 className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus className="w-4 h-4" />

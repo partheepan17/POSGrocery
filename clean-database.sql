@@ -142,3 +142,17 @@ SELECT
     (SELECT COUNT(*) FROM system_config) as config_count;
 
 PRAGMA integrity_check;
+
+
+
+
+
+
+
+
+
+
+
+
+
+

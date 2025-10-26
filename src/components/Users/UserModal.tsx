@@ -40,7 +40,7 @@ const UserModal: React.FC<UserModalProps> = ({
     if (user) {
       setFormData({
         name: user.name,
-        role: user.role,
+        role: user.role.toUpperCase() as Role,
         active: user.active,
         email: user.email || '',
         phone: user.phone || '',

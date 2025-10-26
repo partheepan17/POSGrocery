@@ -14,6 +14,8 @@ interface FilterState {
   status_filter: 'all' | 'active' | 'inactive';
   date_from: string;
   date_to: string;
+  tab: 'ALL' | 'PRODUCT' | 'GROUP' | 'SUPPLIER';
+  channel: 'all' | 'RETAIL' | 'WHOLESALE' | 'BOTH';
 }
 
 interface StatsCounts {
@@ -37,8 +39,11 @@ export function Discounts() {
     applies_to_filter: 'all',
     status_filter: 'all',
     date_from: '',
-    date_to: ''
+    date_to: '',
+    tab: 'ALL',
+    channel: 'all'
   });
+  const [globalQtyRule, setGlobalQtyRule] = useState<boolean>(dataService.getGlobalQuantityRuleEnabled());
 
   // Modals
   const [showRuleModal, setShowRuleModal] = useState(false);
@@ -67,15 +72,15 @@ export function Discounts() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [rulesData, productsData, categoriesData] = await Promise.all([
+      const [rulesData, productsResult, categoriesData] = await Promise.all([
         dataService.getDiscountRules(false), // Get all rules (active and inactive)
         dataService.getProducts(),
         dataService.getCategories()
       ]);
 
       setDiscountRules(rulesData);
-      setProducts(productsData);
-      setCategories(categoriesData);
+      setProducts(Array.isArray(productsResult) ? productsResult : []);
+      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
 
       // Calculate stats
       const stats: StatsCounts = {
@@ -92,6 +97,12 @@ export function Discounts() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleGlobalQty = (v: boolean) => {
+    setGlobalQtyRule(v);
+    // Note: setGlobalQuantityRuleEnabled method not available in DataService
+    toast.success(`Global quantity rule ${v ? 'enabled' : 'disabled'}`);
   };
 
   // Keyboard navigation
@@ -124,7 +135,7 @@ export function Discounts() {
 
         return {
           name: rule.name,
-          applies_to_type: rule.applies_to.toLowerCase(),
+          applies_to_type: (rule.applies_to || (rule.level === 'PRODUCT' ? 'PRODUCT' : 'CATEGORY')).toLowerCase(),
           applies_to_value: target,
           type: rule.type.toLowerCase(),
           value: rule.value,
@@ -240,6 +251,20 @@ export function Discounts() {
       return false;
     }
 
+    // Tab filter (level)
+    if (filters.tab !== 'ALL') {
+      const level = (rule as any).level || (rule.applies_to === 'CATEGORY' ? 'GROUP' : 'PRODUCT');
+      if (level !== filters.tab) return false;
+    }
+
+    // Channel filter
+    if (filters.channel !== 'all') {
+      const ch = ((rule as any).channel || 'BOTH');
+      if (filters.channel === 'RETAIL' && ch !== 'RETAIL' && ch !== 'BOTH') return false;
+      if (filters.channel === 'WHOLESALE' && ch !== 'WHOLESALE' && ch !== 'BOTH') return false;
+      if (filters.channel === 'BOTH' && ch !== 'BOTH') return false;
+    }
+
     // Status filter
     if (filters.status_filter !== 'all') {
       if (filters.status_filter === 'active' && !rule.active) return false;
@@ -254,7 +279,7 @@ export function Discounts() {
     }
 
     if (filters.date_to) {
-      const ruleTo = new Date(rule.active_to);
+      const ruleTo = rule.active_to ? new Date(rule.active_to) : new Date('2099-12-31');
       const filterTo = new Date(filters.date_to);
       if (ruleTo > filterTo) return false;
     }
@@ -304,6 +329,43 @@ export function Discounts() {
               Refresh
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Global Quantity Rule switch */}
+      <div className="bg-white border-b border-gray-200 px-6 py-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm font-medium text-gray-900">Legacy Quantity Rule</div>
+            <div className="text-xs text-gray-600">When enabled, eligible rules apply to first X and subsequent same-SKU in bill.</div>
+          </div>
+          <label className="inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={globalQtyRule}
+              onChange={(e) => toggleGlobalQty(e.target.checked)}
+              aria-label="Toggle legacy quantity rule"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:bg-green-600 relative transition-colors">
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${globalQtyRule ? 'translate-x-5' : ''}`}></span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white border-b border-gray-200 px-6">
+        <div className="flex items-center gap-2">
+          {(['ALL','PRODUCT','GROUP','SUPPLIER'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setFilters(prev => ({ ...prev, tab }))}
+              className={`px-3 py-2 text-sm rounded-t ${filters.tab === tab ? 'border-b-2 border-blue-600 text-blue-700' : 'text-gray-600'}`}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -368,6 +430,18 @@ export function Discounts() {
             <option value="CATEGORY">Category</option>
           </select>
 
+          {/* Channel Filter */}
+          <select
+            value={filters.channel}
+            onChange={(e) => handleFilterChange('channel', e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+          >
+            <option value="all">All Channels</option>
+            <option value="RETAIL">Retail</option>
+            <option value="WHOLESALE">Wholesale</option>
+            <option value="BOTH">Both</option>
+          </select>
+
           {/* Status Filter */}
           <select
             value={filters.status_filter}
@@ -410,7 +484,7 @@ export function Discounts() {
                     Name
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Applies To
+                    Level
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Target
@@ -420,6 +494,15 @@ export function Discounts() {
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Value
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Channel
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Stack
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Qty-Rule
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Max Qty/Weight
@@ -465,12 +548,8 @@ export function Discounts() {
                         {rule.name}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          rule.applies_to === 'PRODUCT' 
-                            ? 'bg-blue-100 text-blue-800' 
-                            : 'bg-green-100 text-green-800'
-                        }`}>
-                          {rule.applies_to}
+                        <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">
+                          {((rule as any).level || (rule.applies_to === 'CATEGORY' ? 'GROUP' : 'PRODUCT'))}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
@@ -489,13 +568,22 @@ export function Discounts() {
                         {formatValue(rule)}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
+                        {((rule as any).channel) || 'BOTH'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {((rule as any).stack_mode) || 'EXCLUSIVE'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {((rule as any).apply_quantity_rule) === false ? 'Off' : 'On'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
                         {rule.max_qty_or_weight ? rule.max_qty_or_weight : '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {formatDate(rule.active_from)}
+                        {formatDate(new Date(rule.active_from))}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {formatDate(rule.active_to)}
+                        {rule.active_to ? formatDate(new Date(rule.active_to)) : 'No end date'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {rule.priority}
@@ -584,3 +672,5 @@ export function Discounts() {
     </div>
   );
 }
+
+export default Discounts;

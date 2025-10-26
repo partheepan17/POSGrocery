@@ -2,36 +2,41 @@
  * Template Downloader Tests
  */
 
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { downloadTemplate, getTemplateConfig, TEMPLATE_CONFIGS } from '../templateDownloader';
 
 // Mock DOM methods
-const mockCreateElement = jest.fn();
-const mockAppendChild = jest.fn();
-const mockRemoveChild = jest.fn();
-const mockClick = jest.fn();
-const mockSetAttribute = jest.fn();
+const mockCreateElement = vi.fn();
+const mockAppendChild = vi.fn();
+const mockRemoveChild = vi.fn();
+const mockClick = vi.fn();
+const mockSetAttribute = vi.fn();
 
 // Mock URL.createObjectURL and URL.revokeObjectURL
-const mockCreateObjectURL = jest.fn(() => 'mock-url');
-const mockRevokeObjectURL = jest.fn();
+const mockCreateObjectURL = vi.fn(() => 'mock-url');
+const mockRevokeObjectURL = vi.fn();
 
 // Mock Blob
-const mockBlob = jest.fn();
+const mockBlob = vi.fn();
 
 beforeAll(() => {
   // Mock DOM
-  global.document.createElement = mockCreateElement;
-  global.document.body = {
-    appendChild: mockAppendChild,
-    removeChild: mockRemoveChild
-  } as any;
+  globalThis.document.createElement = mockCreateElement;
+  // Mock document.body methods
+  Object.defineProperty(globalThis.document, 'body', {
+    value: {
+      appendChild: mockAppendChild,
+      removeChild: mockRemoveChild
+    },
+    writable: true
+  });
 
   // Mock URL
-  global.URL.createObjectURL = mockCreateObjectURL;
-  global.URL.revokeObjectURL = mockRevokeObjectURL;
+  globalThis.URL.createObjectURL = mockCreateObjectURL;
+  globalThis.URL.revokeObjectURL = mockRevokeObjectURL;
 
   // Mock Blob
-  global.Blob = mockBlob as any;
+  globalThis.Blob = mockBlob as any;
 
   // Mock element
   const mockElement = {
@@ -43,7 +48,7 @@ beforeAll(() => {
 });
 
 afterEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('Template Downloader', () => {
@@ -177,3 +182,6 @@ describe('Template Downloader', () => {
     });
   });
 });
+
+
+

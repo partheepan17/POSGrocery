@@ -13,7 +13,7 @@ export default function ProfitReport() {
     setLoading(true); setError(null);
     try {
       const data = await dataService.getProfitReport({ from, to, groupBy });
-      setRows(data);
+      setRows(data as any);
     } catch (e: any) {
       setError(e?.message || 'Failed to load');
     } finally { setLoading(false); }
@@ -90,6 +90,20 @@ export default function ProfitReport() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

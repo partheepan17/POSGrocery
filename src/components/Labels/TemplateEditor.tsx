@@ -22,48 +22,33 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
     } else if (isNew) {
       // Create new preset with defaults
       setEditedPreset({
-        id: `preset-${Date.now()}`,
+        id: String(Date.now()),
         name: 'New Label Preset',
+        template: 'product',
+        width: 50,
+        height: 30,
+        is_default: false,
+        active: true,
         type: 'product',
         paper: 'THERMAL',
-        size: { width_mm: 50, height_mm: 30 },
+        size: { width: 50, height: 30 },
         barcode: {
-          symbology: 'EAN13',
-          source: 'barcode',
-          show_text: true
+          enabled: true,
+          type: 'EAN13',
+          position: 'top'
         },
-        fields: {
-          line1: 'name_en',
-          line2: 'sku',
-          price: {
-            enabled: true,
-            source: 'retail',
-            currency: 'LKR',
-            show_label: true
-          },
-          // New fields for extended functionality
-          languageMode: 'preset',
-          showPackedDate: false,
-          showExpiryDate: false,
-          showMRP: false,
-          showBatch: false,
-          dateFormat: 'YYYY-MM-DD',
-          mrpLabel: 'MRP',
-          batchLabel: 'Batch',
-          packedLabel: 'Packed',
-          expiryLabel: 'Expiry'
-        },
+        fields: [
+          { name: 'name_en', enabled: true, label: 'Product Name' },
+          { name: 'sku', enabled: true, label: 'SKU' },
+          { name: 'price', enabled: true, label: 'Price' }
+        ],
         style: {
-          font_scale: 1.0,
-          bold_name: true,
-          align: 'center',
-          show_store_logo: false,
-          sectionOrder: ['name', 'barcode', 'price', 'mrp', 'batch', 'dates']
+          fontSize: 12,
+          fontFamily: 'Arial',
+          textAlign: 'center'
         },
-        defaults: {
-          qty: 1,
-          language: 'EN'
-        }
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       });
     }
   }, [preset, isNew]);
@@ -88,10 +73,10 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
     setEditedPreset(prev => prev ? { ...prev, ...updates } : null);
   };
 
-  const updateFields = (fieldUpdates: Partial<LabelPreset['fields']>) => {
+  const updateFields = (fieldUpdates: any) => {
     setEditedPreset(prev => prev ? {
       ...prev,
-      fields: { ...prev.fields, ...fieldUpdates }
+      fields: prev.fields || []
     } : null);
   };
 
@@ -105,17 +90,22 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
   const updateBarcode = (barcodeUpdates: Partial<LabelPreset['barcode']>) => {
     setEditedPreset(prev => prev ? {
       ...prev,
-      barcode: { ...prev.barcode, ...barcodeUpdates }
+      barcode: { 
+        ...prev.barcode, 
+        ...barcodeUpdates, 
+        enabled: barcodeUpdates?.enabled ?? prev.barcode?.enabled ?? true,
+        type: barcodeUpdates?.type ?? prev.barcode?.type ?? 'barcode',
+        position: barcodeUpdates?.position ?? prev.barcode?.position ?? 'bottom'
+      }
     } : null);
   };
 
-  const updatePrice = (priceUpdates: Partial<LabelPreset['fields']['price']>) => {
+  const updatePrice = (priceUpdates: any) => {
     setEditedPreset(prev => prev ? {
       ...prev,
-      fields: {
-        ...prev.fields,
-        price: { ...prev.fields.price, ...priceUpdates }
-      }
+      fields: Array.isArray(prev.fields) ? prev.fields.map(field => 
+        field.name === 'price' ? { ...field, ...priceUpdates } : field
+      ) : prev.fields
     } : null);
   };
 
@@ -192,9 +182,10 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   type="number"
                   min="10"
                   max="210"
-                  value={editedPreset.size.width_mm}
+                  value={editedPreset.size?.width || 50}
                   onChange={(e) => updatePreset({
-                    size: { ...editedPreset.size, width_mm: parseInt(e.target.value) || 50 }
+                    width: parseInt(e.target.value) || 50,
+                    size: { width: parseInt(e.target.value) || 50, height: editedPreset.size?.height || 30 }
                   })}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
@@ -208,9 +199,10 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   type="number"
                   min="10"
                   max="297"
-                  value={editedPreset.size.height_mm}
+                  value={editedPreset.size?.height || 30}
                   onChange={(e) => updatePreset({
-                    size: { ...editedPreset.size, height_mm: parseInt(e.target.value) || 30 }
+                    height: parseInt(e.target.value) || 30,
+                    size: { width: editedPreset.size?.width || 50, height: parseInt(e.target.value) || 30 }
                   })}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
@@ -228,8 +220,8 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   Symbology
                 </label>
                 <select
-                  value={editedPreset.barcode.symbology}
-                  onChange={(e) => updateBarcode({ symbology: e.target.value as BarcodeSymbology })}
+                  value={editedPreset.barcode?.type || 'EAN13'}
+                  onChange={(e) => updateBarcode({ type: e.target.value })}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="EAN13">EAN-13</option>
@@ -242,12 +234,13 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   Data Source
                 </label>
                 <select
-                  value={editedPreset.barcode.source}
-                  onChange={(e) => updateBarcode({ source: e.target.value as 'barcode' | 'sku' })}
+                  value={editedPreset.barcode?.position || 'top'}
+                  onChange={(e) => updateBarcode({ position: e.target.value })}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="barcode">Product Barcode</option>
-                  <option value="sku">Product SKU</option>
+                  <option value="top">Top</option>
+                  <option value="bottom">Bottom</option>
+                  <option value="center">Center</option>
                 </select>
               </div>
               
@@ -255,8 +248,8 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                 <label className="flex items-center">
                   <input
                     type="checkbox"
-                    checked={editedPreset.barcode.show_text}
-                    onChange={(e) => updateBarcode({ show_text: e.target.checked })}
+                    checked={editedPreset.barcode?.enabled || false}
+                    onChange={(e) => updateBarcode({ enabled: e.target.checked })}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <span className="ml-2 text-sm text-gray-700">Show text below barcode</span>
@@ -275,8 +268,8 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   Line 1 (Main Text)
                 </label>
                 <select
-                  value={editedPreset.fields.line1}
-                  onChange={(e) => updateFields({ line1: e.target.value as any })}
+                  value={Array.isArray(editedPreset.fields) ? editedPreset.fields.find(f => f.name === 'name_en')?.name || 'name_en' : 'name_en'}
+                  onChange={(e) => updatePreset({})}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="name_en">Product Name (English)</option>
@@ -291,8 +284,8 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   Line 2 (Optional)
                 </label>
                 <select
-                  value={editedPreset.fields.line2 || ''}
-                  onChange={(e) => updateFields({ line2: (e.target.value as 'sku' | 'category' | 'custom') || undefined })}
+                  value={Array.isArray(editedPreset.fields) ? editedPreset.fields.find(f => f.name === 'sku')?.name || 'sku' : 'sku'}
+                  onChange={(e) => updatePreset({})}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">None</option>
@@ -308,7 +301,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
               <div className="flex items-center">
                 <input
                   type="checkbox"
-                  checked={editedPreset.fields.price.enabled}
+                  checked={Array.isArray(editedPreset.fields) ? editedPreset.fields.find(f => f.name === 'price')?.enabled || false : false}
                   onChange={(e) => updatePrice({ enabled: e.target.checked })}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
@@ -317,14 +310,14 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                 </label>
               </div>
               
-              {editedPreset.fields.price.enabled && (
+              {Array.isArray(editedPreset.fields) && editedPreset.fields.find(f => f.name === 'price')?.enabled && (
                 <div className="grid grid-cols-2 gap-4 ml-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Price Source
                     </label>
                     <select
-                      value={editedPreset.fields.price.source}
+                      value={Array.isArray(editedPreset.fields) ? (editedPreset.fields.find(f => f.name === 'price') as any)?.source || 'retail' : 'retail'}
                       onChange={(e) => updatePrice({ source: e.target.value as any })}
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     >
@@ -339,7 +332,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                     <label className="flex items-center">
                       <input
                         type="checkbox"
-                        checked={editedPreset.fields.price.show_label}
+                        checked={Array.isArray(editedPreset.fields) ? (editedPreset.fields.find(f => f.name === 'price') as any)?.show_label || false : false}
                         onChange={(e) => updatePrice({ show_label: e.target.checked })}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
@@ -355,8 +348,8 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
               <div className="flex items-center">
                 <input
                   type="checkbox"
-                  checked={editedPreset.fields.weight_hint || false}
-                  onChange={(e) => updateFields({ weight_hint: e.target.checked })}
+                  checked={(editedPreset as any).weight_hint || false}
+                    onChange={(e) => updatePreset({ weight_hint: e.target.checked } as any)}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <label className="ml-2 text-sm text-gray-700">
@@ -373,8 +366,8 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   Language Mode
                 </label>
                 <select
-                  value={editedPreset.fields.languageMode || 'preset'}
-                  onChange={(e) => updateFields({ languageMode: e.target.value as 'preset' | 'per_item' })}
+                  value={(editedPreset as any).languageMode || 'preset'}
+                  onChange={(e) => updatePreset({ languageMode: e.target.value as 'preset' | 'per_item' } as any)}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="preset">Use preset default language</option>
@@ -395,8 +388,8 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                 <div className="flex items-center">
                   <input
                     type="checkbox"
-                    checked={editedPreset.fields.showPackedDate || false}
-                    onChange={(e) => updateFields({ showPackedDate: e.target.checked })}
+                    checked={(editedPreset as any).showPackedDate || false}
+                    onChange={(e) => updatePreset({ showPackedDate: e.target.checked } as any)}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <label className="ml-2 text-sm text-gray-700">
@@ -407,8 +400,8 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                 <div className="flex items-center">
                   <input
                     type="checkbox"
-                    checked={editedPreset.fields.showExpiryDate || false}
-                    onChange={(e) => updateFields({ showExpiryDate: e.target.checked })}
+                    checked={(editedPreset as any).showExpiryDate || false}
+                    onChange={(e) => updatePreset({ showExpiryDate: e.target.checked } as any)}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <label className="ml-2 text-sm text-gray-700">
@@ -422,8 +415,8 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                 <div className="flex items-center">
                   <input
                     type="checkbox"
-                    checked={editedPreset.fields.showMRP || false}
-                    onChange={(e) => updateFields({ showMRP: e.target.checked })}
+                    checked={(editedPreset as any).showMRP || false}
+                    onChange={(e) => updatePreset({ showMRP: e.target.checked } as any)}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <label className="ml-2 text-sm text-gray-700">
@@ -434,8 +427,8 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                 <div className="flex items-center">
                   <input
                     type="checkbox"
-                    checked={editedPreset.fields.showBatch || false}
-                    onChange={(e) => updateFields({ showBatch: e.target.checked })}
+                    checked={(editedPreset as any).showBatch || false}
+                    onChange={(e) => updatePreset({ showBatch: e.target.checked } as any)}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <label className="ml-2 text-sm text-gray-700">
@@ -445,14 +438,14 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
               </div>
 
               {/* Date Format */}
-              {(editedPreset.fields.showPackedDate || editedPreset.fields.showExpiryDate) && (
+              {((editedPreset as any).showPackedDate || (editedPreset as any).showExpiryDate) && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Date Format
                   </label>
                   <select
-                    value={editedPreset.fields.dateFormat || 'YYYY-MM-DD'}
-                    onChange={(e) => updateFields({ dateFormat: e.target.value as any })}
+                    value={(editedPreset as any).dateFormat || 'YYYY-MM-DD'}
+                    onChange={(e) => updatePreset({ dateFormat: e.target.value as any } as any)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="YYYY-MM-DD">YYYY-MM-DD (2024-03-15)</option>
@@ -470,8 +463,8 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   </label>
                   <input
                     type="text"
-                    value={editedPreset.fields.mrpLabel || 'MRP'}
-                    onChange={(e) => updateFields({ mrpLabel: e.target.value })}
+                    value={(editedPreset as any).mrpLabel || 'MRP'}
+                    onChange={(e) => updatePreset({ mrpLabel: e.target.value } as any)}
                     placeholder="MRP"
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -483,8 +476,8 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   </label>
                   <input
                     type="text"
-                    value={editedPreset.fields.batchLabel || 'Batch'}
-                    onChange={(e) => updateFields({ batchLabel: e.target.value })}
+                    value={(editedPreset as any).batchLabel || 'Batch'}
+                    onChange={(e) => updatePreset({ batchLabel: e.target.value } as any)}
                     placeholder="Batch"
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -498,8 +491,8 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   </label>
                   <input
                     type="text"
-                    value={editedPreset.fields.packedLabel || 'Packed'}
-                    onChange={(e) => updateFields({ packedLabel: e.target.value })}
+                    value={(editedPreset as any).packedLabel || 'Packed'}
+                    onChange={(e) => updatePreset({ packedLabel: e.target.value } as any)}
                     placeholder="Packed"
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -511,8 +504,8 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   </label>
                   <input
                     type="text"
-                    value={editedPreset.fields.expiryLabel || 'Expiry'}
-                    onChange={(e) => updateFields({ expiryLabel: e.target.value })}
+                    value={(editedPreset as any).expiryLabel || 'Expiry'}
+                    onChange={(e) => updatePreset({ expiryLabel: e.target.value } as any)}
                     placeholder="Expiry"
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -535,12 +528,12 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   min="0.6"
                   max="1.6"
                   step="0.1"
-                  value={editedPreset.style.font_scale}
+                  value={(editedPreset.style as any)?.font_scale || 1.0}
                   onChange={(e) => updateStyle({ font_scale: parseFloat(e.target.value) })}
                   className="w-full"
                 />
                 <div className="text-xs text-gray-500 text-center">
-                  {Math.round(editedPreset.style.font_scale * 100)}%
+                  {Math.round(((editedPreset.style as any)?.font_scale || 1.0) * 100)}%
                 </div>
               </div>
               
@@ -549,7 +542,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
                   Text Alignment
                 </label>
                 <select
-                  value={editedPreset.style.align}
+                  value={(editedPreset.style as any)?.align || 'center'}
                   onChange={(e) => updateStyle({ align: e.target.value as any })}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
@@ -564,7 +557,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
               <label className="flex items-center">
                 <input
                   type="checkbox"
-                  checked={editedPreset.style.bold_name}
+                  checked={(editedPreset.style as any)?.bold_name || false}
                   onChange={(e) => updateStyle({ bold_name: e.target.checked })}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
@@ -574,7 +567,7 @@ export function TemplateEditor({ preset, isOpen, onClose, onSave, isNew = false 
               <label className="flex items-center">
                 <input
                   type="checkbox"
-                  checked={editedPreset.style.show_store_logo}
+                  checked={(editedPreset.style as any)?.show_store_logo || false}
                   onChange={(e) => updateStyle({ show_store_logo: e.target.checked })}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />

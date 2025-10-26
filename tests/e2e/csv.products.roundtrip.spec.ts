@@ -45,9 +45,9 @@ BREAD1,White Bread Loaf Updated,සුදු පාන් ගෙඩිය,வெ
     await expect(fileInput).toBeVisible();
     
     // Create a temporary file with modified content
-    const fs = require('fs');
-    const path = require('path');
-    const tempFilePath = path.join(__dirname, 'temp-products.csv');
+    const fs = (globalThis as any).require('fs');
+    const path = (globalThis as any).require('path');
+    const tempFilePath = path.join((globalThis as any).__dirname, 'temp-products.csv');
     fs.writeFileSync(tempFilePath, modifiedCSVContent);
     
     await fileInput.setInputFiles(tempFilePath);
@@ -94,9 +94,9 @@ INVALID1,,Invalid Product Name,தவறான தயாரிப்பு,1,pc,
 DUPLICATE1,Duplicate SKU,நகल் SKU,நகல் SKU,1,pc,100.00,90.00,95.00,92.00,70.00,1,10,false,true,1234567890998
 DUPLICATE1,Another Duplicate,மற்றொரு நகல்,மற்றொரு நகல்,1,pc,200.00,180.00,190.00,185.00,140.00,1,5,false,true,1234567890997`;
     
-    const fs = require('fs');
-    const path = require('path');
-    const tempFilePath = path.join(__dirname, 'temp-invalid-products.csv');
+    const fs = (globalThis as any).require('fs');
+    const path = (globalThis as any).require('path');
+    const tempFilePath = path.join((globalThis as any).__dirname, 'temp-invalid-products.csv');
     fs.writeFileSync(tempFilePath, invalidCSVContent);
     
     const fileInput = page.locator('[data-testid="csv-file-input"]').or(page.locator('input[type="file"]')).first();
@@ -137,7 +137,7 @@ DUPLICATE1,Another Duplicate,மற்றொரு நகல்,மற்றொ�
     
     // Read the CSV content
     const csvPath = await download.path();
-    const fs = require('fs');
+    const fs = (globalThis as any).require('fs');
     const csvContent = fs.readFileSync(csvPath!, 'utf-8');
     
     // Verify headers are correct
@@ -223,9 +223,9 @@ DUPLICATE1,Another Duplicate,மற்றொரு நகல்,மற்றொ�
     const csvWithMissingPrices = `sku,name_en,name_si,name_ta,category_id,unit,price_retail,price_wholesale,price_credit,price_other,cost,supplier_id,reorder_level,is_scale_item,active,barcode
 MISSING1,Missing Price Product,விலை இல்லாத தயாரிப்பு,விலை இல்லாத தயாரிப்பு,1,pc,,100.00,110.00,105.00,80.00,1,10,false,true,1234567890111`;
     
-    const fs = require('fs');
-    const path = require('path');
-    const tempFilePath = path.join(__dirname, 'temp-missing-prices.csv');
+    const fs = (globalThis as any).require('fs');
+    const path = (globalThis as any).require('path');
+    const tempFilePath = path.join((globalThis as any).__dirname, 'temp-missing-prices.csv');
     fs.writeFileSync(tempFilePath, csvWithMissingPrices);
     
     const fileInput = page.locator('[data-testid="csv-file-input"]').or(page.locator('input[type="file"]')).first();

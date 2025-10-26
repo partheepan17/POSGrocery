@@ -4,7 +4,7 @@
  * Supports both 58mm and 80mm thermal printers
  */
 
-import { XReport, ZReport, CashEvent } from '../../types';
+import { XReport, ZReport, CashEvent } from '@/types';
 
 export interface PrintOptions {
   printerWidth: '58mm' | '80mm';
@@ -336,7 +336,7 @@ class ShiftPrintAdapter {
   /**
    * Format a line with left and right aligned text
    */
-  private formatLine(left: string, right: string, lineWidth: number, color?: string): string {
+  private formatLine(left: string, right: string, lineWidth: number, _color?: string): string {
     const maxLeftWidth = lineWidth - right.length - 1;
     const truncatedLeft = left.length > maxLeftWidth ? left.substring(0, maxLeftWidth) : left;
     const padding = lineWidth - truncatedLeft.length - right.length;

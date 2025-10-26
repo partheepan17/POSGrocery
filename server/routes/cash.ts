@@ -5,11 +5,17 @@ import { createRequestLogger } from '../utils/logger';
 import { writeAuditLog, createAuditContext } from '../utils/audit';
 import { AuditAction, EntityType, CashMovementData, ShiftData } from '../types/audit';
 import { getDatabase } from '../db';
+import { requirePolicy, extractTenant } from '../../src/middleware/policy';
+import { authenticateToken } from '../middleware/auth';
 
 export const cashRouter = Router();
 
 // POST /api/cash/movement - Record cash movement
-cashRouter.post('/api/cash/movement', asyncHandler(async (req, res) => {
+cashRouter.post('/api/cash/movement', 
+  extractTenant,
+  authenticateToken,
+  requirePolicy({ feature: 'sales.payment', permission: 'sales.payment.process' }),
+  asyncHandler(async (req, res) => {
   const requestLogger = createRequestLogger(req);
   const auditContext = createAuditContext(req);
   
@@ -159,7 +165,11 @@ cashRouter.post('/api/cash/movement', asyncHandler(async (req, res) => {
 }));
 
 // POST /api/cash/shift/open - Open cash shift
-cashRouter.post('/api/cash/shift/open', asyncHandler(async (req, res) => {
+cashRouter.post('/api/cash/shift/open', 
+  extractTenant,
+  authenticateToken,
+  requirePolicy({ feature: 'sales.payment', permission: 'sales.payment.process' }),
+  asyncHandler(async (req, res) => {
   const requestLogger = createRequestLogger(req);
   const auditContext = createAuditContext(req);
   
@@ -269,7 +279,11 @@ cashRouter.post('/api/cash/shift/open', asyncHandler(async (req, res) => {
 }));
 
 // POST /api/cash/shift/close - Close cash shift
-cashRouter.post('/api/cash/shift/close', asyncHandler(async (req, res) => {
+cashRouter.post('/api/cash/shift/close', 
+  extractTenant,
+  authenticateToken,
+  requirePolicy({ feature: 'sales.payment', permission: 'sales.payment.process' }),
+  asyncHandler(async (req, res) => {
   const requestLogger = createRequestLogger(req);
   const auditContext = createAuditContext(req);
   
@@ -395,6 +409,10 @@ async function updateCashBalance(newBalance: number): Promise<void> {
   // In a real system, this would update the database
   console.log(`Cash balance updated to: $${newBalance.toFixed(2)}`);
 }
+
+
+
+
 
 
 

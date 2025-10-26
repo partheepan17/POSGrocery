@@ -42,3 +42,4 @@ async function testBarcodeAPI() {
 }
 
 testBarcodeAPI();
+

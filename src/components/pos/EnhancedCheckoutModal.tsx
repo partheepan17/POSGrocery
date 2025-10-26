@@ -11,12 +11,12 @@ import {
   CheckCircle,
   Calculator
 } from 'lucide-react';
-import { Dialog, DialogHeader, DialogContent, DialogFooter, DialogTitle } from '../ui/Dialog';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import { Select, SelectOption } from '../ui/Select';
-import { Badge } from '../ui/Badge';
-import { Card, CardContent } from '../ui/Card';
+import { Dialog, DialogHeader, DialogContent, DialogFooter, DialogTitle } from '@/components/ui/Dialog';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select, SelectOption } from '@/components/ui/Select';
+import { Badge } from '@/components/ui/Badge';
+import { Card, CardContent } from '@/components/ui/Card';
 
 interface PaymentMethod {
   id: string;
@@ -249,7 +249,6 @@ export function EnhancedCheckoutModal({
                       label: method.name,
                       disabled: !method.enabled
                     }))}
-                    size="sm"
                   />
                 </div>
                 

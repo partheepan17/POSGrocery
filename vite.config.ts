@@ -1,12 +1,72 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      strategies: 'injectManifest',
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/api\./,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 5 // 5 minutes
+              }
+            }
+          },
+          {
+            urlPattern: /^https:\/\/api\/products/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'products-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 10 // 10 minutes
+              }
+            }
+          }
+        ]
+      },
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      manifest: {
+        name: 'POS Grocery System',
+        short_name: 'POS Grocery',
+        description: 'Point of Sale system for grocery stores with offline support',
+        theme_color: '#3b82f6',
+        background_color: '#ffffff',
+        display: 'standalone',
+        orientation: 'portrait',
+        scope: '/',
+        start_url: '/',
+        icons: [
+          {
+            src: 'icons/icon-192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: 'icons/icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          }
+        ]
+      }
+    })
+  ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve((globalThis as { process?: { cwd?: () => string } }).process?.cwd?.() || process.cwd(), './src'),
     },
   },
   server: {
@@ -22,7 +82,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:8250',
+        target: 'http://localhost:3002',
         changeOrigin: true,
         secure: false,
         timeout: 30000, // Increase timeout

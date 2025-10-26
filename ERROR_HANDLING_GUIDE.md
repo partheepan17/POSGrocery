@@ -297,3 +297,17 @@ This standardized error handling system ensures consistent client behavior, bett
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

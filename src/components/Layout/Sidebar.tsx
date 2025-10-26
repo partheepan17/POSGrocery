@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { 
+  Home,
   ShoppingCart,
   Package,
   DollarSign,
@@ -23,7 +24,8 @@ import {
   Search,
   HelpCircle,
   ChevronDown,
-  Info
+  Info,
+  Edit3
 } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { cn } from '@/utils/cn';
@@ -55,7 +57,8 @@ export function Sidebar() {
     {
       title: t('sidebar.operations'),
       items: [
-        { name: t('navigation.sales'), href: '/', icon: ShoppingCart, shortcut: 'Ctrl+1' },
+        { name: t('navigation.dashboard'), href: '/dashboard', icon: Home, shortcut: 'Ctrl+0' },
+        { name: t('navigation.sales'), href: '/sales', icon: ShoppingCart, shortcut: 'Ctrl+1' },
         { name: t('navigation.quickSales'), href: '/quick-sales', icon: ShoppingCart, shortcut: 'Ctrl+Q' },
         { name: t('navigation.returns'), href: '/returns', icon: RotateCcw, shortcut: 'F9' },
         { name: t('shifts.title'), href: '/shifts', icon: Clock, shortcut: 'Ctrl+Shift+S' },
@@ -76,6 +79,7 @@ export function Sidebar() {
       items: [
         { name: t('inventory.stockLevels'), href: '/inventory', icon: Warehouse, shortcut: 'Ctrl+7' },
         { name: 'Stock Dashboard', href: '/stock', icon: BarChart3, shortcut: 'Ctrl+Shift+S' },
+        { name: 'Adjust Stock', href: '/inventory/adjust', icon: Edit3, shortcut: 'Ctrl+Shift+A' },
         { name: t('navigation.labels'), href: '/labels', icon: Tag, shortcut: 'Ctrl+L' },
         { name: t('navigation.stocktake'), href: '/stocktake', icon: ClipboardCheck, shortcut: 'F12' },
         { name: t('navigation.grn'), href: '/grn', icon: FileInput, shortcut: 'Ctrl+G' },

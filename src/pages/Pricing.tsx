@@ -122,15 +122,15 @@ export function Pricing() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [productsData, categoriesData] = await Promise.all([
+      const [productsResult, categoriesData] = await Promise.all([
         dataService.getProducts(filters),
         dataService.getCategories()
       ]);
 
       // Enrich products with category data
-      const enrichedProducts = productsData.map((product: Product) => ({
+      const enrichedProducts = (productsResult as any).products.map((product: Product) => ({
         ...product,
-        category: categoriesData.find((c: Category) => c.id === product.category_id)
+        category: (categoriesData as any[]).find((c: Category) => c.id === product.category_id)
       }));
 
       // Apply missing price filter
@@ -148,7 +148,7 @@ export function Pricing() {
       }
 
       setProducts(filteredProducts);
-      setCategories(categoriesData);
+      setCategories(categoriesData as any);
 
       // Calculate stats
       const stats: StatsCounts = {
@@ -221,7 +221,7 @@ export function Pricing() {
       const tempProduct = { ...product, [field]: numericValue };
       
       // Check if any required tiers would still be missing after this update
-      for (const tier of settings.pricingSettings.requiredTiers) {
+      for (const tier of (settings as any).pricingSettings?.requiredTiers || ['retail']) {
         const fieldName = `price_${tier}` as 'price_retail' | 'price_wholesale' | 'price_credit' | 'price_other';
         if (isPriceBlocked(tempProduct, fieldName)) {
           toast.error(`Cannot save: ${getValidationMessage(tempProduct, fieldName)}`);
@@ -351,8 +351,8 @@ export function Pricing() {
   };
 
   const isPriceBlocked = (product: ProductWithCategory, field: 'price_retail' | 'price_wholesale' | 'price_credit' | 'price_other') => {
-    const policy = settings.pricingSettings.missingPricePolicy;
-    const requiredTiers = settings.pricingSettings.requiredTiers;
+    const policy = (settings as any).pricingSettings?.missingPricePolicy || 'warn';
+    const requiredTiers = (settings as any).pricingSettings?.requiredTiers || ['retail'];
     
     if (policy === 'block') {
       const tierName = field.replace('price_', '') as 'retail' | 'wholesale' | 'credit' | 'other';
@@ -868,3 +868,5 @@ export function Pricing() {
     </div>
   );
 }
+
+export default Pricing;

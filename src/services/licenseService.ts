@@ -9,12 +9,12 @@ export class LicenseService {
 
       const row = rows[0];
       return {
-        id: row.id,
-        productName: row.productName,
-        licensee: row.licensee,
-        fullName: row.fullName,
-        locked: row.locked,
-        issuedAt: new Date(row.issuedAt)
+        license_key: row.license_key || '',
+        company_name: row.company_name || '',
+        valid_until: row.valid_until || '',
+        features: row.features ? JSON.parse(row.features) : [],
+        max_terminals: row.max_terminals || 1,
+        active: row.active || false
       } as LicenseInfo;
     } catch (error) {
       console.error('Error getting license info:', error);
@@ -29,14 +29,12 @@ export class LicenseService {
 
       const row = rows[0];
       return {
-        id: row.id,
-        name: row.name,
-        address: row.address,
-        taxId: row.taxId,
-        contactEmail: row.contactEmail,
-        contactPhone: row.contactPhone,
-        logoUrl: row.logoUrl,
-        updatedAt: new Date(row.updatedAt)
+        name: row.name || '',
+        address: row.address || '',
+        phone: row.phone || '',
+        email: row.email || '',
+        tax_id: row.tax_id || '',
+        license_key: row.license_key || ''
       } as CompanyProfile;
     } catch (error) {
       console.error('Error getting company profile:', error);
@@ -48,7 +46,7 @@ export class LicenseService {
     try {
       // Check if license is locked
       const licenseInfo = await this.getLicenseInfo();
-      if (licenseInfo?.locked) {
+      if (licenseInfo?.active) {
         throw new Error('Company settings are locked under license. Contact administrator for changes.');
       }
 
@@ -68,10 +66,10 @@ export class LicenseService {
         [
           updatedProfile.name,
           updatedProfile.address,
-          updatedProfile.taxId || '',
-          updatedProfile.contactEmail || '',
-          updatedProfile.contactPhone || '',
-          updatedProfile.logoUrl || '',
+          updatedProfile.tax_id || '',
+          updatedProfile.email || '',
+          updatedProfile.phone || '',
+          updatedProfile.name || '',
           updatedProfile.updatedAt.toISOString()
         ]
       );
@@ -86,7 +84,7 @@ export class LicenseService {
   async isLicenseLocked(): Promise<boolean> {
     try {
       const licenseInfo = await this.getLicenseInfo();
-      return licenseInfo?.locked || true;
+      return licenseInfo?.active || false;
     } catch (error) {
       console.error('Error checking license status:', error);
       return true;
@@ -96,7 +94,7 @@ export class LicenseService {
   async getProductName(): Promise<string> {
     try {
       const licenseInfo = await this.getLicenseInfo();
-      return licenseInfo?.productName || 'viRtual POS';
+      return licenseInfo?.company_name || 'viRtual POS';
     } catch (error) {
       console.error('Error getting product name:', error);
       return 'viRtual POS';
@@ -107,8 +105,8 @@ export class LicenseService {
     try {
       const licenseInfo = await this.getLicenseInfo();
       return {
-        licensee: licenseInfo?.licensee || 'Virtual Software Pvt Ltd',
-        fullName: licenseInfo?.fullName || 'Visual Interface Resource Technology Unified Analytics Labs'
+        licensee: licenseInfo?.company_name || 'Virtual Software Pvt Ltd',
+        fullName: licenseInfo?.company_name || 'Visual Interface Resource Technology Unified Analytics Labs'
       };
     } catch (error) {
       console.error('Error getting licensee info:', error);

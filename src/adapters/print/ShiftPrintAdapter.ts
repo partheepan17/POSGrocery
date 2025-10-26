@@ -31,11 +31,11 @@ export class ShiftPrintAdapter {
         </head>
         <body>
           <div class="receipt">
-            ${this.renderHeader(storeInfo, 'X REPORT', shift.terminal_name, currentTime)}
+            ${this.renderHeader(storeInfo, 'X REPORT', shift.terminal_name || shift.terminal_id, currentTime)}
             ${this.renderShiftInfo(shift, 'X')}
             ${this.renderSalesSection(sales)}
             ${this.renderPaymentsSection(payments)}
-            ${this.renderCashDrawerSection(cashDrawer, 'X')}
+            ${cashDrawer ? this.renderCashDrawerSection(cashDrawer, 'X') : ''}
             ${this.renderFooter(storeInfo, 'X')}
           </div>
         </body>
@@ -63,11 +63,11 @@ export class ShiftPrintAdapter {
         </head>
         <body>
           <div class="receipt">
-            ${this.renderHeader(storeInfo, 'Z REPORT', shift.terminal_name, closeTime)}
+            ${this.renderHeader(storeInfo, 'Z REPORT', shift.terminal_name || shift.terminal_id, closeTime)}
             ${this.renderShiftInfo(shift, 'Z')}
             ${this.renderSalesSection(sales)}
             ${this.renderPaymentsSection(payments)}
-            ${this.renderCashDrawerSection(cashDrawer, 'Z')}
+            ${cashDrawer ? this.renderCashDrawerSection(cashDrawer, 'Z') : ''}
             ${this.renderFooter(storeInfo, 'Z')}
           </div>
         </body>

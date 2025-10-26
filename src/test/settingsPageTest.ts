@@ -7,7 +7,7 @@ export function testSettingsPage() {
     console.log('\n📋 Test 1: Import Settings page component');
     import('../pages/Settings').then((module) => {
       console.log('✅ Settings page component imported successfully');
-      console.log('Settings component:', typeof module.Settings);
+      console.log('Settings component:', typeof (globalThis as any).module.Settings);
     }).catch((error) => {
       console.error('❌ Failed to import Settings page:', error);
     });
@@ -25,7 +25,7 @@ export function testSettingsPage() {
 
     settingsComponents.forEach(async (componentName) => {
       try {
-        const module = await import(`../components/Settings/${componentName}`);
+        // const _module = await import(`../components/Settings/${componentName}`);
         console.log(`✅ ${componentName} imported successfully`);
       } catch (error) {
         console.error(`❌ Failed to import ${componentName}:`, error);
@@ -36,7 +36,7 @@ export function testSettingsPage() {
     console.log('\n📋 Test 3: Check AppStore accessibility');
     import('../store/appStore').then((module) => {
       console.log('✅ AppStore imported successfully');
-      console.log('useAppStore hook:', typeof module.useAppStore);
+      console.log('useAppStore hook:', typeof (globalThis as any).module.useAppStore);
     }).catch((error) => {
       console.error('❌ Failed to import AppStore:', error);
     });
@@ -45,7 +45,7 @@ export function testSettingsPage() {
     console.log('\n📋 Test 4: Check routing configuration');
     import('../App').then((module) => {
       console.log('✅ App component imported successfully');
-      console.log('App component:', typeof module.default);
+      console.log('App component:', typeof (globalThis as any).module.default);
     }).catch((error) => {
       console.error('❌ Failed to import App component:', error);
     });

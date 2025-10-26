@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { FormLabel } from '../../components/ui/Form';
-import { Textarea } from '../../components/ui/Form';
-import { AlertBanner } from '../../components/ui/AlertDialog';
+import { Card, CardContent, CardHeader } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { FormLabel } from '@/components/ui/Form';
+import { Textarea } from '@/components/ui/Form';
+import { AlertBanner } from '@/components/ui/AlertDialog';
 import { Lock, Building2, Mail, Phone, MapPin, FileText, Image, CheckCircle, AlertCircle, Save, RotateCcw } from 'lucide-react';
-import { licenseService } from '../../services/licenseService';
-import { CompanyProfile } from '../../types';
+import { licenseService } from '@/services/licenseService';
+import { CompanyProfile } from '@/types';
 import toast from 'react-hot-toast';
 
 export default function CompanySettings() {
@@ -42,10 +42,10 @@ export default function CompanySettings() {
         setFormData({
           name: profileData.name,
           address: profileData.address,
-          taxId: profileData.taxId || '',
-          contactEmail: profileData.contactEmail || '',
-          contactPhone: profileData.contactPhone || '',
-          logoUrl: profileData.logoUrl || ''
+          taxId: profileData.tax_id || '',
+          contactEmail: profileData.email || '',
+          contactPhone: profileData.phone || '',
+          logoUrl: profileData.name || ''
         });
       }
 
@@ -86,10 +86,10 @@ export default function CompanySettings() {
       setFormData({
         name: profile.name,
         address: profile.address,
-        taxId: profile.taxId || '',
-        contactEmail: profile.contactEmail || '',
-        contactPhone: profile.contactPhone || '',
-        logoUrl: profile.logoUrl || ''
+        taxId: profile.tax_id || '',
+        contactEmail: profile.email || '',
+        contactPhone: profile.phone || '',
+        logoUrl: profile.name || ''
       });
       setHasChanges(false);
       toast.success('Form reset to saved values');
@@ -362,8 +362,8 @@ export default function CompanySettings() {
                 <div className="bg-white p-4 rounded-lg border border-gray-200">
                   <div className="text-sm font-semibold text-gray-700 mb-2">Contact Email</div>
                   <div className="text-base text-gray-900">
-                    {profile.contactEmail ? (
-                      <span className="text-blue-600 font-medium">{profile.contactEmail}</span>
+                    {profile.email ? (
+                      <span className="text-blue-600 font-medium">{profile.email}</span>
                     ) : (
                       <span className="text-amber-600 italic">Not set</span>
                     )}
@@ -375,8 +375,8 @@ export default function CompanySettings() {
                 <div className="bg-white p-4 rounded-lg border border-gray-200">
                   <div className="text-sm font-semibold text-gray-700 mb-2">Tax ID</div>
                   <div className="text-base text-gray-900">
-                    {profile.taxId ? (
-                      <span className="font-medium">{profile.taxId}</span>
+                    {profile.tax_id ? (
+                      <span className="font-medium">{profile.tax_id}</span>
                     ) : (
                       <span className="text-amber-600 italic">Not set</span>
                     )}
@@ -386,8 +386,8 @@ export default function CompanySettings() {
                 <div className="bg-white p-4 rounded-lg border border-gray-200">
                   <div className="text-sm font-semibold text-gray-700 mb-2">Contact Phone</div>
                   <div className="text-base text-gray-900">
-                    {profile.contactPhone ? (
-                      <span className="text-blue-600 font-medium">{profile.contactPhone}</span>
+                    {profile.phone ? (
+                      <span className="text-blue-600 font-medium">{profile.phone}</span>
                     ) : (
                       <span className="text-amber-600 italic">Not set</span>
                     )}
@@ -397,7 +397,7 @@ export default function CompanySettings() {
                 <div className="bg-white p-4 rounded-lg border border-gray-200">
                   <div className="text-sm font-semibold text-gray-700 mb-2">Last Updated</div>
                   <div className="text-base text-gray-600">
-                    {new Date(profile.updatedAt).toLocaleString()}
+                    Not available
                   </div>
                 </div>
               </div>

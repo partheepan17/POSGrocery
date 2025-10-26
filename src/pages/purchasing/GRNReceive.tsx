@@ -21,7 +21,7 @@ export default function GRNReceive() {
     const loadSuppliers = async () => {
       try {
         const data = await dataService.getSuppliers();
-        setSuppliers(data);
+        setSuppliers(data as any);
       } catch (error) {
         console.error('Failed to load suppliers:', error);
       }
@@ -81,12 +81,12 @@ export default function GRNReceive() {
         idempotency_key: idempotencyKey
       });
       
-      if (res.duplicate) {
-        toast.success(`GRN #${res.grn_number} already exists (duplicate prevented)`);
+      if ((res as any).duplicate) {
+        toast.success(`GRN #${(res as any).grn_number} already exists (duplicate prevented)`);
       } else {
-        toast.success(`GRN #${res.grn_number} created successfully`);
+        toast.success(`GRN #${(res as any).grn_number} created successfully`);
       }
-      setCreatedGrnId(res.id);
+      setCreatedGrnId((res as any).id);
       setLines([]);
     } catch (e: any) {
       console.error('GRN creation error:', e);
@@ -116,7 +116,7 @@ export default function GRNReceive() {
         extra_costs: { freight, duty, misc },
         mode
       });
-      toast.success(`GRN finalized (${res.mode}) with Rs ${res.totalExtra.toFixed(2)}`);
+      toast.success(`GRN finalized (${(res as any).mode}) with Rs ${(res as any).totalExtra.toFixed(2)}`);
     } catch (e: any) {
       toast.error(e?.message || 'Finalize failed');
     }

@@ -7,7 +7,7 @@ config();
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().transform(Number).pipe(z.number().min(1).max(65535)).default('8250'),
-  DB_PATH: z.string().default('./data/pos-grocery.db'),
+  DB_PATH: z.string().default('./data/pos.db'),
   CORS_ORIGINS: z.string().transform((val) => {
     const origins = val.split(',').map(o => o.trim()).filter(Boolean);
     // Ensure Vite dev origins are included (common Vite ports)

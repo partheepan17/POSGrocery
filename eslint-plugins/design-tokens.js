@@ -1,3 +1,5 @@
+// Note: This plugin uses CommonJS for ESLint compatibility
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { ESLintUtils } = require('@typescript-eslint/utils');
 
 // Design tokens from tailwind.config.js
@@ -372,6 +374,11 @@ module.exports = {
     },
   },
 };
+
+
+
+
+
 
 
 

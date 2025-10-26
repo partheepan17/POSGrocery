@@ -205,7 +205,7 @@ export function CSVImportModal({ products, categories, onClose, onImport }: CSVI
           if (!category) {
             // Create new category
             const newCategory = await dataService.createCategory({ name: row.applies_to_value });
-            targetId = newCategory.id;
+            targetId = (newCategory as any).id;
             createdCategories++;
           } else {
             targetId = category.id;
@@ -213,9 +213,11 @@ export function CSVImportModal({ products, categories, onClose, onImport }: CSVI
         }
 
         // Prepare rule data
+        const appliesTo = row.applies_to_type.toUpperCase() as 'PRODUCT' | 'CATEGORY';
         const ruleData = {
           name: row.name.trim(),
-          applies_to: row.applies_to_type.toUpperCase() as 'PRODUCT' | 'CATEGORY',
+          applies_to: appliesTo,
+          level: (appliesTo === 'PRODUCT' ? 'PRODUCT' : 'GROUP') as 'PRODUCT' | 'GROUP',
           target_id: targetId,
           type: row.type.toUpperCase() as 'PERCENT' | 'AMOUNT',
           value: parseFloat(row.value),

@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast'
 import './i18n' // Initialize i18n
 import App from './App.tsx'
 import './index.css'
+import './sw-register' // Register service worker
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

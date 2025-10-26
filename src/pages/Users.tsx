@@ -452,7 +452,7 @@ const Users: React.FC = () => {
                         <td className="px-4 py-3">
                           <span className={cn(
                             "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium",
-                            getRoleColor(user.role)
+                            getRoleColor(user.role.toUpperCase() as Role)
                           )}>
                             {user.role}
                           </span>

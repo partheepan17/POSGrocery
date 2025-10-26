@@ -27,52 +27,52 @@ export function BackupsSection({ settings, updateSettings, onSettingsChange }: B
   const [isRestoring, setIsRestoring] = useState(false);
   const [managerPin, setManagerPin] = useState('');
 
-  const handleInputChange = (field: keyof AppSettings['backupSettings'], value: any) => {
+  const handleInputChange = (field: string, value: any) => {
     updateSettings({
       backupSettings: {
         ...settings.backupSettings,
         [field]: value,
-      },
+      } as any,
     });
     onSettingsChange();
   };
 
-  const handleScheduleChange = (field: keyof AppSettings['backupSettings']['schedule'], value: any) => {
+  const handleScheduleChange = (field: string, value: any) => {
     updateSettings({
       backupSettings: {
-        ...settings.backupSettings,
+        ...(settings.backupSettings || {}),
         schedule: {
-          ...settings.backupSettings.schedule,
+          ...(settings.backupSettings?.schedule || {}),
           [field]: value,
-        },
-      },
+        } as any,
+      } as any,
     });
     onSettingsChange();
   };
 
-  const handleRetentionChange = (field: keyof AppSettings['backupSettings']['retention'], value: number) => {
+  const handleRetentionChange = (field: string, value: number) => {
     updateSettings({
       backupSettings: {
-        ...settings.backupSettings,
+        ...(settings.backupSettings || {}),
         retention: {
-          ...settings.backupSettings.retention,
+          ...(settings.backupSettings?.retention || {}),
           [field]: value,
-        },
-      },
+        } as any,
+      } as any,
     });
     onSettingsChange();
   };
 
   const handleCredentialChange = (key: string, value: string) => {
     const newCredentials = {
-      ...settings.backupSettings.credentials,
+      ...settings.backupSettings?.credentials,
       [key]: value,
     };
     updateSettings({
       backupSettings: {
-        ...settings.backupSettings,
+        ...(settings.backupSettings || {}),
         credentials: newCredentials,
-      },
+      } as any,
     });
     onSettingsChange();
   };
@@ -205,7 +205,7 @@ export function BackupsSection({ settings, updateSettings, onSettingsChange }: B
               <div className="space-y-3">
                 {providers.map((provider) => {
                   const Icon = provider.icon;
-                  const isSelected = settings.backupSettings.provider === provider.key;
+                  const isSelected = settings.backupSettings?.provider === provider.key;
                   
                   return (
                     <label
@@ -249,7 +249,7 @@ export function BackupsSection({ settings, updateSettings, onSettingsChange }: B
             </div>
 
             {/* Provider Credentials */}
-            {settings.backupSettings.provider !== 'local' && (
+            {settings.backupSettings?.provider !== 'local' && (
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -266,14 +266,14 @@ export function BackupsSection({ settings, updateSettings, onSettingsChange }: B
 
                 {showCredentials && (
                   <div className="space-y-4">
-                    {getProviderCredentials(settings.backupSettings.provider).map((cred) => (
+                    {getProviderCredentials(settings.backupSettings?.provider || 'local').map((cred) => (
                       <div key={cred.key}>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           {cred.label}
                         </label>
                         <input
                           type={cred.type}
-                          value={settings.backupSettings.credentials?.[cred.key] || ''}
+                          value={(settings.backupSettings?.credentials as any)?.[cred.key] || ''}
                           onChange={(e) => handleCredentialChange(cred.key, e.target.value)}
                           placeholder={`Enter ${cred.label.toLowerCase()}`}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -301,7 +301,7 @@ export function BackupsSection({ settings, updateSettings, onSettingsChange }: B
               </label>
               <input
                 type="time"
-                value={settings.backupSettings.schedule.dailyTime}
+                value={settings.backupSettings?.schedule?.dailyTime || ''}
                 onChange={(e) => handleScheduleChange('dailyTime', e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
@@ -322,7 +322,7 @@ export function BackupsSection({ settings, updateSettings, onSettingsChange }: B
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={settings.backupSettings.schedule.onSettingsChange}
+                  checked={settings.backupSettings?.schedule?.onSettingsChange || false}
                   onChange={(e) => handleScheduleChange('onSettingsChange', e.target.checked)}
                   className="sr-only peer"
                 />
@@ -348,7 +348,7 @@ export function BackupsSection({ settings, updateSettings, onSettingsChange }: B
                 type="number"
                 min="1"
                 max="365"
-                value={settings.backupSettings.retention.keepDaily}
+                value={settings.backupSettings?.retention?.keepDaily || 7}
                 onChange={(e) => handleRetentionChange('keepDaily', parseInt(e.target.value))}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
@@ -365,7 +365,7 @@ export function BackupsSection({ settings, updateSettings, onSettingsChange }: B
                 type="number"
                 min="1"
                 max="100"
-                value={settings.backupSettings.retention.keepConfigChange}
+                value={settings.backupSettings?.retention?.keepConfigChange || 30}
                 onChange={(e) => handleRetentionChange('keepConfigChange', parseInt(e.target.value))}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
@@ -477,7 +477,7 @@ export function BackupsSection({ settings, updateSettings, onSettingsChange }: B
                 <span className="text-sm text-gray-700 dark:text-gray-300">Next Scheduled</span>
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
-                Today at {settings.backupSettings.schedule.dailyTime}
+                Today at {settings.backupSettings?.schedule?.dailyTime || '00:00'}
               </div>
             </div>
 

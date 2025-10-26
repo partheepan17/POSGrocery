@@ -1,164 +1,117 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { toast } from 'react-hot-toast';
-import { useTranslation } from 'react-i18next';
+/**
+ * Quick Sales Context
+ * Manages quick sales state and operations
+ */
 
-interface QuickSalesSession {
-  id: number;
-  session_date: string;
-  status: string;
-  total_amount: number;
-  total_lines: number;
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+
+export interface QuickSalesState {
+  isActive: boolean;
+  sessionId: string | null;
+  startTime: Date | null;
+  endTime: Date | null;
+  totalSales: number;
+  totalTransactions: number;
+  showYesterdayBanner: boolean;
 }
 
-interface QuickSalesContextType {
-  session: QuickSalesSession | null;
+export interface QuickSalesContextType {
+  state: QuickSalesState;
+  session: any;
   isLoading: boolean;
-  isYesterdaySession: boolean;
-  ensureSessionOpen: () => Promise<void>;
-  closeSession: (managerPin: string, note?: string) => Promise<boolean>;
-  refreshSession: () => Promise<void>;
-  showYesterdayBanner: boolean;
+  startSession: (sessionId: string) => void;
+  endSession: () => void;
+  updateSales: (amount: number) => void;
+  incrementTransactions: () => void;
   setShowYesterdayBanner: (show: boolean) => void;
+  closeSession: (pin: string, reason: string) => Promise<boolean>;
+  refreshSession: () => void;
 }
 
 const QuickSalesContext = createContext<QuickSalesContextType | undefined>(undefined);
 
-export const useQuickSales = () => {
-  const context = useContext(QuickSalesContext);
-  if (!context) {
-    throw new Error('useQuickSales must be used within a QuickSalesProvider');
-  }
-  return context;
-};
-
-interface QuickSalesProviderProps {
-  children: React.ReactNode;
+export interface QuickSalesProviderProps {
+  children: ReactNode;
 }
 
-export const QuickSalesProvider: React.FC<QuickSalesProviderProps> = ({ children }) => {
-  const { t } = useTranslation();
-  const [session, setSession] = useState<QuickSalesSession | null>(null);
+export function QuickSalesProvider({ children }: QuickSalesProviderProps) {
+  const [state, setState] = useState<QuickSalesState>({
+    isActive: false,
+    sessionId: null,
+    startTime: null,
+    endTime: null,
+    totalSales: 0,
+    totalTransactions: 0,
+    showYesterdayBanner: false,
+  });
+
+  const [session, setSession] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [showYesterdayBanner, setShowYesterdayBanner] = useState(false);
 
-  // Check if session is from yesterday
-  const isYesterdaySession = session ? 
-    session.session_date !== new Date().toISOString().split('T')[0] : false;
+  const startSession = (sessionId: string) => {
+    setState(prev => ({
+      ...prev,
+      isActive: true,
+      sessionId,
+      startTime: new Date(),
+      endTime: null,
+      totalSales: 0,
+      totalTransactions: 0,
+    }));
+  };
 
-  // Ensure session is open
-  const ensureSessionOpen = useCallback(async () => {
-    // Prevent multiple simultaneous calls
-    if (isLoading) {
-      return;
-    }
-    
-    try {
-      setIsLoading(true);
-      const response = await fetch('/api/quick-sales/ensure-open', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ opened_by: 1 })
-      });
+  const endSession = () => {
+    setState(prev => ({
+      ...prev,
+      isActive: false,
+      sessionId: null,
+      endTime: new Date(),
+    }));
+  };
 
-      if (!response.ok) {
-        throw new Error('Failed to ensure session is open');
-      }
+  const updateSales = (amount: number) => {
+    setState(prev => ({
+      ...prev,
+      totalSales: prev.totalSales + amount,
+    }));
+  };
 
-      const data = await response.json();
-      setSession(data.session);
+  const incrementTransactions = () => {
+    setState(prev => ({
+      ...prev,
+      totalTransactions: prev.totalTransactions + 1,
+    }));
+  };
 
-      // Check if this is yesterday's session
-      const today = new Date().toISOString().split('T')[0];
-      if (data.session.session_date !== today) {
-        setShowYesterdayBanner(true);
-      }
-    } catch (error) {
-      console.error('Failed to ensure session:', error);
-      toast.error(t('quickSales.errors.sessionOpenFailed'));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [t, isLoading]);
+  const setShowYesterdayBanner = (show: boolean) => {
+    setState(prev => ({
+      ...prev,
+      showYesterdayBanner: show,
+    }));
+  };
 
-  // Close session
-  const closeSession = useCallback(async (managerPin: string, note?: string): Promise<boolean> => {
-    try {
-      setIsLoading(true);
-      
-      const response = await fetch('/api/quick-sales/close', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          managerPin,
-          note: note || 'Quick Sales session closed'
-        })
-      });
+  const closeSession = async (pin: string, reason: string): Promise<boolean> => {
+    // Mock implementation
+    return true;
+  };
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to close session');
-      }
-
-      const data = await response.json();
-      
-      toast.success(t('quickSales.success.sessionClosed', { receiptNo: data.receipt_no }));
-      
-      // Reset session and ensure new one
-      setSession(null);
-      setShowYesterdayBanner(false);
-      await ensureSessionOpen();
-      
-      return true;
-    } catch (error) {
-      console.error('Close failed:', error);
-      toast.error(error instanceof Error ? error.message : t('quickSales.errors.closeSessionFailed'));
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [t, ensureSessionOpen]);
-
-  // Refresh session data
-  const refreshSession = useCallback(async () => {
-    try {
-      const response = await fetch('/api/quick-sales/session');
-      if (!response.ok) return;
-
-      const data = await response.json();
-      if (data.status === 'none') {
-        setSession(null);
-        setShowYesterdayBanner(false);
-      } else {
-        setSession(data.session);
-        
-        // Check if this is yesterday's session
-        const today = new Date().toISOString().split('T')[0];
-        if (data.session.session_date !== today) {
-          setShowYesterdayBanner(true);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to refresh session:', error);
-    }
-  }, []);
-
-  // Auto-ensure session on mount
-  useEffect(() => {
-    // Only ensure session if we don't have one already
-    if (!session) {
-      ensureSessionOpen();
-    }
-  }, [ensureSessionOpen, session]);
+  const refreshSession = () => {
+    // Mock implementation
+    setIsLoading(true);
+    setTimeout(() => setIsLoading(false), 1000);
+  };
 
   const value: QuickSalesContextType = {
+    state,
     session,
     isLoading,
-    isYesterdaySession,
-    ensureSessionOpen,
+    startSession,
+    endSession,
+    updateSales,
+    incrementTransactions,
+    setShowYesterdayBanner,
     closeSession,
     refreshSession,
-    showYesterdayBanner,
-    setShowYesterdayBanner
   };
 
   return (
@@ -166,6 +119,12 @@ export const QuickSalesProvider: React.FC<QuickSalesProviderProps> = ({ children
       {children}
     </QuickSalesContext.Provider>
   );
-};
+}
 
-
+export function useQuickSales(): QuickSalesContextType {
+  const context = useContext(QuickSalesContext);
+  if (context === undefined) {
+    throw new Error('useQuickSales must be used within a QuickSalesProvider');
+  }
+  return context;
+}

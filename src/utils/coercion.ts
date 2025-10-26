@@ -36,3 +36,17 @@ export const coerceProductUpdateData = (formData: any) => {
     is_active: formData.is_active !== undefined ? Boolean(formData.is_active) : undefined
   };
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+

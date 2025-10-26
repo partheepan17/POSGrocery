@@ -20,18 +20,18 @@ export function PricingPoliciesSection({ settings, updateSettings, onSettingsCha
       </div>
     );
   }
-  const handleInputChange = (field: keyof AppSettings['pricingPolicies'], value: any) => {
+  const handleInputChange = (field: string, value: any) => {
     updateSettings({
       pricingPolicies: {
         ...settings.pricingPolicies,
         [field]: value,
-      },
+      } as any,
     });
     onSettingsChange();
   };
 
   const handleRequiredTiersChange = (tier: 'retail' | 'wholesale' | 'credit' | 'other', checked: boolean) => {
-    const currentTiers = settings.pricingPolicies.requiredTiers;
+    const currentTiers = settings.pricingPolicies?.requiredTiers || [];
     let newTiers;
     
     if (checked) {
@@ -83,7 +83,7 @@ export function PricingPoliciesSection({ settings, updateSettings, onSettingsCha
             <div className="space-y-3">
               {Object.entries(policyDescriptions).map(([key, policy]) => {
                 const Icon = policy.icon;
-                const isSelected = settings.pricingPolicies.missingPricePolicy === key;
+                const isSelected = settings.pricingPolicies?.missingPricePolicy === key;
                 
                 return (
                   <label
@@ -147,7 +147,7 @@ export function PricingPoliciesSection({ settings, updateSettings, onSettingsCha
                   { key: 'credit', label: 'Credit Price', description: 'Credit customer price' },
                   { key: 'other', label: 'Other Price', description: 'Special pricing tier' },
                 ].map((tier) => {
-                  const isRequired = settings.pricingPolicies.requiredTiers.includes(tier.key as any);
+                  const isRequired = settings.pricingPolicies?.requiredTiers?.includes(tier.key as any) || false;
                   
                   return (
                     <label
@@ -260,7 +260,7 @@ export function PricingPoliciesSection({ settings, updateSettings, onSettingsCha
                 <li className="flex items-start">
                   <div className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 mr-2"></div>
                   <span>
-                    <strong>Missing Price Policy:</strong> {policyDescriptions[settings.pricingPolicies.missingPricePolicy].title}
+                    <strong>Missing Price Policy:</strong> {(policyDescriptions as any)[settings.pricingPolicies?.missingPricePolicy]?.title}
                   </span>
                 </li>
                 <li className="flex items-start">
@@ -281,7 +281,7 @@ export function PricingPoliciesSection({ settings, updateSettings, onSettingsCha
               </ul>
             </div>
 
-            {settings.pricingPolicies.missingPricePolicy === 'block_manager' && settings.pricingPolicies.requiredTiers.length > 0 && (
+            {settings.pricingPolicies?.missingPricePolicy === 'block' && settings.pricingPolicies?.requiredTiers?.length > 0 && (
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
                 <div className="flex items-start">
                   <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 mr-3" />

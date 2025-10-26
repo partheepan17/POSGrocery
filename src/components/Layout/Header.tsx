@@ -13,10 +13,12 @@ import { MobileNav } from '@/components/Layout/MobileNav';
 import { OnScreenKeyboard } from '@/components/ui/OnScreenKeyboard';
 import { Calculator as CalculatorComponent } from '@/components/ui/Calculator';
 import { authService } from '@/services/authService';
+import { useAuth, RoleGuard, PermissionGuard } from '@/store/authStore';
 import { cn } from '@/utils/cn';
 import { useKeyboardHelp } from '@/hooks/useKeyboardHelp';
-import { DevTools } from '../dev/DevTools';
-import { OfflineQueueStatus } from '../OfflineQueueStatus';
+import { DevTools } from '@/components/dev/DevTools';
+import { OfflineQueueStatus } from '@/components/OfflineQueueStatus';
+import { healthCheckService, HealthCheckResult } from '@/services/healthCheckService';
 
 export function Header() {
   const navigate = useNavigate();
@@ -40,6 +42,9 @@ export function Header() {
     updateTime 
   } = useUIStore();
   
+  // Auth state
+  const { user, isAuthenticated, canAccess } = useAuth();
+  
   // Enhanced notification system
   const {
     notifications,
@@ -62,35 +67,27 @@ export function Header() {
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [systemOnline, setSystemOnline] = useState(true);
 
-  // Health check
-  const checkOnlineStatus = async () => {
-    try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
-      const response = await fetch(`${apiBaseUrl}/api/health`);
-      const data = await response.json();
-      setIsOnline(data.status === 'ok');
-    } catch (error) {
-      setIsOnline(false);
-    }
-  };
+  // Use centralized health check service
+  useEffect(() => {
+    const unsubscribe = healthCheckService.subscribe((result: HealthCheckResult) => {
+      setIsOnline(result.isOnline);
+    });
+    
+    return unsubscribe;
+  }, []);
 
-  // Update time every second
+  // Update time every 10 seconds (less frequent)
   useEffect(() => {
     const timeInterval = setInterval(() => {
       const now = new Date();
       setCurrentTime(now);
       updateTime();
-    }, 1000);
+    }, 10000); // 10 seconds instead of 1 second
 
     return () => clearInterval(timeInterval);
   }, [updateTime]);
 
-  // Health check every 15 seconds
-  useEffect(() => {
-    checkOnlineStatus();
-    const healthInterval = setInterval(checkOnlineStatus, 15000);
-    return () => clearInterval(healthInterval);
-  }, []);
+  // Health check is now handled by the centralized service
 
   // Initialize system notifications (only in development)
   useEffect(() => {
@@ -354,15 +351,6 @@ export function Header() {
             <Settings className="w-5 h-5" />
           </button>
 
-          {/* Help & Support Button */}
-          <button
-            onClick={() => navigate('/help-support')}
-            className="p-3 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105 hover:shadow-md"
-            title="Help & Support"
-          >
-            <HelpCircle className="w-5 h-5" />
-          </button>
-
           {/* Language Switcher */}
           <LanguageSwitcher />
 
@@ -371,6 +359,7 @@ export function Header() {
             onClick={handleThemeToggle}
             className="p-3 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105 hover:shadow-md"
             title={`Current theme: ${theme}`}
+            aria-label={`Switch to ${theme === 'light' ? 'dark' : theme === 'dark' ? 'auto' : 'light'} theme`}
           >
             <div className="relative">
               {getThemeIcon()}
@@ -383,21 +372,13 @@ export function Header() {
             onClick={toggleFullscreen}
             className="p-3 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105 hover:shadow-md"
             title={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
           >
             {fullscreen ? (
               <Minimize className="w-5 h-5" />
             ) : (
               <Maximize className="w-5 h-5" />
             )}
-          </button>
-
-          {/* Help & Support Button */}
-          <button
-            onClick={() => navigate('/help-support')}
-            className="p-3 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-105 hover:shadow-md"
-            title="Help & Support"
-          >
-            <HelpCircle className="w-5 h-5" />
           </button>
         </div>
 
@@ -412,10 +393,10 @@ export function Header() {
             </div>
             <div className="hidden sm:block text-left">
               <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                Admin User
+                {user?.username || 'Guest User'}
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400 -mt-0.5">
-                Administrator
+                {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Guest'}
               </div>
             </div>
             <ChevronDown className={cn(
@@ -432,8 +413,12 @@ export function Header() {
                     <User className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <div className="font-semibold text-gray-900 dark:text-gray-100">Admin User</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">admin@grocery.com</div>
+                    <div className="font-semibold text-gray-900 dark:text-gray-100">
+                      {user?.username || 'Guest User'}
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      {user?.email || `${user?.role || 'guest'}@grocery.com`}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -446,6 +431,7 @@ export function Header() {
                   <User className="w-4 h-4" />
                   <span>{t('common.profile')}</span>
                 </button>
+                
                 <button 
                   onClick={handleSettingsClick}
                   className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-3 transition-colors rounded-lg mx-2"
@@ -453,6 +439,37 @@ export function Header() {
                   <Settings className="w-4 h-4" />
                   <span>{t('navigation.settings')}</span>
                 </button>
+
+                {/* Admin-only menu items */}
+                <RoleGuard roles={['admin', 'manager']}>
+                  <button 
+                    onClick={() => { setUserMenuOpen(false); navigate('/users'); }}
+                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-3 transition-colors rounded-lg mx-2"
+                  >
+                    <User className="w-4 h-4" />
+                    <span>User Management</span>
+                  </button>
+                  
+                  <button 
+                    onClick={() => { setUserMenuOpen(false); navigate('/audit'); }}
+                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-3 transition-colors rounded-lg mx-2"
+                  >
+                    <Clock className="w-4 h-4" />
+                    <span>Audit Logs</span>
+                  </button>
+                </RoleGuard>
+
+                {/* Admin-only system management */}
+                <RoleGuard roles={['admin']}>
+                  <button 
+                    onClick={() => { setUserMenuOpen(false); navigate('/system'); }}
+                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-3 transition-colors rounded-lg mx-2"
+                  >
+                    <Settings className="w-4 h-4" />
+                    <span>System Administration</span>
+                  </button>
+                </RoleGuard>
+                
                 <button 
                   onClick={handleHelpClick}
                   className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-3 transition-colors rounded-lg mx-2"
@@ -467,6 +484,21 @@ export function Header() {
                   <HelpCircle className="w-4 h-4" />
                   <span>{t('navigation.about')} & License</span>
                 </button>
+                
+                {/* Logout button */}
+                <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
+                  <button 
+                    onClick={() => { 
+                      setUserMenuOpen(false); 
+                      authService.logout();
+                      navigate('/login');
+                    }}
+                    className="w-full px-4 py-2.5 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-3 transition-colors rounded-lg mx-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
+                  </button>
+                </div>
               </div>
               
             </div>

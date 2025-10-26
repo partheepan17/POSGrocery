@@ -1,0 +1,199 @@
+{
+  "ok": true,
+  "data": {
+    "anomalies": [
+      {
+        "id": "sales_spike_2024-01-15",
+        "rule_id": "sales_spike",
+        "rule_name": "Sales Volume Spike",
+        "severity": "high",
+        "description": "Sales spike detected: 3.5x normal volume",
+        "detected_at": "2024-01-15T00:00:00Z",
+        "value": 125000,
+        "threshold": 35714,
+        "deviation": 3.5,
+        "context": {},
+        "metadata": {
+          "rolling_average": 35714,
+          "transaction_count": 45,
+          "previous_days": 7
+        }
+      },
+      {
+        "id": "zero_margin_12345",
+        "rule_id": "zero_margin",
+        "rule_name": "Zero/Negative Margin Sale",
+        "severity": "critical",
+        "description": "Zero/negative margin sale detected: LKR -250.00",
+        "detected_at": "2024-01-15T14:30:22Z",
+        "value": -250,
+        "threshold": 0,
+        "deviation": -250,
+        "context": {
+          "invoice_id": 12345,
+          "receipt_no": "RCP-2024-001234",
+          "cashier_id": 5,
+          "cashier_name": "John Doe",
+          "terminal_name": "Terminal-01",
+          "customer_id": 101,
+          "customer_name": "ABC Company"
+        },
+        "metadata": {
+          "total_sales": 5000,
+          "total_cost": 5250,
+          "margin_percentage": -5.0
+        }
+      },
+      {
+        "id": "frequent_voids_5",
+        "rule_id": "frequent_voids",
+        "rule_name": "Frequent Voids",
+        "severity": "medium",
+        "description": "High void frequency: 25.5% of transactions",
+        "detected_at": "2024-01-15T18:00:00Z",
+        "value": 0.255,
+        "threshold": 0.2,
+        "deviation": 0.055,
+        "context": {
+          "cashier_id": 5,
+          "cashier_name": "John Doe"
+        },
+        "metadata": {
+          "total_transactions": 200,
+          "void_count": 51,
+          "void_percentage": 25.5
+        }
+      },
+      {
+        "id": "excessive_discounts_12346",
+        "rule_id": "excessive_discounts",
+        "rule_name": "Excessive Discounts",
+        "severity": "medium",
+        "description": "Excessive discount: 75.0% off",
+        "detected_at": "2024-01-15T16:45:10Z",
+        "value": 0.75,
+        "threshold": 0.5,
+        "deviation": 0.25,
+        "context": {
+          "invoice_id": 12346,
+          "receipt_no": "RCP-2024-001235",
+          "cashier_id": 3,
+          "cashier_name": "Jane Smith",
+          "terminal_name": "Terminal-02",
+          "customer_id": 102,
+          "customer_name": "XYZ Ltd"
+        },
+        "metadata": {
+          "gross_amount": 2000,
+          "discount_amount": 1500,
+          "net_amount": 500,
+          "discount_percentage": 75.0
+        }
+      },
+      {
+        "id": "off_hours_12347",
+        "rule_id": "off_hours_sales",
+        "rule_name": "Off-Hours Sales",
+        "severity": "low",
+        "description": "Off-hours sale at 23:00 - LKR 1,250.00",
+        "detected_at": "2024-01-15T23:00:15Z",
+        "value": 23,
+        "threshold": 0,
+        "deviation": 1,
+        "context": {
+          "invoice_id": 12347,
+          "receipt_no": "RCP-2024-001236",
+          "cashier_id": 2,
+          "cashier_name": "Mike Johnson",
+          "terminal_name": "Terminal-01",
+          "customer_id": 103,
+          "customer_name": "DEF Corp"
+        },
+        "metadata": {
+          "sale_amount": 1250,
+          "hour": 23,
+          "is_early_morning": false,
+          "is_late_night": true
+        }
+      },
+      {
+        "id": "large_transaction_12348",
+        "rule_id": "large_transaction",
+        "rule_name": "Large Transaction",
+        "severity": "medium",
+        "description": "Large transaction: LKR 75,000.00",
+        "detected_at": "2024-01-15T11:20:30Z",
+        "value": 75000,
+        "threshold": 50000,
+        "deviation": 25000,
+        "context": {
+          "invoice_id": 12348,
+          "receipt_no": "RCP-2024-001237",
+          "cashier_id": 1,
+          "cashier_name": "Sarah Wilson",
+          "terminal_name": "Terminal-03",
+          "customer_id": 104,
+          "customer_name": "GHI Industries"
+        },
+        "metadata": {
+          "transaction_amount": 75000,
+          "threshold_amount": 50000,
+          "excess_amount": 25000
+        }
+      }
+    ],
+    "summary": {
+      "total_anomalies": 6,
+      "by_severity": {
+        "critical": 1,
+        "high": 1,
+        "medium": 3,
+        "low": 1
+      },
+      "by_category": {
+        "sales_volume": 2,
+        "margin": 1,
+        "voids": 1,
+        "discounts": 1,
+        "timing": 1
+      },
+      "by_rule": {
+        "sales_spike": 1,
+        "zero_margin": 1,
+        "frequent_voids": 1,
+        "excessive_discounts": 1,
+        "off_hours_sales": 1,
+        "large_transaction": 1
+      },
+      "time_range": {
+        "start": "2024-01-15T00:00:00Z",
+        "end": "2024-01-15T23:00:15Z"
+      }
+    },
+    "pagination": {
+      "total": 6,
+      "limit": 100,
+      "offset": 0,
+      "has_more": false
+    },
+    "filters": {
+      "start_date": "2024-01-15",
+      "end_date": "2024-01-15",
+      "severity": null,
+      "category": null,
+      "rule_id": null
+    },
+    "generated_at": "2024-01-15T23:30:45.123Z"
+  },
+  "requestId": "req_anomalies_123456789"
+}
+
+
+
+
+
+
+
+
+
+

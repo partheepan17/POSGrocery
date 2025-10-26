@@ -1,8 +1,9 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Copy, Home, Bug } from 'lucide-react';
-import { Button } from './ui/Button';
-import { Card, CardContent, CardHeader } from './ui/Card';
-import { formatErrorDetails, copyErrorDetails, notify } from '@/lib/notifications';
+import { AlertTriangle, RefreshCw, Home, Bug, Copy, Check } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { ErrorHandler, ErrorInfo as AppErrorInfo } from '@/utils/errorHandler';
+import { toast } from 'react-hot-toast';
 
 interface Props {
   children: ReactNode;
@@ -13,14 +14,12 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
-  errorInfo: ErrorInfo | null;
-  errorDetails: any | null;
-  isRetrying: boolean;
+  errorInfo: AppErrorInfo | null;
+  copied: boolean;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  private retryCount = 0;
-  private maxRetries = 3;
+  private errorHandler = ErrorHandler.getInstance();
 
   constructor(props: Props) {
     super(props);
@@ -28,242 +27,175 @@ export class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
-      errorDetails: null,
-      isRetrying: false,
+      copied: false,
     };
   }
 
-  static getDerivedStateFromError(error: Error): Partial<State> {
+  static getDerivedStateFromError(error: Error): State {
     return {
       hasError: true,
       error,
+      errorInfo: null,
+      copied: false,
     };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    const errorDetails = formatErrorDetails(error, notify.getRequestId() || undefined);
-    
-    this.setState({
-      error,
-      errorInfo,
-      errorDetails,
+    const appErrorInfo = this.errorHandler.handleError(error, {
+      component: 'ErrorBoundary',
+      action: 'componentDidCatch',
     });
 
-    // Log error to console in development
-    if (import.meta.env.DEV) {
-      console.error('ErrorBoundary caught an error:', error, errorInfo);
-    }
+    this.setState({
+      errorInfo: appErrorInfo,
+    });
 
     // Call custom error handler if provided
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
-
-    // Send error to monitoring service in production
-    if (import.meta.env.PROD) {
-      this.sendErrorToMonitoring(errorDetails);
-    }
   }
 
-  private async sendErrorToMonitoring(errorDetails: any) {
-    try {
-      await fetch('/api/errors', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(errorDetails),
-      });
-    } catch (err) {
-      console.error('Failed to send error to monitoring service:', err);
-    }
-  }
-
-  private handleRetry = async () => {
-    if (this.retryCount >= this.maxRetries) {
-      notify.error('Maximum retry attempts reached. Please refresh the page.');
-      return;
-    }
-
-    this.setState({ isRetrying: true });
-    this.retryCount++;
-
-    try {
-      // Wait a bit before retrying
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Reset error state
-      this.setState({
-        hasError: false,
-        error: null,
-        errorInfo: null,
-        errorDetails: null,
-        isRetrying: false,
-      });
-
-      notify.success('Page recovered successfully!');
-    } catch (error) {
-      this.setState({ isRetrying: false });
-      notify.error('Retry failed. Please try again or refresh the page.');
-    }
-  };
-
-  private handleRefresh = () => {
-    window.location.reload();
+  private handleRetry = () => {
+    this.setState({
+      hasError: false,
+      error: null,
+      errorInfo: null,
+    });
   };
 
   private handleGoHome = () => {
     window.location.href = '/';
   };
 
-  private handleCopyError = async () => {
-    if (!this.state.errorDetails) return;
-
-    const success = await copyErrorDetails(this.state.errorDetails);
-    if (success) {
-      notify.success('Error details copied to clipboard');
-    } else {
-      notify.error('Failed to copy error details');
+  private handleReportError = () => {
+    const { error, errorInfo } = this.state;
+    if (error && errorInfo) {
+      // In a real app, you might send this to a reporting service
+      console.error('Error reported:', { error, errorInfo });
+      toast.success('Error has been reported to the development team.');
     }
   };
 
-  private handleReportBug = () => {
-    if (!this.state.errorDetails) return;
+  private handleCopyError = async () => {
+    const { error, errorInfo } = this.state;
+    if (!error) return;
 
-    const bugReportUrl = `https://github.com/your-org/virtual-pos/issues/new?title=Error%20Report&body=${encodeURIComponent(
-      `**Error Details:**
-- Message: ${this.state.errorDetails.message}
-- Code: ${this.state.errorDetails.code}
-- Request ID: ${this.state.errorDetails.requestId}
-- Timestamp: ${this.state.errorDetails.timestamp}
-- URL: ${this.state.errorDetails.url}
+    const errorReport = {
+      message: error.message,
+      stack: error.stack,
+      componentStack: (errorInfo as any)?.componentStack || '',
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      url: window.location.href
+    };
 
-**Stack Trace:**
-\`\`\`
-${this.state.errorDetails.stack}
-\`\`\``
-    )}`;
-
-    window.open(bugReportUrl, '_blank');
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(errorReport, null, 2));
+      this.setState({ copied: true });
+      toast.success('Error details copied to clipboard');
+      setTimeout(() => this.setState({ copied: false }), 2000);
+    } catch (err) {
+      toast.error('Failed to copy error details');
+    }
   };
 
   render() {
     if (this.state.hasError) {
-      // Use custom fallback if provided
+      // Custom fallback UI
       if (this.props.fallback) {
         return this.props.fallback;
       }
 
+      // Default error UI
       return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+          <Card className="w-full max-w-lg">
             <CardHeader className="text-center">
-              <div className="mx-auto w-16 h-16 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mb-4">
+              <div className="mx-auto w-16 h-16 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center mb-6">
                 <AlertTriangle className="w-8 h-8 text-red-600 dark:text-red-400" />
               </div>
-              <h1 className="text-2xl text-gray-900 dark:text-white font-bold">
-                Something went wrong
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-2">
-                We're sorry, but something unexpected happened. Don't worry, your data is safe.
-              </p>
+              <CardTitle className="text-2xl font-bold text-gray-900 dark:text-white">
+                Oops! Something went wrong
+              </CardTitle>
             </CardHeader>
-            
             <CardContent className="space-y-6">
-              {/* Error Details */}
-              {this.state.errorDetails && (
-                <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                    Error Details
-                  </h3>
-                  <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-gray-600 dark:text-gray-400 text-center leading-relaxed">
+                We encountered an unexpected error. Don't worry, your data is safe. 
+                This error has been logged and our team will look into it.
+              </p>
+              
+              {this.state.error && (
+                <details className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <summary className="cursor-pointer text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <Bug className="w-4 h-4" />
+                      Technical Details
+                    </span>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      onClick={this.handleCopyError}
+                      leftIcon={this.state.copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    >
+                      {this.state.copied ? 'Copied!' : 'Copy'}
+                    </Button>
+                  </summary>
+                  <div className="mt-3 space-y-3">
                     <div>
-                      <strong>Message:</strong> {this.state.errorDetails.message}
+                      <strong className="text-red-600 dark:text-red-400">Error:</strong>
+                      <div className="mt-1 p-2 bg-red-50 dark:bg-red-900/20 rounded border-l-2 border-red-300 dark:border-red-600 text-sm">
+                        {this.state.error.message}
+                      </div>
                     </div>
-                    {this.state.errorDetails.code && (
+                    {this.state.error.stack && (
                       <div>
-                        <strong>Code:</strong> {this.state.errorDetails.code}
+                        <strong className="text-blue-600 dark:text-blue-400">Stack Trace:</strong>
+                        <pre className="mt-1 p-2 bg-blue-50 dark:bg-blue-900/20 rounded border-l-2 border-blue-300 dark:border-blue-600 text-xs overflow-auto max-h-32">
+                          {this.state.error.stack}
+                        </pre>
                       </div>
                     )}
-                    {this.state.errorDetails.requestId && (
-                      <div>
-                        <strong>Request ID:</strong> {this.state.errorDetails.requestId}
-                      </div>
-                    )}
-                    <div>
-                      <strong>Timestamp:</strong> {new Date(this.state.errorDetails.timestamp).toLocaleString()}
-                    </div>
                   </div>
-                </div>
+                </details>
               )}
 
-              {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   onClick={this.handleRetry}
-                  disabled={this.state.isRetrying}
+                  variant="primary"
+                  size="lg"
                   className="flex-1"
+                  leftIcon={<RefreshCw className="w-4 h-4" />}
                 >
-                  <RefreshCw className={`w-4 h-4 mr-2 ${this.state.isRetrying ? 'animate-spin' : ''}`} />
-                  {this.state.isRetrying ? 'Retrying...' : 'Try Again'}
-                </Button>
-                
-                <Button
-                  onClick={this.handleRefresh}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Refresh Page
+                  Try Again
                 </Button>
                 
                 <Button
                   onClick={this.handleGoHome}
                   variant="outline"
+                  size="lg"
                   className="flex-1"
+                  leftIcon={<Home className="w-4 h-4" />}
                 >
-                  <Home className="w-4 h-4 mr-2" />
                   Go Home
                 </Button>
               </div>
 
-              {/* Developer Actions */}
-              {import.meta.env.DEV && this.state.errorDetails && (
-                <div className="border-t pt-4">
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
-                    Developer Actions
-                  </h4>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Button
-                      onClick={this.handleCopyError}
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                    >
-                      <Copy className="w-4 h-4 mr-2" />
-                      Copy Error Details
-                    </Button>
-                    
-                    <Button
-                      onClick={this.handleReportBug}
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                    >
-                      <Bug className="w-4 h-4 mr-2" />
-                      Report Bug
-                    </Button>
-                  </div>
-                </div>
+              {import.meta.env.DEV && (
+                <Button
+                  onClick={this.handleReportError}
+                  variant="ghost"
+                  size="sm"
+                  className="w-full"
+                >
+                  Report Error
+                </Button>
               )}
 
-              {/* Help Text */}
-              <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-                <p>
-                  If this problem persists, please contact support with the Request ID above.
-                </p>
-                <p className="mt-1">
-                  Your work has been automatically saved.
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                  If this problem continues, please contact support with the error details above.
                 </p>
               </div>
             </CardContent>
@@ -276,23 +208,9 @@ ${this.state.errorDetails.stack}
   }
 }
 
-// Higher-order component for easy wrapping
-export function withErrorBoundary<P extends object>(
-  Component: React.ComponentType<P>,
-  errorBoundaryProps?: Omit<Props, 'children'>
-) {
-  const WrappedComponent = (props: P) => (
-    <ErrorBoundary {...errorBoundaryProps}>
-      <Component {...props} />
-    </ErrorBoundary>
-  );
-
-  WrappedComponent.displayName = `withErrorBoundary(${Component.displayName || Component.name})`;
-  
-  return WrappedComponent;
-}
-
-// Hook for error boundary context
+/**
+ * Hook for functional components to handle errors
+ */
 export function useErrorBoundary() {
   const [error, setError] = React.useState<Error | null>(null);
 
@@ -312,3 +230,5 @@ export function useErrorBoundary() {
 
   return { captureError, resetError };
 }
+
+export default ErrorBoundary;

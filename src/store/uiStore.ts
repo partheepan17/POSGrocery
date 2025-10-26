@@ -35,7 +35,7 @@ interface UIState {
 
 export const useUIStore = create<UIState>()(
   persist(
-    (set, get) => ({
+    (set, _get) => ({
       // Initial state
       isOnline: true,
       lastOnlineCheck: null,

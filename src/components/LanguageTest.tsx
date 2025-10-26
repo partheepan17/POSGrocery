@@ -45,4 +45,10 @@ export const LanguageTest: React.FC = () => {
   );
 };
 
+export default LanguageTest;
+
+
+
+
+
 

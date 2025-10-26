@@ -13,15 +13,15 @@ import {
   Wifi,
   WifiOff
 } from 'lucide-react';
-import { AppLayout } from '../../components/Layout/AppLayout';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { Badge } from '../../components/ui/Badge';
-import { Card, CardHeader, CardContent } from '../../components/ui/Card';
-import { EnhancedCart } from '../../components/pos/EnhancedCart';
-import { EnhancedCheckoutModal } from '../../components/pos/EnhancedCheckoutModal';
-import { ScalePanel } from '../../components/pos/ScalePanel';
-import { OfflineBanner } from '../../components/common/OfflineBanner';
+import { AppLayout } from '@/components/Layout/AppLayout';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
+import { Card, CardHeader, CardContent } from '@/components/ui/Card';
+import { EnhancedCart } from '@/components/pos/EnhancedCart';
+import { EnhancedCheckoutModal } from '@/components/pos/EnhancedCheckoutModal';
+import { ScalePanel } from '@/components/pos/ScalePanel';
+import { OfflineBanner } from '@/components/common/OfflineBanner';
 
 interface CartItem {
   id: string;

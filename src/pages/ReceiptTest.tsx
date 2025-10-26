@@ -489,3 +489,5 @@ export function ReceiptTest() {
     </div>
   );
 }
+
+export default ReceiptTest;

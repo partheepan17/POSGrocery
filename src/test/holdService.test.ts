@@ -1,9 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { setupComprehensiveMocks, resetMockData } from './setup/databaseMocks';
+
+// Setup mocks before importing the service
+setupComprehensiveMocks();
+
 import { holdService } from '../services/holdService';
-import { dataService } from '../services/dataService';
 
 describe('Hold Service', () => {
   beforeEach(async () => {
+    resetMockData();
     // Clear localStorage before each test
     localStorage.clear();
   });

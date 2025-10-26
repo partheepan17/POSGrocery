@@ -79,7 +79,7 @@ export class A11yTestHelper {
       
       if (violation.nodes && violation.nodes.length > 0) {
         report += `   Nodes:\n`;
-        violation.nodes.forEach((node: any, nodeIndex: number) {
+        violation.nodes.forEach((node: any, nodeIndex: number) => {
           report += `     ${nodeIndex + 1}. ${node.target.join(' ')}\n`;
           if (node.failureSummary) {
             report += `        ${node.failureSummary}\n`;
@@ -133,6 +133,17 @@ export const A11Y_SKIP_RULES = {
     justification: 'No video elements in POS interface'
   }
 };
+
+
+
+
+
+
+
+
+
+
+
 
 
 

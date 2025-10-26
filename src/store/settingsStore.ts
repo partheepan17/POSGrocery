@@ -1,263 +1,132 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { AppSettings } from '@/types';
+import { persist } from 'zustand/middleware';
 
-// Schema version for migrations
-const SETTINGS_SCHEMA_VERSION = 1;
+export type Theme = 'light' | 'dark' | 'auto';
+export type Language = 'en' | 'si' | 'ta';
+export type ValuationMethod = 'fifo' | 'lifo' | 'average' | 'informational';
 
-interface SettingsState {
-  // Schema versioning
-  schemaVersion: number;
-  
-  // Core settings
-  settings: AppSettings;
-  
-  // Feature flags
-  featureFlags: {
-    barcodeScanner: boolean;
-    scaleIntegration: boolean;
-    advancedReporting: boolean;
-    multiLocation: boolean;
-    loyaltyProgram: boolean;
-    inventoryAlerts: boolean;
-    backupSync: boolean;
-    analytics: boolean;
+export interface UserPreferences {
+  theme: Theme;
+  language: Language;
+  defaultValuationMethod: ValuationMethod;
+  notifications: {
+    sound: boolean;
+    desktop: boolean;
+    email: boolean;
   };
-  
-  // UI preferences
-  uiPreferences: {
+  ui: {
     compactMode: boolean;
     showKeyboardShortcuts: boolean;
     autoSave: boolean;
-    notifications: {
-      sound: boolean;
-      desktop: boolean;
-      email: boolean;
-    };
   };
-  
-  // Actions
-  updateSettings: (settings: Partial<AppSettings>) => void;
-  updateFeatureFlag: (flag: keyof SettingsState['featureFlags'], enabled: boolean) => void;
-  updateUIPreference: (preference: string, value: any) => void;
-  resetSettings: () => void;
-  migrateSettings: (fromVersion: number, toVersion: number) => void;
 }
 
-const defaultSettings: AppSettings = {
-  // New structured settings
-  storeInfo: {
-    name: 'My Grocery Store',
-    address: '123 Main Street\nColombo 01\nSri Lanka',
-    taxId: '123456789V',
-    logoUrl: '',
-    defaultReceiptLanguage: 'SI',
-  },
-  devices: {
-    receiptPaper: '80mm',
-    cashDrawerOpenOnCash: true,
-    barcodeInputMode: 'keyboard_wedge',
-    scaleMode: 'off',
-  },
-  languageFormatting: {
-    displayLanguage: 'EN',
-    roundingMode: 'NEAREST_1',
-    kgDecimals: 3,
-  },
-  pricingPolicies: {
-    missingPricePolicy: 'warn_fallback',
-    requiredTiers: ['retail'],
-    autoCreateCategories: true,
-    autoCreateSuppliers: true,
-  },
-  receiptOptions: {
-    footerTextEN: 'Warranty: 7 days | Hotline: 011-1234567',
-    footerTextSI: 'වගකීම: දින 7 | දුරකථන: 011-1234567',
-    footerTextTA: 'உத்தரவாதம்: 7 நாட்கள் | தொலைபேசி: 011-1234567',
-    showQRCode: true,
-    showBarcode: true,
-    showTierBadge: false,
-  },
-  backupSettings: {
-    provider: 'local',
-    schedule: {
-      dailyTime: '22:30',
-      onSettingsChange: true,
-    },
-    retention: {
-      keepDaily: 30,
-      keepConfigChange: 5,
-    },
-    credentials: {
-      encryptionKey: 'default-development-key-change-in-production',
-    },
-  },
+export interface TerminalInfo {
+  id: number | null;
+  name: string | null;
+  description: string | null;
+  isActive: boolean;
+  lastSeen: string | null;
+}
+
+interface SettingsState {
+  // User preferences
+  preferences: UserPreferences;
   
-  refund: {
-    managerPinThreshold: 5000,
-    defaultReason: 'CUSTOMER_CHANGE' as const,
-    requireManagerApproval: true,
-    autoRestoreInventory: true,
-  },
+  // Terminal information
+  currentTerminal: TerminalInfo;
   
-  grnSettings: {
-    autoNumberPrefix: 'GRN-',
-    autoUpdateCostPolicy: 'latest' as const,
-    expiryReminderDays: 14,
-    defaultTaxPercent: 0,
-  },
+  // Settings (for compatibility)
+  settings: any;
   
-  shiftSettings: {
-    requireShiftForSales: true,        // If true, POS blocks finalize unless a shift is open
-    allowMultipleOpenPerTerminal: false,
-    cashDrawerPulseOnOpen: true,
-    sessionTimeoutMinutes: 480,        // 8h shift hint (no auto-close, only warning)
-    xReportFooterEN: 'Thank you',
-    zReportFooterEN: 'End of Day',
-  },
-  
-  // Legacy settings (for backward compatibility)
-  currency: 'LKR',
-  currencySymbol: 'රු',
-  roundingMode: 'nearest',
-  roundingValue: 0.01,
-  taxRate: 15,
-  receiptLanguage: 'si',
+  // Actions
+  updatePreferences: (preferences: Partial<UserPreferences>) => void;
+  updatePreference: <K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) => void;
+  updateNestedPreference: <K extends keyof UserPreferences, N extends keyof UserPreferences[K]>(
+    key: K, 
+    nestedKey: N, 
+    value: UserPreferences[K][N]
+  ) => void;
+  setCurrentTerminal: (terminal: Partial<TerminalInfo>) => void;
+  resetPreferences: () => void;
+}
+
+const defaultPreferences: UserPreferences = {
   theme: 'auto',
-  autoBackup: true,
-  backupFrequency: 'daily',
-  barcodeScanner: true,
-  scaleIntegration: false,
-  printerSettings: {
-    enabled: false,
-    copies: 1,
-  },
-  receiptSettings: {
-    defaultPaper: '80mm',
-    drawerOnCash: true,
-    showQR: true,
-    showBarcode: true,
-    footerTextEN: 'Warranty: 7 days | Hotline: 011-1234567',
-    footerTextSI: 'වගකීම: දින 7 | දුරකථන: 011-1234567',
-    footerTextTA: 'உத்தரவாதம்: 7 நாட்கள் | தொலைபேசி: 011-1234567',
-    decimalPlacesKg: 3,
-  },
-  pricingSettings: {
-    missingPricePolicy: 'warn',
-    requiredTiers: ['retail'],
-    autoCreateCategories: true,
-    autoCreateSuppliers: true,
-  },
-};
-
-const defaultFeatureFlags = {
-  barcodeScanner: true,
-  scaleIntegration: false,
-  advancedReporting: true,
-  multiLocation: false,
-  loyaltyProgram: false,
-  inventoryAlerts: true,
-  backupSync: true,
-  analytics: false,
-};
-
-const defaultUIPreferences = {
-  compactMode: false,
-  showKeyboardShortcuts: true,
-  autoSave: true,
+  language: 'en',
+  defaultValuationMethod: 'informational',
   notifications: {
     sound: true,
     desktop: true,
     email: false,
   },
+  ui: {
+    compactMode: false,
+    showKeyboardShortcuts: true,
+    autoSave: true,
+  },
+};
+
+const defaultTerminal: TerminalInfo = {
+  id: null,
+  name: null,
+  description: null,
+  isActive: false,
+  lastSeen: null,
 };
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
-    (set, get) => ({
+    (set, _get) => ({
       // Initial state
-      schemaVersion: SETTINGS_SCHEMA_VERSION,
-      settings: defaultSettings,
-      featureFlags: defaultFeatureFlags,
-      uiPreferences: defaultUIPreferences,
+      preferences: defaultPreferences,
+      currentTerminal: defaultTerminal,
+      settings: {},
 
       // Actions
-      updateSettings: (newSettings) =>
+      updatePreferences: (newPreferences) =>
         set((state) => ({
-          settings: { ...state.settings, ...newSettings },
+          preferences: { ...state.preferences, ...newPreferences },
         })),
 
-      updateFeatureFlag: (flag, enabled) =>
+      updatePreference: (key, value) =>
         set((state) => ({
-          featureFlags: { ...state.featureFlags, [flag]: enabled },
+          preferences: { ...state.preferences, [key]: value },
         })),
 
-      updateUIPreference: (preference, value) =>
-        set((state) => {
-          const newPreferences = { ...state.uiPreferences };
-          if (preference.includes('.')) {
-            const [parent, child] = preference.split('.');
-            newPreferences[parent as keyof typeof newPreferences] = {
-              ...(newPreferences[parent as keyof typeof newPreferences] as any),
-              [child]: value,
-            };
-          } else {
-            newPreferences[preference as keyof typeof newPreferences] = value;
-          }
-          return { uiPreferences: newPreferences };
-        }),
+      updateNestedPreference: (key, nestedKey, value) =>
+        set((state) => ({
+          preferences: {
+            ...state.preferences,
+            [key]: {
+              ...(state.preferences[key] as any),
+              [nestedKey]: value,
+            },
+          },
+        })),
 
-      resetSettings: () =>
+      setCurrentTerminal: (terminal) =>
+        set((state) => ({
+          currentTerminal: { ...state.currentTerminal, ...terminal },
+        })),
+
+      resetPreferences: () =>
         set({
-          schemaVersion: SETTINGS_SCHEMA_VERSION,
-          settings: defaultSettings,
-          featureFlags: defaultFeatureFlags,
-          uiPreferences: defaultUIPreferences,
+          preferences: defaultPreferences,
         }),
-
-      migrateSettings: (fromVersion, toVersion) => {
-        const currentState = get();
-        
-        // Migration logic for different schema versions
-        if (fromVersion < 1 && toVersion >= 1) {
-          // Migrate from version 0 to 1
-          set({
-            schemaVersion: toVersion,
-            settings: {
-              ...defaultSettings,
-              ...currentState.settings,
-            },
-            featureFlags: {
-              ...defaultFeatureFlags,
-              ...currentState.featureFlags,
-            },
-            uiPreferences: {
-              ...defaultUIPreferences,
-              ...currentState.uiPreferences,
-            },
-          });
-        }
-      },
     }),
     {
-      name: 'grocery-pos-settings',
-      version: SETTINGS_SCHEMA_VERSION,
-      storage: createJSONStorage(() => localStorage),
-      migrate: (persistedState: any, version: number) => {
-        // Handle migration when schema version changes
-        if (version < SETTINGS_SCHEMA_VERSION) {
-          const state = persistedState as SettingsState;
-          state.migrateSettings?.(version, SETTINGS_SCHEMA_VERSION);
-          return state;
-        }
-        return persistedState;
-      },
+      name: 'settings-storage',
       partialize: (state) => ({
-        schemaVersion: state.schemaVersion,
-        settings: state.settings,
-        featureFlags: state.featureFlags,
-        uiPreferences: state.uiPreferences,
+        preferences: state.preferences,
+        currentTerminal: state.currentTerminal,
       }),
     }
   )
 );
+
+// Selectors for common use cases
+export const useTheme = () => useSettingsStore((state) => state.preferences.theme);
+export const useLanguage = () => useSettingsStore((state) => state.preferences.language);
+export const useCurrentTerminal = () => useSettingsStore((state) => state.currentTerminal);
+export const usePreferences = () => useSettingsStore((state) => state.preferences);

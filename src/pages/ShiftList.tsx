@@ -64,7 +64,7 @@ export default function ShiftList() {
         return <Badge variant="warning">Open</Badge>;
       case 'CLOSED':
         return <Badge variant="primary">Closed</Badge>;
-      case 'VOID':
+      case 'VOID' as any:
         return <Badge variant="danger">Void</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;

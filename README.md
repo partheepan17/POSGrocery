@@ -1,396 +1,464 @@
-# Grocery POS System
+# POS Grocery V2
 
-A lightweight, keyboard-first Point of Sale (POS) application designed for Grocery/FMCG businesses with support for up to 4 clients, multi-language receipts, and comprehensive inventory management.
+A comprehensive Point of Sale (POS) system designed specifically for grocery stores, built with modern web technologies and optimized for cashier workflows.
 
-## Features
+## 🚀 Features
 
-### Core Functionality
-- **Sales Management**: Complete POS with cart, payment processing, and receipt printing
-- **Product Catalog**: Manage products with barcode support, SKU tracking, and categories
-- **Price Management**: Tiered pricing with bulk discounts and customer group pricing
-- **Inventory Control**: Real-time stock tracking with low-stock alerts
-- **Customer & Supplier Management**: Complete CRM functionality
-- **Discount System**: Flexible promotional discounts and loyalty programs
-- **Reporting**: Comprehensive sales, inventory, and profit reports
-- **Backup & Sync**: Automated cloud backups with restore functionality
+### Core POS Features
+- **Sales Management**: Complete sales workflow with barcode scanning, product search, and multiple payment methods
+- **Inventory Management**: Real-time stock tracking with FIFO/LIFO/Average costing methods
+- **Customer Management**: Customer profiles, credit accounts, and purchase history
+- **Supplier Management**: Supplier profiles, purchase orders, and GRN (Goods Received Note) processing
+- **Returns & Refunds**: Complete returns workflow with receipt validation
+- **Multi-terminal Support**: Support for multiple POS terminals with centralized data
+
+### Advanced Features
+- **Offline Support**: Works offline with automatic sync when connection is restored
+- **PWA (Progressive Web App)**: Installable app with native-like experience
+- **Real-time Updates**: Live updates across all terminals
+- **Comprehensive Reporting**: Sales, inventory, financial, and operational reports
+- **Role-based Access Control**: Granular permissions for different user roles
+- **Multi-language Support**: English, Sinhala, and Tamil language support
+- **Receipt Printing**: Thermal receipt printing with customizable templates
+- **Label Printing**: Product label printing with barcodes
+- **Backup & Recovery**: Automated database backups with point-in-time recovery
 
 ### Technical Features
-- **Multi-language Support**: English, Sinhala, and Tamil receipts
-- **Keyboard-first UX**: Full keyboard navigation and shortcuts
-- **Dark/Light Mode**: Adaptive theme with system preference detection
-- **Currency Formatting**: LKR support with flexible rounding options
-- **Error Handling**: Comprehensive error boundaries and user feedback
-- **Responsive Design**: Works on desktop and tablet devices
-- **Fast Performance**: Optimized for quick startup and low memory usage
+- **Modern Architecture**: React + TypeScript frontend, Node.js + Express backend
+- **Database**: SQLite with comprehensive schema and migrations
+- **Performance Monitoring**: Built-in performance tracking and optimization
+- **Structured Logging**: Comprehensive logging with correlation IDs
+- **API Documentation**: Auto-generated API documentation
+- **Testing**: Unit tests, integration tests, and E2E tests
+- **Docker Support**: Containerized deployment with Docker Compose
 
-## Tech Stack
+## 🛠️ Technology Stack
 
-- **Frontend**: React 18 + TypeScript + Vite
-- **Styling**: Tailwind CSS with custom POS theme
-- **State Management**: Zustand with persistence
-- **Routing**: React Router v6
-- **Icons**: Lucide React
-- **Notifications**: React Hot Toast
+### Frontend
+- **React 18** with TypeScript
+- **Vite** for fast development and building
+- **Tailwind CSS** for styling
+- **React Router** for navigation
+- **Zustand** for state management
+- **React Hook Form** for form handling
+- **React Query** for data fetching
+- **PWA** capabilities with service workers
+
+### Backend
+- **Node.js** with TypeScript
+- **Express.js** web framework
+- **SQLite** database with Better-SQLite3
+- **Winston** for structured logging
+- **JWT** for authentication
+- **Helmet** for security
+- **CORS** for cross-origin requests
+- **Compression** for response optimization
+
+### Development Tools
+- **ESLint** for code linting
+- **Prettier** for code formatting
+- **Husky** for git hooks
+- **Vitest** for testing
+- **Playwright** for E2E testing
+- **TypeScript** for type safety
+
+## 📋 Prerequisites
+
+- **Node.js** 18.0.0 or higher
+- **npm** 9.0.0 or higher
+- **Git** for version control
 
 ## 🚀 Quick Start
 
-### One-Click Start (Recommended)
-
-**Windows:**
-1. Double-click `tools/launchers/setup-project.bat` to install dependencies and build the project
-2. Double-click `tools/launchers/start-dev-all.bat` to start development servers
-3. Open http://localhost:5173 in your browser
-
-**macOS/Linux:**
-1. Double-click `tools/launchers/setup-project.command` to install dependencies and build the project
-2. Double-click `tools/launchers/start-dev-all.command` to start development servers
-3. Open http://localhost:5173 in your browser
-
-## 🎯 Deployment Buttons
-
-### Available Launchers
-
-| Button | Description | Frontend | Backend | Use Case |
-|--------|-------------|----------|---------|----------|
-| **Start Dev (All)** | Full development mode | http://localhost:5173 | http://localhost:8250 | Daily development |
-| **Start Dev (Fast)** | Fast development mode | http://localhost:5173 | http://localhost:8250 | Quick iteration |
-| **Start Production** | Production mode | http://localhost:8080 | http://localhost:8250 | Production testing |
-| **Check Health** | Health check | - | http://localhost:8250 | Service monitoring |
-| **Setup Project** | Project setup | - | - | First-time setup |
-
-### VS Code Tasks
-
-Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (macOS) and type "Tasks: Run Task" to access:
-
-- 🚀 **Start Dev (All)** - Full development environment
-- ⚡ **Start Dev (Fast)** - Fast development with skipped migrations
-- 🏗️ **Build All** - Build both frontend and backend
-- 🚀 **Start Production** - Production deployment
-- 🔍 **Check Health** - Service health verification
-- ⚙️ **Setup Project** - Complete project setup
-
-### Command Line Scripts
+### 1. Clone the Repository
 
 ```bash
-# Development
-npm run dev:all              # Start both frontend and backend
-npm run dev:all:fast         # Fast development mode
-npm run dev:server           # Backend only
-npm run dev:client           # Frontend only
-
-# Production
-npm run build:all            # Build everything
-npm run start:all:prod       # Start production mode
-npm run deploy:prod          # Build and start production
-
-# Health Checks
-npm run check:health         # Basic health check
-npm run check:ready          # Readiness check
-npm run check:integrity      # Database integrity check
-npm run check:full           # Complete health verification
-
-# Utilities
-npm run setup                # Complete project setup
-npm run reset                # Reset project data
-npm run quick:start          # Quick development start
-npm run quick:build          # Quick build
-npm run quick:check          # Quick health check
+git clone https://github.com/your-org/pos-grocery-v2.git
+cd pos-grocery-v2
 ```
 
-### New Teammate Onboarding
+### 2. Install Dependencies
 
-**Step 1: Clone and Setup**
-```bash
-git clone <repository-url>
-cd pos-grocery
-cp .env.example .env
-```
-
-**Step 2: One-Click Start**
-- **Windows**: Double-click `tools/launchers/setup-project.bat` then `tools/launchers/start-dev-all.bat`
-- **macOS/Linux**: Double-click `tools/launchers/setup-project.command` then `tools/launchers/start-dev-all.command`
-- **VS Code**: Press `Ctrl+Shift+P` → "Tasks: Run Task" → "Setup Project" → "Start Dev (All)"
-
-**Step 3: Verify**
-- Frontend: http://localhost:5173
-- Backend: http://localhost:8250
-- Health: Run "Check Health" task or launcher
-
-### VS Code Users
-1. Open the project in VS Code
-2. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac)
-3. Type "Tasks: Run Task"
-4. Select "🚀 Start Dev (All)" from the list
-
-### Command Line
-```bash
-# Setup (first time only)
-npm run setup
-
-# Start development
-npm run dev:all
-
-# Start fast development (skips migrations, reduced logging)
-npm run dev:all:fast
-
-# Start production
-npm run start:all:prod
-```
-
-## 📋 Available Launchers
-
-### Windows Launchers
-| File | Description |
-|------|-------------|
-| `setup.bat` | First-time setup (installs deps, builds project) |
-| `start-dev.bat` | Start development servers (normal mode) |
-| `start-dev-fast.bat` | Start development servers (fast mode) |
-| `start-prod.bat` | Build and start production servers |
-
-### macOS/Linux Launchers
-| File | Description |
-|------|-------------|
-| `setup.command` | First-time setup (installs deps, builds project) |
-| `start-dev.command` | Start development servers (normal mode) |
-| `start-dev-fast.command` | Start development servers (fast mode) |
-| `start-prod.command` | Build and start production servers |
-
-### VS Code Tasks
-Press `Ctrl+Shift+P` → "Tasks: Run Task" to access:
-- 🚀 **Start Dev (All)** - Normal development mode
-- ⚡ **Start Dev (Fast)** - Fast development mode
-- 🏗️ **Build All** - Build both server and client
-- 🚀 **Start Production** - Production mode
-- 🔍 **Check Health** - Health check endpoints
-- ⚙️ **Setup Project** - First-time setup
-- 🧪 **Run Tests** - Run test suite
-- 🔧 **Lint & Fix** - Code linting and fixing
-
-### NPM Scripts Reference
-```bash
-# Development
-npm run dev:all              # Start both server and client
-npm run dev:all:fast         # Start in fast mode
-npm run dev:server           # Start server only
-npm run dev:server:fast      # Start server in fast mode
-npm run dev:client           # Start client only
-
-# Production
-npm run build:all            # Build both server and client
-npm run start:prod           # Start production server
-npm run start:all:prod       # Start both in production mode
-npm run serve:prod           # Serve built frontend
-
-# Health & Status
-npm run check:health         # Check server health
-npm run check:all            # Check all services
-
-# Setup & Maintenance
-npm run setup                # Complete project setup
-npm run reset                # Reset database
-npm run lint:fix             # Fix linting issues
-npm run format               # Format code
-```
-
-## Getting Started
-
-### Prerequisites
-- Node.js 18+ 
-- npm or yarn
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd grocery-pos
-```
-
-2. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Start the development server:
+### 3. Environment Setup
+
 ```bash
+# Copy the example environment file
+cp env.example .env
+
+# Edit the environment file with your settings
+nano .env
+```
+
+### 4. Database Setup
+
+```bash
+# Run database migrations
+npm run db:migrate
+
+# Seed the database with sample data
+npm run seed
+```
+
+### 5. Start Development Servers
+
+```bash
+# Start both frontend and backend
 npm run dev
+
+# Or start them separately
+npm run dev:server  # Backend only
+npm run dev:client  # Frontend only
 ```
 
-4. Open your browser and navigate to `http://localhost:8103`
+### 6. Access the Application
 
-### Build for Production
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:8250
+- **API Documentation**: http://localhost:8250/api/docs
+
+## 🔧 Configuration
+
+### Environment Variables
+
+Key environment variables to configure:
 
 ```bash
-npm run build
+# Application
+NODE_ENV=development
+PORT=8250
+
+# Database
+DB_PATH=./data/pos.db
+
+# Frontend
+VITE_API_BASE_URL=http://localhost:8250
+
+# CORS
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+
+# Security
+JWT_SECRET=your-super-secret-jwt-key
+SESSION_SECRET=your-super-secret-session-key
+
+# Business
+BUSINESS_NAME=Your Store Name
+BUSINESS_ADDRESS=Your Store Address
+BUSINESS_PHONE=Your Phone Number
 ```
 
-The built files will be in the `dist` directory.
+### Database Configuration
 
-## Keyboard Shortcuts
+The system uses SQLite for simplicity and performance. Database files are stored in the `./data/` directory.
+
+```bash
+# Database operations
+npm run db:migrate    # Run migrations
+npm run db:seed       # Seed with sample data
+npm run db:reset      # Reset database
+```
+
+## 🏗️ Project Structure
+
+```
+pos-grocery-v2/
+├── src/                    # Frontend source code
+│   ├── components/         # React components
+│   ├── pages/             # Page components
+│   ├── hooks/             # Custom React hooks
+│   ├── store/             # State management
+│   ├── services/          # API services
+│   ├── utils/             # Utility functions
+│   └── types/             # TypeScript type definitions
+├── server/                # Backend source code
+│   ├── routes/            # API routes
+│   ├── services/          # Business logic services
+│   ├── middleware/        # Express middleware
+│   ├── db/                # Database configuration
+│   ├── utils/             # Utility functions
+│   └── types/             # TypeScript type definitions
+├── public/                # Static assets
+├── tests/                 # Test files
+├── scripts/               # Build and utility scripts
+└── docs/                  # Documentation
+```
+
+## 🧪 Testing
+
+### Run Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run unit tests
+npm run test:unit
+
+# Run integration tests
+npm run test:api
+
+# Run E2E tests
+npm run test:e2e
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+### Test Structure
+
+- **Unit Tests**: Component and utility function tests
+- **Integration Tests**: API endpoint tests
+- **E2E Tests**: Full user workflow tests
+- **Contract Tests**: API contract validation
+
+## 🚀 Deployment
+
+### Production Build
+
+```bash
+# Build for production
+npm run build
+
+# Start production server
+npm start
+```
+
+### Docker Deployment
+
+```bash
+# Build Docker image
+npm run docker:build
+
+# Run with Docker Compose
+npm run docker:compose
+```
+
+### Environment-Specific Configuration
+
+- **Development**: Hot reload, debug logging, sample data
+- **Staging**: Production-like with test data
+- **Production**: Optimized build, error tracking, monitoring
+
+## 📊 Monitoring & Logging
+
+### Performance Monitoring
+
+The system includes built-in performance monitoring:
+
+```bash
+# View performance metrics
+npm run metrics
+
+# Generate performance report
+npm run performance:report
+```
+
+### Logging
+
+Structured logging with correlation IDs:
+
+```bash
+# View logs
+npm run logs
+
+# Log analysis
+npm run logs:analyze
+```
+
+### Health Checks
+
+```bash
+# Check system health
+curl http://localhost:8250/api/health
+
+# Detailed health check
+curl http://localhost:8250/api/health/detailed
+```
+
+## 🔒 Security
+
+### Authentication & Authorization
+
+- JWT-based authentication
+- Role-based access control (RBAC)
+- Session management
+- Password policies
+
+### Security Headers
+
+- Helmet.js for security headers
+- CORS configuration
+- Rate limiting
+- Input validation
+
+### Data Protection
+
+- SQL injection prevention
+- XSS protection
+- CSRF protection
+- Secure password hashing
+
+## 🎯 Keyboard Shortcuts
 
 ### Navigation
-- `Ctrl + 1` - Sales
-- `Ctrl + 2` - Products  
-- `Ctrl + 3` - Price Management
-- `Ctrl + 4` - Suppliers
-- `Ctrl + 5` - Customers
-- `Ctrl + 6` - Discounts
-- `Ctrl + 7` - Inventory
-- `Ctrl + 8` - Reports
-- `Ctrl + 9` - Settings
-- `Ctrl + 0` - Backups
+- `F1` - Go to Sales
+- `F2` - Go to Returns
+- `F3` - Go to Products
+- `F4` - Go to Customers
+- `F5` - Go to Suppliers
+- `F6` - Go to Pricing
+- `F7` - Go to Discounts
+- `F8` - Go to Shifts
 
 ### Sales Operations
-- `F1` - New Sale
-- `F2` - Add Product to Sale
-- `F3` - Apply Discount
-- `F4` - Process Payment
-- `F5` - Print Receipt
-- `F6` - Void Sale
-- `F7` - Hold Sale
-- `F8` - Recall Sale
+- `Enter` - Add selected product to cart
+- `Escape` - Clear current operation
+- `Ctrl+P` - Process payment (Cash)
+- `Ctrl+D` - Process payment (Card)
+- `Ctrl+W` - Process payment (Wallet)
+- `Ctrl+T` - Process payment (Credit)
+- `Ctrl+H` - Hold current sale
+- `Ctrl+R` - Resume held sale
+- `Ctrl+C` - Clear cart
 
-### General
-- `F9` - Toggle Theme
-- `F10` - Toggle Fullscreen
-- `F11` - Focus Search
-- `F12` - Open Dev Tools
-- `Ctrl + N` - New Item
-- `Ctrl + S` - Save
-- `Ctrl + F` - Search
-- `Ctrl + P` - Print
-- `Ctrl + E` - Export
-- `Ctrl + I` - Import
+### Utilities
+- `Ctrl+K` - Open command palette
+- `?` - Show keyboard shortcuts help
+- `Ctrl+F` - Focus search field
+- `Ctrl+B` - Focus barcode field
 
-## Currency & Localization
+## 📱 PWA Features
 
-### Supported Currencies
-- Sri Lankan Rupee (LKR) - Primary
-- US Dollar (USD)
-- Euro (EUR)
+### Offline Support
+- Service worker for caching
+- Offline data storage
+- Background sync
+- Offline indicators
 
-### Rounding Options
-- Nearest: Round to nearest value
-- Up: Always round up
-- Down: Always round down
+### App Installation
+- Installable on desktop and mobile
+- Native-like experience
+- Push notifications
+- App shortcuts
 
-### Rounding Values
-- රු 1.00
-- රු 0.50
-- රු 0.10
-- රු 0.05
-- රු 0.01
+## 🔄 API Documentation
 
-### Receipt Languages
-- English (en)
-- Sinhala (si)
-- Tamil (ta)
+### REST API
 
-## Configuration
+The system provides a comprehensive REST API:
 
-### Settings
-- Currency and symbol configuration
-- Tax rate settings
-- Rounding preferences
-- Theme selection (light/dark/auto)
-- Receipt language
-- Barcode scanner integration
-- Scale integration
-- Printer configuration
-- Auto-backup settings
+- **Base URL**: `http://localhost:8250/api`
+- **Authentication**: JWT Bearer tokens
+- **Content Type**: `application/json`
+- **Pagination**: Standard pagination with `page`, `pageSize`, `total`, `pages`
 
-### Data Management
-- CSV import/export for all modules
-- Automated daily cloud backups
-- Manual backup creation
-- Data restore functionality
+### Key Endpoints
 
-## Project Structure
+```bash
+# Authentication
+POST /api/auth/login
+POST /api/auth/logout
+POST /api/auth/refresh
 
-```
-src/
-├── components/          # Reusable UI components
-│   ├── Layout/         # Layout components (Sidebar, Header)
-│   └── ErrorBoundary.tsx
-├── pages/              # Page components
-│   ├── Sales.tsx
-│   ├── Products.tsx
-│   ├── Pricing.tsx
-│   ├── Suppliers.tsx
-│   ├── Customers.tsx
-│   ├── Discounts.tsx
-│   ├── Inventory.tsx
-│   ├── Reports.tsx
-│   ├── Settings.tsx
-│   └── Backups.tsx
-├── store/              # State management
-│   ├── appStore.ts
-│   └── salesStore.ts
-├── types/              # TypeScript type definitions
-├── utils/              # Utility functions
-│   ├── currency.ts
-│   ├── keyboard.ts
-│   └── cn.ts
-├── App.tsx
-├── main.tsx
-└── index.css
+# Products
+GET /api/products
+POST /api/products
+PUT /api/products/:id
+DELETE /api/products/:id
+
+# Sales
+GET /api/sales
+POST /api/sales
+GET /api/sales/:id
+
+# Inventory
+GET /api/inventory
+POST /api/inventory/movements
+GET /api/inventory/stock
+
+# Reports
+GET /api/reports/sales
+GET /api/reports/inventory
+GET /api/reports/financial
 ```
 
-## Development
+## 🤝 Contributing
 
-### Available Scripts
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-- `npm run lint:fix` - Fix ESLint errors automatically
-- `npm run format` - Format code with Prettier
-- `npm run format:check` - Check code formatting
-- `npm run type-check` - Run TypeScript type checking
-- `npm run test` - Run unit tests with Vitest
-- `npm run test:ui` - Run tests with UI
-- `npm run test:run` - Run tests once
-- `npm run test:coverage` - Run tests with coverage report
-- `npm run e2e` - Run end-to-end tests with Playwright
-- `npm run e2e:ui` - Run e2e tests with UI
-- `npm run e2e:install` - Install Playwright browsers
-
-### Code Style
-- TypeScript for type safety
-- ESLint for code quality
-- Prettier for code formatting
-- Tailwind CSS for styling
-- EditorConfig for consistent formatting
-
-### Testing
-- Vitest for unit testing
-- Playwright for end-to-end testing
-- React Testing Library for component testing
-- Coverage reports with v8
-
-### Additional Features
-- Service Worker for offline support
-- Telemetry logging system
-- Health monitoring endpoint
-- Print adapter for receipts
-- Barcode/Scale integration adapters
-- CSV import/export functionality
-- Internationalization (i18n) support
-- Protected routes and error boundaries
-
-## Contributing
+### Development Workflow
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+4. Add tests for new functionality
+5. Ensure all tests pass
+6. Submit a pull request
 
-## License
+### Code Standards
 
-This project is licensed under the MIT License.
+- Follow TypeScript best practices
+- Use ESLint and Prettier
+- Write comprehensive tests
+- Document new features
+- Follow conventional commits
 
-## Support
+### Pull Request Process
 
-For support and questions, please contact the development team.
->>>>>>> 522722f (Initial commit)
+1. Ensure tests pass
+2. Update documentation
+3. Add changelog entry
+4. Request code review
+5. Address feedback
+6. Merge when approved
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+### Getting Help
+
+- **Documentation**: Check the [docs/](docs/) directory
+- **Issues**: Report bugs and request features on GitHub
+- **Discussions**: Join community discussions
+- **Email**: support@pos-grocery.com
+
+### Common Issues
+
+1. **Database Connection Issues**: Check database file permissions
+2. **CORS Errors**: Verify CORS_ORIGINS configuration
+3. **Build Failures**: Ensure Node.js version compatibility
+4. **Performance Issues**: Check system resources and configuration
+
+## 🗺️ Roadmap
+
+### Upcoming Features
+- [ ] Mobile app (React Native)
+- [ ] Advanced analytics dashboard
+- [ ] Multi-store support
+- [ ] Integration with accounting systems
+- [ ] Barcode scanner integration
+- [ ] Advanced reporting with charts
+- [ ] Automated inventory reordering
+- [ ] Customer loyalty program
+
+### Version History
+
+- **v1.0.0** - Initial release with core POS functionality
+- **v1.1.0** - Added offline support and PWA features
+- **v1.2.0** - Enhanced reporting and analytics
+- **v2.0.0** - Complete rewrite with modern architecture
+
+## 🙏 Acknowledgments
+
+- React team for the excellent framework
+- Express.js team for the robust backend framework
+- SQLite team for the reliable database
+- All contributors and testers
+
+---
+
+**Built with ❤️ for grocery stores worldwide**

@@ -67,6 +67,7 @@
     "navigation": "Navigation"
   },
   "navigation": {
+    "dashboard": "Dashboard",
     "sales": "Sales",
     "quickSales": "Quick Sales",
     "returns": "Returns",

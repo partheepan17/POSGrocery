@@ -13,8 +13,8 @@ import {
   Command,
   ArrowRight
 } from 'lucide-react';
-import { Input } from '../ui/Input';
-import { Badge } from '../ui/Badge';
+import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
 
 interface NavigationItem {
   name: string;

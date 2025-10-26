@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, User, Phone, Mail, MapPin, FileText } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { dataService, Customer } from '@/services/dataService';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { ResponsiveContainer } from '@/components/ui/ResponsiveContainer';
 
 interface CustomerModalProps {
   customer?: Customer | null;
@@ -78,7 +81,8 @@ export function CustomerModal({ customer, onClose, onSave }: CustomerModalProps)
         phone: formData.phone.trim() || undefined,
         customer_type: formData.customer_type,
         note: formData.note.trim() || undefined,
-        active: formData.active
+        active: formData.active,
+        updated_at: new Date().toISOString()
       };
 
       if (customer?.id) {

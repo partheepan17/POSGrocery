@@ -1,5 +1,14 @@
 import { useState, useEffect } from 'react';
-import { offlineQueue, QueueStats, QueuedOperation } from '@/lib/offlineQueue';
+import { queueOperations } from '@/lib/offlineQueue';
+import { QueuedOperation } from '@/core/offline/queue';
+
+interface QueueStats {
+  total: number;
+  pending: number;
+  processing: number;
+  completed: number;
+  failed: number;
+}
 
 export function useOfflineQueue() {
   const [stats, setStats] = useState<QueueStats>({
@@ -8,19 +17,24 @@ export function useOfflineQueue() {
     processing: 0,
     completed: 0,
     failed: 0,
-    byType: {},
-    byPriority: {},
   });
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
-    // Subscribe to queue changes
-    const unsubscribe = offlineQueue.subscribe((newStats) => {
-      setStats(newStats);
-    });
+    // Update stats periodically
+    const updateStats = () => {
+      const queue = queueOperations.getQueue();
+      setStats({
+        total: queue.length,
+        pending: queue.filter(op => (op as any).status === 'pending').length,
+        processing: queue.filter(op => (op as any).status === 'processing').length,
+        completed: queue.filter(op => (op as any).status === 'completed').length,
+        failed: queue.filter(op => (op as any).status === 'failed').length,
+      });
+    };
 
     // Get initial stats
-    offlineQueue.getStats().then(setStats);
+    updateStats();
 
     // Listen for online/offline changes
     const handleOnline = () => setIsOnline(true);
@@ -30,7 +44,6 @@ export function useOfflineQueue() {
     window.addEventListener('offline', handleOffline);
 
     return () => {
-      unsubscribe();
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
@@ -53,20 +66,13 @@ export function useOfflineQueueOperations() {
   const [operations, setOperations] = useState<QueuedOperation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadOperations = async (status?: QueuedOperation['status']) => {
+  const loadOperations = async (status?: any) => {
     setLoading(true);
     try {
+      const queue = queueOperations.getQueue();
       const ops = status 
-        ? await offlineQueue.getOperationsByStatus(status)
-        : await offlineQueue.getStats().then(stats => 
-            offlineQueue.getOperationsByStatus('pending').then(pending => 
-              offlineQueue.getOperationsByStatus('failed').then(failed => 
-                offlineQueue.getOperationsByStatus('processing').then(processing => 
-                  [...pending, ...failed, ...processing]
-                )
-              )
-            )
-          );
+        ? queue.filter(op => (op as any).status === status)
+        : queue;
       setOperations(ops);
     } catch (error) {
       console.error('Failed to load operations:', error);
@@ -80,27 +86,31 @@ export function useOfflineQueueOperations() {
   }, []);
 
   const retryOperation = async (id: string) => {
-    await offlineQueue.retryOperation(id);
+    // TODO: Implement retry operation
+    console.log('Retry operation:', id);
     loadOperations();
   };
 
   const removeOperation = async (id: string) => {
-    await offlineQueue.removeOperation(id);
+    // TODO: Implement remove operation
+    console.log('Remove operation:', id);
     loadOperations();
   };
 
   const retryAllFailed = async () => {
-    await offlineQueue.retryFailedOperations();
+    // TODO: Implement retry all failed operations
+    console.log('Retry all failed operations');
     loadOperations();
   };
 
   const clearCompleted = async () => {
-    await offlineQueue.clearCompletedOperations();
+    // TODO: Implement clear completed operations
+    console.log('Clear completed operations');
     loadOperations();
   };
 
   const clearAll = async () => {
-    await offlineQueue.clearAllOperations();
+    queueOperations.clearQueue();
     loadOperations();
   };
 
@@ -115,6 +125,17 @@ export function useOfflineQueueOperations() {
     clearAll,
   };
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 

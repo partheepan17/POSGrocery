@@ -116,15 +116,15 @@ export class LabelPrintAdapter {
     
     // Convert mm to pixels
     const mmToPx = (mm: number) => Math.round((mm * dpi / 25.4) * scale);
-    const width = mmToPx(preset.size.width_mm);
-    const height = mmToPx(preset.size.height_mm);
+    const width = mmToPx(preset.size?.width_mm || preset.size?.width || 50);
+    const height = mmToPx(preset.size?.height_mm || preset.size?.height || 30);
     
     // Get field values
     const fieldValues = this.extractFieldValues(item, preset);
     
     // Generate barcode if needed
     let barcodeHtml = '';
-    if (preset.barcode) {
+    if (preset.barcode?.enabled) {
       try {
         const barcodeData = preset.barcode.source === 'barcode' ? item.barcode : item.sku;
         if (barcodeData) {
@@ -133,7 +133,7 @@ export class LabelPrintAdapter {
             : barcodeService.encodeCode128(barcodeData);
           
           const barcodeWidth = Math.min(width * 0.8, 120);
-          const barcodeHeight = preset.size.height_mm > 25 ? 25 : 15;
+          const barcodeHeight = (preset.size?.height_mm || preset.size?.height || 30) > 25 ? 25 : 15;
           
           barcodeHtml = `
             <div class="barcode" style="
@@ -147,7 +147,7 @@ export class LabelPrintAdapter {
               <div style="
                 width: 100%; 
                 height: 100%; 
-                background-image: url('${barcodeService.svgToDataUrl(barcode.data)}');
+                background-image: url('${barcodeService.svgToDataUrl(barcode)}');
                 background-size: contain;
                 background-repeat: no-repeat;
                 background-position: center;
@@ -173,14 +173,14 @@ export class LabelPrintAdapter {
         flex-direction: column;
         justify-content: space-between;
         font-family: Arial, sans-serif;
-        font-size: ${Math.round(10 * preset.style.font_scale)}px;
-        text-align: ${preset.style.align};
+        font-size: ${Math.round(10 * (preset.style?.font_scale || 1))}px;
+        text-align: ${preset.style?.align || 'left'};
         background: white;
         color: black;
         overflow: hidden;
         page-break-inside: avoid;
       ">
-        ${preset.style.show_store_logo ? this.renderStoreLogo() : ''}
+        ${preset.style?.show_store_logo ? this.renderStoreLogo() : ''}
         
         <div class="content" style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
           ${this.renderSections(fieldValues, preset, barcodeHtml)}
@@ -199,7 +199,7 @@ export class LabelPrintAdapter {
     preset: LabelPreset, 
     barcodeHtml: string
   ): string {
-    const sectionOrder = preset.style.sectionOrder || ['name', 'barcode', 'price', 'mrp', 'batch', 'dates'];
+    const sectionOrder = preset.style?.sectionOrder || ['name', 'barcode', 'price', 'mrp', 'batch', 'dates'];
     let html = '';
     
     for (const section of sectionOrder) {
@@ -207,8 +207,8 @@ export class LabelPrintAdapter {
         case 'name':
           if (fieldValues.line1) {
             html += `<div class="line1" style="
-              font-weight: ${preset.style.bold_name ? 'bold' : 'normal'};
-              font-size: ${Math.round(11 * preset.style.font_scale)}px;
+              font-weight: ${preset.style?.bold_name ? 'bold' : 'normal'};
+              font-size: ${Math.round(11 * (preset.style?.font_scale || 1))}px;
               margin-bottom: 1px;
               white-space: nowrap;
               overflow: hidden;
@@ -217,7 +217,7 @@ export class LabelPrintAdapter {
           }
           if (fieldValues.line2) {
             html += `<div class="line2" style="
-              font-size: ${Math.round(8 * preset.style.font_scale)}px;
+              font-size: ${Math.round(8 * (preset.style?.font_scale || 1))}px;
               margin-bottom: 1px;
               white-space: nowrap;
               overflow: hidden;
@@ -234,7 +234,7 @@ export class LabelPrintAdapter {
           if (fieldValues.price) {
             html += `<div class="price" style="
               font-weight: bold;
-              font-size: ${Math.round(12 * preset.style.font_scale)}px;
+              font-size: ${Math.round(12 * (preset.style?.font_scale || 1))}px;
               margin-top: 1px;
             ">${fieldValues.price}</div>`;
           }
@@ -243,7 +243,7 @@ export class LabelPrintAdapter {
         case 'mrp':
           if (fieldValues.mrp) {
             html += `<div class="mrp" style="
-              font-size: ${Math.round(9 * preset.style.font_scale)}px;
+              font-size: ${Math.round(9 * (preset.style?.font_scale || 1))}px;
               margin-top: 1px;
               white-space: nowrap;
               overflow: hidden;
@@ -255,7 +255,7 @@ export class LabelPrintAdapter {
         case 'batch':
           if (fieldValues.batch) {
             html += `<div class="batch" style="
-              font-size: ${Math.round(8 * preset.style.font_scale)}px;
+              font-size: ${Math.round(8 * (preset.style?.font_scale || 1))}px;
               margin-top: 1px;
               white-space: nowrap;
               overflow: hidden;
@@ -267,7 +267,7 @@ export class LabelPrintAdapter {
         case 'dates':
           if (fieldValues.packedDate) {
             html += `<div class="packed-date" style="
-              font-size: ${Math.round(7 * preset.style.font_scale)}px;
+              font-size: ${Math.round(7 * (preset.style?.font_scale || 1))}px;
               margin-top: 1px;
               white-space: nowrap;
               overflow: hidden;
@@ -276,7 +276,7 @@ export class LabelPrintAdapter {
           }
           if (fieldValues.expiryDate) {
             html += `<div class="expiry-date" style="
-              font-size: ${Math.round(7 * preset.style.font_scale)}px;
+              font-size: ${Math.round(7 * (preset.style?.font_scale || 1))}px;
               margin-top: 1px;
               white-space: nowrap;
               overflow: hidden;
@@ -297,8 +297,8 @@ export class LabelPrintAdapter {
     const { dpi = 203, scale = 1.0, showBorders = false } = options;
     
     const mmToPx = (mm: number) => Math.round((mm * dpi / 25.4) * scale);
-    const width = mmToPx(preset.size.width_mm);
-    const height = mmToPx(preset.size.height_mm);
+    const width = mmToPx(preset.size?.width_mm || preset.size?.width || 210);
+    const height = mmToPx(preset.size?.height_mm || preset.size?.height || 297);
     
     const html = `
       <div class="label empty" style="
@@ -325,7 +325,14 @@ export class LabelPrintAdapter {
       throw new Error('A4 configuration required');
     }
     
-    const { rows, cols, page_width_mm, page_height_mm, margin_mm, gutter_mm } = preset.a4;
+    const { 
+      rows, 
+      cols, 
+      page_width_mm = 210, 
+      page_height_mm = 297, 
+      margin_mm = 10, 
+      gutter_mm = 5 
+    } = preset.a4;
     const { showBorders = false } = options;
     
     // Convert to pixels (using 96 DPI for web display)
@@ -337,8 +344,8 @@ export class LabelPrintAdapter {
     const margin = mmToPx(margin_mm);
     const gutter = mmToPx(gutter_mm);
     
-    const labelWidth = mmToPx(preset.size.width_mm);
-    const labelHeight = mmToPx(preset.size.height_mm);
+    const labelWidth = mmToPx(preset.size?.width_mm || preset.size?.width || 50);
+    const labelHeight = mmToPx(preset.size?.height_mm || preset.size?.height || 30);
     
     let labelsHtml = '';
     for (let row = 0; row < rows; row++) {
@@ -405,11 +412,11 @@ export class LabelPrintAdapter {
     
     // Determine language for product name
     let productLanguage: 'EN' | 'SI' | 'TA' = 'EN';
-    if (preset.fields.languageMode === 'per_item' && item.language) {
-      productLanguage = item.language;
+    if ((preset.fields as any)?.languageMode === 'per_item' && item.language) {
+      productLanguage = item.language as 'EN' | 'SI' | 'TA';
     } else {
       // Use preset default language based on line1 setting
-      switch (preset.fields.line1) {
+      switch ((preset.fields as any)?.line1) {
         case 'name_si':
           productLanguage = 'SI';
           break;
@@ -431,13 +438,13 @@ export class LabelPrintAdapter {
     }
     
     // Override with custom if specified
-    if (preset.fields.line1 === 'custom') {
+    if ((preset.fields as any)?.line1 === 'custom') {
       values.line1 = item.custom_line1;
     }
     
     // Line 2
-    if (preset.fields.line2) {
-      switch (preset.fields.line2) {
+    if ((preset.fields as any)?.line2) {
+      switch ((preset.fields as any).line2) {
         case 'sku':
           values.line2 = item.sku;
           break;
@@ -451,20 +458,20 @@ export class LabelPrintAdapter {
     }
     
     // Price
-    if (preset.fields.price.enabled) {
+    if ((preset.fields as any)?.price?.enabled) {
       let price = 0;
-      switch (preset.fields.price.source) {
+      switch ((preset.fields as any).price.source) {
         case 'retail':
-          price = item.price_retail;
+          price = item.price_retail || 0;
           break;
         case 'wholesale':
-          price = item.price_wholesale;
+          price = item.price_wholesale || 0;
           break;
         case 'credit':
-          price = item.price_credit;
+          price = item.price_credit || 0;
           break;
         case 'other':
-          price = item.price_other;
+          price = item.price_other || 0;
           break;
       }
       
@@ -475,12 +482,12 @@ export class LabelPrintAdapter {
       }).format(price);
       
       let priceText = formattedPrice;
-      if (preset.fields.price.show_label) {
+      if ((preset.fields as any)?.price?.show_label) {
         priceText = `Price: ${formattedPrice}`;
       }
       
       // Add weight hint for kg items
-      if (preset.fields.weight_hint && item.unit === 'kg') {
+      if ((preset.fields as any)?.weight_hint && item.unit === 'kg') {
         priceText += '/kg';
       }
       
@@ -488,8 +495,8 @@ export class LabelPrintAdapter {
     }
     
     // MRP
-    if (preset.fields.showMRP && item.mrp !== null && item.mrp !== undefined) {
-      const mrpLabel = preset.fields.mrpLabel || 'MRP';
+    if ((preset.fields as any)?.showMRP && item.mrp !== null && item.mrp !== undefined) {
+      const mrpLabel = (preset.fields as any)?.mrpLabel || 'MRP';
       const formattedMRP = new Intl.NumberFormat('en-LK', {
         style: 'currency',
         currency: 'LKR',
@@ -499,21 +506,21 @@ export class LabelPrintAdapter {
     }
     
     // Batch Number
-    if (preset.fields.showBatch && item.batchNo) {
-      const batchLabel = preset.fields.batchLabel || 'Batch';
+    if ((preset.fields as any)?.showBatch && item.batchNo) {
+      const batchLabel = (preset.fields as any)?.batchLabel || 'Batch';
       values.batch = `${batchLabel}: ${item.batchNo}`;
     }
     
     // Dates
-    const dateFormat = preset.fields.dateFormat || useAppStore.getState().labelSettings.defaultDateFormat;
+    const dateFormat = (preset.fields as any)?.dateFormat || useAppStore.getState().labelSettings.defaultDateFormat;
     
-    if (preset.fields.showPackedDate && item.packedDate) {
-      const packedLabel = preset.fields.packedLabel || 'Packed';
+    if ((preset.fields as any)?.showPackedDate && item.packedDate) {
+      const packedLabel = (preset.fields as any)?.packedLabel || 'Packed';
       values.packedDate = `${packedLabel}: ${this.formatDate(item.packedDate, dateFormat)}`;
     }
     
-    if (preset.fields.showExpiryDate && item.expiryDate) {
-      const expiryLabel = preset.fields.expiryLabel || 'Expiry';
+    if ((preset.fields as any)?.showExpiryDate && item.expiryDate) {
+      const expiryLabel = (preset.fields as any)?.expiryLabel || 'Expiry';
       values.expiryDate = `${expiryLabel}: ${this.formatDate(item.expiryDate, dateFormat)}`;
     }
     
@@ -548,7 +555,7 @@ export class LabelPrintAdapter {
     const expanded: LabelItem[] = [];
     
     for (const item of items) {
-      for (let i = 0; i < item.qty; i++) {
+      for (let i = 0; i < (item.qty || 1); i++) {
         expanded.push(item);
       }
     }
@@ -672,7 +679,7 @@ export class LabelPrintAdapter {
   /**
    * Open print window
    */
-  private openPrintWindow(html: string, title: string): void {
+  private openPrintWindow(html: string, _title: string): void {
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     if (printWindow) {
       printWindow.document.write(html);

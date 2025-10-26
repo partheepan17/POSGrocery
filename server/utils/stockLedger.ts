@@ -127,6 +127,52 @@ export function getFIFOLots(productId: number, requiredQuantity: number): FIFOLo
 }
 
 /**
+ * Get FEFO (First Expiry, First Out) lots for a product
+ */
+export function getFEFOLots(productId: number, requiredQuantity: number): FIFOLot[] {
+  const db = getDatabase();
+  const lots = db.prepare(`
+    SELECT 
+      sl.id as lot_id,
+      sl.lot_number,
+      sl.quantity_remaining as quantity_available,
+      sl.unit_cost,
+      sl.received_date,
+      sl.expiry_date,
+      ROW_NUMBER() OVER (
+        ORDER BY 
+          CASE WHEN sl.expiry_date IS NULL THEN 1 ELSE 0 END, -- Non-expiring items last
+          sl.expiry_date ASC, -- Earlier expiry first
+          sl.received_date ASC -- Earlier received first for same expiry
+      ) as fefo_rank
+    FROM stock_lots sl
+    WHERE sl.product_id = ? AND sl.quantity_remaining > 0
+    ORDER BY 
+      CASE WHEN sl.expiry_date IS NULL THEN 1 ELSE 0 END,
+      sl.expiry_date ASC,
+      sl.received_date ASC
+  `).all(productId) as FIFOLot[];
+  
+  // Select lots to fulfill the required quantity
+  const selectedLots: FIFOLot[] = [];
+  let remainingQuantity = requiredQuantity;
+  
+  for (const lot of lots) {
+    if (remainingQuantity <= 0) break;
+    
+    const quantityToTake = Math.min(lot.quantity_available, remainingQuantity);
+    selectedLots.push({
+      ...lot,
+      quantity_available: quantityToTake
+    });
+    
+    remainingQuantity -= quantityToTake;
+  }
+  
+  return selectedLots;
+}
+
+/**
  * Get average cost for a product
  */
 export function getAverageCost(productId: number): number {
@@ -201,8 +247,8 @@ export function removeStockFromLedger(
     let totalCost = 0;
     
     if (costMethod === 'FIFO') {
-      // Use FIFO method
-      lots = getFIFOLots(productId, quantity);
+      // Use FEFO (First Expiry, First Out) method instead of FIFO
+      lots = getFEFOLots(productId, quantity);
       
       for (const lot of lots) {
         const actualQuantity = Math.min(lot.quantity_available, quantity);
@@ -392,3 +438,7 @@ export function validateStockAvailability(productId: number, requiredQuantity: n
     shortage
   };
 }
+
+
+
+

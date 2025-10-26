@@ -398,7 +398,7 @@ class InventoryService {
         sku: counted.sku,
         product_id: product.id,
         name_en: product.name_en,
-        unit: product.unit,
+        unit: product.unit || 'pcs',
         current_stock: currentStock,
         counted_qty: counted.counted_qty,
         delta,
@@ -411,7 +411,7 @@ class InventoryService {
 
   // Helper to insert a movement
   private async insertMovement(movement: Omit<InventoryMovement, 'id' | 'created_at'>): Promise<number> {
-    const query = `
+    const _query = `
       INSERT INTO inventory_movements (product_id, qty, type, reason, note, terminal, cashier, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
@@ -435,7 +435,7 @@ class InventoryService {
   // Get available categories for filtering
   async getCategories(): Promise<string[]> {
     const categories = await dataService.getCategories();
-    return categories.map(c => c.name);
+    return (categories as any[]).map((c: any) => c.name);
   }
 
   // Get available suppliers for filtering
@@ -443,7 +443,7 @@ class InventoryService {
     try {
       // Try to get suppliers if method exists, otherwise return empty array
       const suppliers = await dataService.getSuppliers?.() || [];
-      return suppliers.map((s: any) => s.name || s.supplier_name || 'Unknown');
+      return (suppliers as any[]).map((s: any) => s.name || s.supplier_name || 'Unknown');
     } catch (error) {
       console.warn('getSuppliers not implemented in dataService, returning empty array');
       return [];

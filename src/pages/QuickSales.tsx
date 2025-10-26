@@ -54,7 +54,7 @@ interface QuickSalesState {
 const QuickSalesPage: React.FC = () => {
   const { t } = useTranslation();
   const { userRole } = useUIStore();
-  const { session, isLoading, closeSession, refreshSession } = useQuickSales();
+  const { state, session, isLoading, startSession, endSession, updateSales, incrementTransactions, closeSession, refreshSession } = useQuickSales();
   
   // State
   const [scanInput, setScanInput] = useState('');

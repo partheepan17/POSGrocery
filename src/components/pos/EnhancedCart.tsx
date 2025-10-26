@@ -12,11 +12,11 @@ import {
   Package,
   AlertCircle
 } from 'lucide-react';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import { Badge } from '../ui/Badge';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../ui/Table';
-import { Card, CardHeader, CardContent } from '../ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
+import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 
 interface CartItem {
   id: string;

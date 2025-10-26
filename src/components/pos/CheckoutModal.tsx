@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { dataService } from '@/services/dataService';
 
-type PaymentRow = { method: string; amount: number };
+type PaymentRow = { method: string; amount: number; reference?: string };
 
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   total: number;
-  header: { customer_id?: number; price_tier: 'Retail'|'Wholesale'|'Credit'|'Other'; cashier_id: number; terminal_name?: string; language?: 'EN'|'SI'|'TA' };
+  header: { customer_id?: number; price_tier: 'Retail'|'Wholesale'|'Credit'|'Other'; cashier_id: number; terminal_name?: string; language?: 'EN'|'SI'|'TA'; shift_id?: number };
   lines: Array<{ product_id: number; qty: number; unit_price?: number; line_discount?: number; unit?: string; name_en?: string }>;
   onSuccess?: (result: { id: number; receipt_no: string }) => void;
 }
@@ -28,7 +28,7 @@ export default function CheckoutModal({ isOpen, onClose, total, header, lines, o
     if (remaining !== 0) { setError('Payments must equal total'); return; }
     setBusy(true); setError(null);
     try {
-      const res = await dataService.createInvoice({ 
+      const res = await dataService.createSaleWithIdempotency({ 
         customerId: header.customer_id,
         items: lines.map(line => ({
           productId: line.product_id,
@@ -46,7 +46,7 @@ export default function CheckoutModal({ isOpen, onClose, total, header, lines, o
         cashierId: header.cashier_id,
         shiftId: header.shift_id
       });
-      onSuccess?.(res);
+      onSuccess?.(res ? { id: res.id, receipt_no: res.receipt_no } : { id: 0, receipt_no: '' });
       onClose();
     } catch (e: any) {
       setError(e?.message || 'Failed to create invoice');

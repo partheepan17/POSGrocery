@@ -29,7 +29,7 @@ test.describe('Labels Happy Path', () => {
     await page.setInputFiles('input[type="file"]', {
       name: 'test-labels.csv',
       mimeType: 'text/csv',
-      buffer: Buffer.from(csvContent)
+      buffer: (globalThis as any).Buffer.from(csvContent)
     });
     
     // Wait for preview to show
@@ -120,7 +120,7 @@ test.describe('Labels Happy Path', () => {
     await page.setInputFiles('input[type="file"]', {
       name: 'test-multilang.csv',
       mimeType: 'text/csv',
-      buffer: Buffer.from(csvContent)
+      buffer: (globalThis as any).Buffer.from(csvContent)
     });
     
     await page.click('text=Import');
@@ -157,7 +157,7 @@ test.describe('Labels Happy Path', () => {
     await page.setInputFiles('input[type="file"]', {
       name: 'test-dates.csv',
       mimeType: 'text/csv',
-      buffer: Buffer.from(csvContent)
+      buffer: (globalThis as any).Buffer.from(csvContent)
     });
     
     await page.click('text=Import');
@@ -198,7 +198,7 @@ test.describe('Labels Happy Path', () => {
     await page.setInputFiles('input[type="file"]', {
       name: 'test-invalid.csv',
       mimeType: 'text/csv',
-      buffer: Buffer.from(csvContent)
+      buffer: (globalThis as any).Buffer.from(csvContent)
     });
     
     await page.click('text=Import');
@@ -225,7 +225,7 @@ test.describe('Labels Happy Path', () => {
     await page.setInputFiles('input[type="file"]', {
       name: 'test-full.csv',
       mimeType: 'text/csv',
-      buffer: Buffer.from(csvContent)
+      buffer: (globalThis as any).Buffer.from(csvContent)
     });
     
     await page.click('text=Import');
@@ -261,7 +261,7 @@ test.describe('Labels Happy Path', () => {
     await page.setInputFiles('input[type="file"]', {
       name: 'test-export.csv',
       mimeType: 'text/csv',
-      buffer: Buffer.from(csvContent)
+      buffer: (globalThis as any).Buffer.from(csvContent)
     });
     
     await page.click('text=Import');

@@ -7,6 +7,7 @@ import { cn } from '@/utils/cn';
 import { KeyboardHelp } from '../KeyboardHelp';
 import { CommandPalette } from '../CommandPalette';
 import { useKeyboardHelp } from '@/hooks/useKeyboardHelp';
+import { OfflineBanner } from '../OfflineBanner';
 
 export function Layout() {
   const { sidebarOpen } = useAppStore();
@@ -55,6 +56,11 @@ export function Layout() {
       else if (e.ctrlKey && e.key === '5') {
         e.preventDefault();
         navigate('/customers');
+      }
+      // Ctrl+Shift+A for Inventory Adjustments
+      else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        navigate('/inventory/adjust');
       }
       // Ctrl+6 for Discounts
       else if (e.ctrlKey && e.key === '6') {
@@ -120,8 +126,9 @@ export function Layout() {
       
       <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
         <Header />
+        <OfflineBanner />
         
-        <main className="flex-1 overflow-auto">
+        <main id="main-content" className="flex-1 overflow-auto">
           <div className="h-full">
             <Outlet />
           </div>

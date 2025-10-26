@@ -16,6 +16,7 @@ export interface CartItem {
   name: string;
   sku: string;
   qty: number;
+  weight?: number; // Weight for scale items
   retail_price: number;
   wholesale_price: number;
   credit_price: number;
@@ -23,6 +24,7 @@ export interface CartItem {
   current_price: number;
   line_discount_type?: 'FIXED_AMOUNT' | 'PERCENTAGE';
   line_discount_value?: number;
+  applied_rules?: Array<{ rule_id: number; rule_name: string; discount_amount: number; level?: 'PRODUCT'|'GROUP'|'SUPPLIER'; type?: 'PERCENT'|'AMOUNT'; value?: number; reason?: 'priority'|'stack' }>;
   line_total: number;
   tax_amount: number;
   unit: string;
@@ -58,6 +60,8 @@ interface CartState {
   
   // Manual discount
   manualDiscount: ManualDiscount;
+  // Per-bill admin toggle to disable all discounts
+  disableDiscountsForBill: boolean;
   
   // Totals
   totals: CartTotals;
@@ -66,13 +70,14 @@ interface CartState {
   taxRate: number;
   
   // Actions
-  addItem: (product: any, qty?: number) => Promise<void> | void;
+  addItem: (product: any, qty?: number, weight?: number) => Promise<void> | void;
   updateItemQuantity: (itemId: string, qty: number) => Promise<void> | void;
   removeItem: (itemId: string) => void;
   updateItemDiscount: (itemId: string, type: 'FIXED_AMOUNT' | 'PERCENTAGE', value: number) => void;
   setPriceTier: (tier: PriceTier) => void;
   setCustomer: (customerId: number | null, customerName: string) => void;
   setManualDiscount: (discount: ManualDiscount) => void;
+  setDisableDiscountsForBill: (disabled: boolean, reason?: string) => Promise<void> | void;
   clearCart: () => void;
   calculateTotals: () => void;
   recomputeAutoDiscounts: () => Promise<void> | void;
@@ -97,13 +102,17 @@ export const useCartStore = create<CartState>()(
       customerId: null,
       customerName: 'Walk-in Customer (Retail)',
       manualDiscount: { type: 'FIXED_AMOUNT', value: 0 },
+      disableDiscountsForBill: false,
       totals: initialTotals,
       taxRate: SETTINGS.TAX_RATE, // FIX: Use centralized tax rate from settings
 
       // Add item to cart
-      addItem: async (product: any, qty: number = 1) => {
+      addItem: async (product: any, qty: number = 1, weight?: number) => {
         const state = get();
-        const existingItem = state.items.find(item => item.product_id === product.id);
+        const existingItem = state.items.find(item => 
+          item.product_id === product.id && 
+          item.weight === weight // Consider weight when finding existing items
+        );
         
         if (existingItem) {
           // Update existing item quantity
@@ -114,18 +123,22 @@ export const useCartStore = create<CartState>()(
           const itemId = `${product.id}_${Date.now()}`;
           const currentPrice = state.getCurrentPrice(product);
           
+          // For scale items, use weight as quantity if provided
+          const effectiveQty = weight !== undefined ? weight : qty;
+          
           const newItem: CartItem = {
             id: itemId,
             product_id: product.id,
             name: product.name_en,
             sku: product.sku,
-            qty: roundCurrency(qty),
+            qty: roundCurrency(effectiveQty),
+            weight: weight, // Store weight for scale items
             retail_price: product.price_retail,
             wholesale_price: product.price_wholesale,
             credit_price: product.price_credit,
             other_price: product.price_other || product.price_retail,
             current_price: currentPrice,
-            line_total: roundCurrency(qty * currentPrice),
+            line_total: roundCurrency(effectiveQty * currentPrice),
             tax_amount: 0,
             unit: product.unit,
             stock_qty: product.stock_qty,
@@ -137,7 +150,13 @@ export const useCartStore = create<CartState>()(
             items: [...state.items, newItem]
           }));
 
-          await get().recomputeAutoDiscounts();
+          try {
+            await get().recomputeAutoDiscounts();
+          } catch (error) {
+            console.error('Failed to recompute discounts after adding item:', error);
+            // Still calculate totals even if discounts fail
+            get().calculateTotals();
+          }
         }
       },
 
@@ -187,7 +206,12 @@ export const useCartStore = create<CartState>()(
           }));
         }
 
-        await get().recomputeAutoDiscounts();
+        try {
+          await get().recomputeAutoDiscounts();
+        } catch (error) {
+          console.error('Failed to recompute discounts after quantity update:', error);
+          get().calculateTotals();
+        }
       },
 
       // Remove item from cart
@@ -270,6 +294,30 @@ export const useCartStore = create<CartState>()(
         get().calculateTotals();
       },
 
+      // Per-bill admin toggle
+      setDisableDiscountsForBill: async (disabled: boolean, reason?: string) => {
+        set({ disableDiscountsForBill: disabled });
+        try {
+          const auditModule = await import('@/services/auditService');
+          const userModule = await import('@/services/authService');
+          const currentUser = userModule.authService.getCurrentUser?.();
+          await auditModule.auditService.log({
+            action: 'discounts.per_bill_disabled_toggled',
+            entity: 'bill',
+            entityId: Date.now(),
+            payload: { billId: Date.now(), oldValue: !disabled, newValue: disabled, actorId: currentUser?.id, reason, ts: new Date().toISOString() }
+          } as any);
+        } catch {
+          // ignore errors
+        }
+        try {
+          await get().recomputeAutoDiscounts();
+        } catch (error) {
+          console.error('Failed to recompute discounts after disabling:', error);
+          get().calculateTotals();
+        }
+      },
+
       // Clear cart
       clearCart: () => {
         set({
@@ -330,9 +378,34 @@ export const useCartStore = create<CartState>()(
           return;
         }
 
-        const productIds = items.map(i => Number(i.product_id));
-        const categoryIds = Array.from(new Set(items.map(i => Number(i.category_id || i.product?.category_id)))) as number[];
-        let rules = await dataService.getEffectiveDiscountRules(productIds, categoryIds);
+        if (state.disableDiscountsForBill) {
+          // Zero out auto discounts but keep manual
+          set(s => ({
+            items: s.items.map(it => ({
+              ...it,
+              applied_rules: [],
+              line_discount_value: 0,
+              line_total: roundCurrency((it.qty * it.current_price) + (it.tax_amount || 0))
+            }))
+          }));
+          state.calculateTotals();
+          return;
+        }
+
+        try {
+          const productIds = items.map(i => Number(i.product_id));
+          const categoryIds = Array.from(new Set(items.map(i => Number(i.category_id || i.product?.category_id)))) as number[];
+          const supplierIds = Array.from(new Set(items
+            .map(i => Number(i.product?.preferred_supplier_id))
+            .filter(v => Number.isFinite(v) && v > 0))) as number[];
+
+          const channel = get().priceTier === 'Wholesale' ? 'WHOLESALE' : 'RETAIL';
+          const rules = await dataService.getEffectiveDiscountRules({
+            productIds,
+            groupIds: categoryIds,
+            supplierIds,
+            channel
+          });
 
         const lines = items.map((it, idx) => ({
           id: idx + 1,
@@ -346,13 +419,97 @@ export const useCartStore = create<CartState>()(
           total: Number(it.line_total || (it.qty * it.current_price))
         }));
 
-        const result = await discountEngine.applyRulesToCart({ lines, rules });
+        // Evaluate special pricing first
+        let profile: any = null;
+        try {
+          const customerId = state.customerId;
+          if (customerId) {
+            const customer = await dataService.getCustomerById(customerId);
+            if (customer?.special_pricing_on && customer.special_pricing_profile_id) {
+              profile = await dataService.getSpecialPricingProfileById(customer.special_pricing_profile_id);
+            }
+          }
+        } catch {
+          // ignore errors
+        }
+
+        if (profile && profile.active) {
+          const { evaluateSpecialPricing } = await import('@/services/specialPricingService');
+          // Apply special pricing adjustments
+          lines.forEach((line: any) => {
+            const res = evaluateSpecialPricing({
+              product: line.product,
+              qty: line.qty,
+              unit_price: line.unit_price,
+              retail_price: line.retail_price,
+              channel: channel as any,
+              profile
+            });
+            if (!res) return;
+            if (Array.isArray(res.applied_entries) && res.applied_entries.length === 0) {
+              line.special_profile_no_match = true;
+            }
+            if (res.fixed_price_applied != null) {
+              line.unit_price = Number(res.fixed_price_applied);
+              line.special_applied = true;
+              line.special_reason = 'Special Price';
+              line.special_entries = res.applied_entries;
+              // Audit per-line special price application (non-blocking)
+              import('@/services/auditService').then(mod => {
+                mod.auditService.log({
+                  action: 'discounts.special_price_applied',
+                  entity: 'sale_line',
+                  entityId: String(line.id),
+                  payload: {
+                    profileId: profile.id,
+                    entryIds: (res.applied_entries||[]).map((e:any)=>e.id),
+                    productId: line.product_id,
+                    unitPrice: line.unit_price,
+                    ts: new Date().toISOString()
+                  }
+                } as any);
+              }).catch(()=>{});
+              return; // Fixed price wins; do not apply unified discounts unless profile allows stacking explicitly
+            }
+            if (res.discount_amount && res.discount_amount > 0) {
+              line.line_discount = Number(line.line_discount || 0) + Number(res.discount_amount);
+              line.special_applied = true;
+              line.special_reason = 'Customer Discount';
+              line.special_entries = res.applied_entries;
+              import('@/services/auditService').then(mod => {
+                mod.auditService.log({
+                  action: 'discounts.special_discount_applied',
+                  entity: 'sale_line',
+                  entityId: String(line.id),
+                  payload: {
+                    profileId: profile.id,
+                    entryIds: (res.applied_entries||[]).map((e:any)=>e.id),
+                    productId: line.product_id,
+                    discount: res.discount_amount,
+                    ts: new Date().toISOString()
+                  }
+                } as any);
+              }).catch(()=>{});
+              // Stacking with unified discounts allowed unless profile forbids
+              if (res.allow_stack_with_global === false) {
+                // Clear global rules later by passing no rules for this line (handled by engine input scope)
+              }
+            }
+          });
+        }
+
+        const result = await discountEngine.applyRulesToCart({ lines, rules: rules as any });
 
         set(s => ({
           items: s.items.map((it, idx) => {
             const line = result.lines[idx];
             const finalLineTotal = (line.unit_price * line.qty) - line.line_discount + line.tax;
-            return { ...it, line_discount_value: line.line_discount, line_total: roundCurrency(finalLineTotal) } as CartItem;
+            return { 
+              ...it, 
+              line_discount_value: line.line_discount, 
+              applied_rules: line.applied_rules as any,
+              line_total: roundCurrency(finalLineTotal) 
+            } as CartItem;
           })
         }));
 
@@ -366,6 +523,11 @@ export const useCartStore = create<CartState>()(
             net_total: result.totals.net
           }
         });
+        } catch (error) {
+          console.error('Failed to recompute auto discounts:', error);
+          // Fallback: just calculate totals without discounts
+          state.calculateTotals();
+        }
       },
 
       // Helper function to get current price based on tier (will be enhanced by pricing engine later)

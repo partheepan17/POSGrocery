@@ -32,6 +32,11 @@ export interface UserUpdateInput {
 }
 
 export interface UserWithStatus extends User {
+  id: number;
+  name: string;
+  role: 'admin' | 'manager' | 'cashier';
+  active: boolean;
+  pin?: string;
   email?: string;
   phone?: string;
   last_login_at?: string;
@@ -322,7 +327,7 @@ class UserService {
       });
 
       // Log role change specifically if role changed
-      if (input.role && input.role !== existingUser.role) {
+      if (input.role && input.role !== existingUser.role.toUpperCase()) {
         await auditService.log({
           action: AUDIT_ACTIONS.USER_ROLE_CHANGE,
           entity: 'user',
@@ -531,7 +536,7 @@ class UserService {
   /**
    * Validate CSV import data
    */
-  validateCSVRow(row: UserCSVImportRow, index: number): { valid: boolean; errors: string[] } {
+  validateCSVRow(row: UserCSVImportRow, _index: number): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
     // Validate name

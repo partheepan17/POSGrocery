@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/utils/cn';
 import { Input } from './Input';
 import { Button } from './Button';
-import { Select, SelectOption } from './Dropdown';
+import { Select, SelectOption } from './Select';
 
 interface FormFieldProps {
   children: React.ReactNode;
@@ -81,7 +81,7 @@ interface FormInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement
   help?: string;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
-  variant?: 'default' | 'pos' | 'search';
+  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
   inputSize?: 'sm' | 'md' | 'lg';
 }
 
@@ -105,8 +105,10 @@ const FormInput: React.FC<FormInputProps> = ({
       )}
       <Input
         id={inputId}
-        error={error}
         inputSize={inputSize}
+        leftIcon={inputProps.leftIcon}
+        rightIcon={inputProps.rightIcon}
+        variant={inputProps.variant}
         aria-invalid={error ? 'true' : 'false'}
         aria-describedby={
           error ? `${inputId}-error` : help ? `${inputId}-help` : undefined
@@ -160,12 +162,15 @@ const FormSelect: React.FC<FormSelectProps> = ({
         </FormLabel>
       )}
       <Select
-        error={!!error}
         aria-invalid={error ? 'true' : 'false'}
         aria-describedby={
           error ? `${selectId}-error` : help ? `${selectId}-help` : undefined
         }
-        {...selectProps}
+        onValueChange={selectProps.onChange}
+        options={selectProps.options}
+        value={selectProps.value}
+        disabled={selectProps.disabled}
+        className={selectProps.className}
       />
       {error && (
         <FormError>
@@ -183,7 +188,7 @@ const FormSelect: React.FC<FormSelectProps> = ({
 
 // Textarea Component
 interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  variant?: 'default' | 'pos' | 'search';
+  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
   textareaSize?: 'sm' | 'md' | 'lg';
   error?: boolean;
 }
@@ -248,7 +253,7 @@ interface FormTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaEle
   label?: string;
   error?: string;
   help?: string;
-  variant?: 'default' | 'pos' | 'search';
+  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
   textareaSize?: 'sm' | 'md' | 'lg';
 }
 

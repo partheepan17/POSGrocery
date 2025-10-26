@@ -14,3 +14,17 @@ CREATE INDEX IF NOT EXISTS idx_suppliers_email ON suppliers(contact_email) WHERE
 
 -- Add index for phone lookups (if phone is provided)
 CREATE INDEX IF NOT EXISTS idx_suppliers_phone ON suppliers(contact_phone) WHERE contact_phone IS NOT NULL;
+
+
+
+
+
+
+
+
+
+
+
+
+
+

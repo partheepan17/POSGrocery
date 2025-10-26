@@ -21,8 +21,8 @@ interface SalesState {
   // Actions
   startNewSale: () => void;
   addItem: (product: Product, quantity: number) => void;
-  updateItemQuantity: (productId: string, quantity: number) => void;
-  removeItem: (productId: string) => void;
+  updateItemQuantity: (productId: number, quantity: number) => void;
+  removeItem: (productId: number) => void;
   applyDiscount: (type: 'percentage' | 'fixed', value: number) => void;
   setCustomer: (customer: Customer | null) => void;
   setPaymentMethod: (method: 'cash' | 'card' | 'mobile') => void;
@@ -53,14 +53,25 @@ export const useSalesStore = create<SalesState>()(
       startNewSale: () => {
         const newSale: Sale = {
           id: `sale_${Date.now()}`,
-          items: [],
-          subtotal: 0,
+          created_at: new Date().toISOString(),
+          createdAt: new Date(),
+          updated_at: new Date().toISOString(),
+          datetime: new Date().toISOString(),
+          cashier_id: 1, // Default cashier ID
+          price_tier: 'Retail',
+          gross: 0,
           discount: 0,
           tax: 0,
+          net: 0,
+          subtotal: 0,
           total: 0,
+          pay_cash: 0,
+          pay_card: 0,
+          pay_wallet: 0,
+          language: 'EN',
+          items: [],
           paymentMethod: 'cash',
           status: 'pending',
-          createdAt: new Date(),
           updatedAt: new Date(),
         };
         
@@ -86,8 +97,8 @@ export const useSalesStore = create<SalesState>()(
             item.productId === product.id
               ? {
                   ...item,
-                  quantity: item.quantity + quantity,
-                  total: (item.quantity + quantity) * item.unitPrice,
+                  quantity: (item.quantity || 0) + quantity,
+                  total: ((item.quantity || 0) + quantity) * (item.unitPrice || 0),
                 }
               : item
           );
@@ -95,12 +106,21 @@ export const useSalesStore = create<SalesState>()(
         } else {
           // Add new item
           const newItem: SaleItem = {
+            id: `item_${Date.now()}_${product.id}`,
+            product_id: product.id,
             productId: product.id,
             product,
+            name: product.name_en || product.name || 'Unknown Product',
+            sku: product.sku,
+            qty: quantity,
             quantity,
+            unit_price: product.price || 0,
             unitPrice: product.price || 0,
+            line_discount: 0,
             discount: 0,
+            line_total: (product.price || 0) * quantity,
             total: (product.price || 0) * quantity,
+            unit: product.unit || 'pc',
           };
           set({ saleItems: [...saleItems, newItem] });
         }
@@ -119,8 +139,10 @@ export const useSalesStore = create<SalesState>()(
           item.productId === productId
             ? {
                 ...item,
+                qty: quantity,
                 quantity,
-                total: quantity * item.unitPrice - item.discount,
+                line_total: quantity * (item.unitPrice || 0) - (item.discount || 0),
+                total: quantity * (item.unitPrice || 0) - (item.discount || 0),
               }
             : item
         );
@@ -255,7 +277,7 @@ export const useSalesStore = create<SalesState>()(
 
       recalculateTotals: () => {
         const { saleItems, discount } = get();
-        const subtotal = saleItems.reduce((sum, item) => sum + item.total, 0);
+        const subtotal = saleItems.reduce((sum, item) => sum + (item.total || 0), 0);
         const tax = subtotal * 0.15; // 15% tax rate
         const total = calculateTotal(subtotal, discount, tax);
         

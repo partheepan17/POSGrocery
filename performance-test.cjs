@@ -105,3 +105,17 @@ try {
 
 console.log('\n🏁 Performance Test Complete');
 db.close();
+
+
+
+
+
+
+
+
+
+
+
+
+
+

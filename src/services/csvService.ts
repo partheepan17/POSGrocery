@@ -145,14 +145,14 @@ export class CSVService {
       product.name_en,
       product.name_si || '',
       product.name_ta || '',
-      product.unit,
-      product.category_id.toString(),
+      product.unit || '',
+      product.category_id?.toString() || '',
       product.is_scale_item ? 'TRUE' : 'FALSE',
       product.tax_code || '',
-      product.price_retail.toString(),
-      product.price_wholesale.toString(),
-      product.price_credit.toString(),
-      product.price_other.toString(),
+      product.price_retail?.toString() || '',
+      product.price_wholesale?.toString() || '',
+      product.price_credit?.toString() || '',
+      product.price_other?.toString() || '',
       product.cost?.toString() || '',
       product.reorder_level?.toString() || '',
       product.preferred_supplier_id?.toString() || '',
@@ -163,7 +163,7 @@ export class CSVService {
   }
 
   async exportSuppliers(options: CSVExportOptions = this.defaultOptions): Promise<string> {
-    const suppliers = await dataService.getSuppliers(false); // Get all suppliers (active and inactive)
+    const suppliers = await dataService.getSuppliers(); // Get all suppliers
 
     // Use exact headers as specified
     const headers = [
@@ -175,20 +175,20 @@ export class CSVService {
       'active'
     ];
 
-    const rows = suppliers.map(supplier => [
+    const rows = (suppliers as any[]).map((supplier: any) => [
       supplier.supplier_name,
       supplier.contact_phone || '',
       supplier.contact_email || '',
       supplier.address || '',
       supplier.tax_id || '',
-      supplier.active ? 'true' : 'false'
+      (supplier.active || supplier.is_active) ? 'true' : 'false'
     ]);
 
     return this.generateCSV(headers, rows, options);
   }
 
   async exportCustomers(options: CSVExportOptions = this.defaultOptions): Promise<string> {
-    const customers = await dataService.getCustomers(false); // Get all customers (active and inactive)
+    const customers = await dataService.getCustomers(); // Get all customers
 
     // Use exact headers as specified
     const headers = [
@@ -199,11 +199,11 @@ export class CSVService {
       'active'
     ];
 
-    const rows = customers.map(customer => [
+    const rows = (customers || []).map((customer: any) => [
       customer.customer_name,
-      customer.phone || '',
+      customer.phone || customer.customer_phone || '',
       customer.customer_type,
-      customer.note || '',
+      customer.note || customer.notes || '',
       customer.active ? 'true' : 'false'
     ]);
 
@@ -237,20 +237,20 @@ export class CSVService {
         const product = products.find(p => p.id === discount.target_id);
         applies_to_value = product ? product.sku : `UNKNOWN_PRODUCT_${discount.target_id}`;
       } else if (discount.applies_to === 'CATEGORY') {
-        const category = categories.find(c => c.id === discount.target_id);
+        const category = (categories as any[]).find((c: any) => c.id === discount.target_id);
         applies_to_value = category ? category.name : `UNKNOWN_CATEGORY_${discount.target_id}`;
       }
 
       return [
         discount.name,
-        discount.applies_to.toLowerCase(), // product or category
+        (discount.applies_to || (discount.level === 'PRODUCT' ? 'PRODUCT' : 'CATEGORY'))?.toLowerCase() || 'product', // product or category
         applies_to_value,
-        discount.type.toLowerCase(), // percent or amount
-        discount.value.toString(),
+        discount.type?.toLowerCase() || 'percent', // percent or amount
+        discount.value?.toString() || '0',
         discount.max_qty_or_weight?.toString() || '',
-        discount.active_from.toISOString().split('T')[0],
-        discount.active_to.toISOString().split('T')[0],
-        discount.priority.toString(),
+        discount.active_from?.toISOString().split('T')[0] || '',
+        discount.active_to ? discount.active_to.toISOString().split('T')[0] : '',
+        discount.priority?.toString() || '0',
         discount.reason_required ? 'true' : 'false',
         discount.active ? 'true' : 'false'
       ];
@@ -286,7 +286,7 @@ export class CSVService {
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         try {
-          const product: Omit<Product, 'id' | 'created_at'> = {
+          const product: Omit<Product, 'id' | 'created_at' | 'updated_at'> = {
             sku: row[headers.indexOf('SKU')],
             barcode: row[headers.indexOf('Barcode')] || undefined,
             name_en: row[headers.indexOf('Name (English)')],
@@ -296,11 +296,11 @@ export class CSVService {
             category_id: parseInt(row[headers.indexOf('Category ID')]) || 1,
             is_scale_item: row[headers.indexOf('Is Scale Item')]?.toLowerCase() === 'true',
             tax_code: row[headers.indexOf('Tax Code')] || undefined,
-            price_retail: parseFloat(row[headers.indexOf('Price Retail')]),
-            price_wholesale: parseFloat(row[headers.indexOf('Price Wholesale')]) || parseFloat(row[headers.indexOf('Price Retail')]),
-            price_credit: parseFloat(row[headers.indexOf('Price Credit')]) || parseFloat(row[headers.indexOf('Price Retail')]),
-            price_other: parseFloat(row[headers.indexOf('Price Other')]) || parseFloat(row[headers.indexOf('Price Retail')]),
-            cost: row[headers.indexOf('Cost')] ? parseFloat(row[headers.indexOf('Cost')]) : undefined,
+            price_retail: parseFloat(row[headers.indexOf('Price Retail')]) || 0,
+            price_wholesale: parseFloat(row[headers.indexOf('Price Wholesale')]) || parseFloat(row[headers.indexOf('Price Retail')]) || 0,
+            price_credit: parseFloat(row[headers.indexOf('Price Credit')]) || parseFloat(row[headers.indexOf('Price Retail')]) || 0,
+            price_other: parseFloat(row[headers.indexOf('Price Other')]) || parseFloat(row[headers.indexOf('Price Retail')]) || 0,
+            cost: row[headers.indexOf('Cost')] ? parseFloat(row[headers.indexOf('Cost')]) : 0,
             reorder_level: row[headers.indexOf('Reorder Level')] ? parseInt(row[headers.indexOf('Reorder Level')]) : undefined,
             preferred_supplier_id: row[headers.indexOf('Preferred Supplier ID')] ? parseInt(row[headers.indexOf('Preferred Supplier ID')]) : undefined,
             is_active: row[headers.indexOf('Is Active')]?.toLowerCase() !== 'false'
@@ -385,9 +385,10 @@ export class CSVService {
           }
 
           // Check for existing supplier (upsert by supplier_name)
-          const existingSupplier = await dataService.getSupplierByName(supplier_name);
+          const suppliers = await dataService.getSuppliers();
+          const existingSupplier = (suppliers as any[]).find((s: any) => s.supplier_name === supplier_name);
 
-          const supplierData: Omit<Supplier, 'id' | 'created_at'> = {
+          const supplierData: Omit<Supplier, 'id' | 'created_at' | 'updated_at'> = {
             supplier_name,
             contact_phone: phone,
             contact_email: email,
@@ -486,9 +487,10 @@ export class CSVService {
           }
 
           // Check for existing customer (upsert by customer_name)
-          const existingCustomer = await dataService.getCustomerByName(customer_name);
+          const customers = await dataService.getCustomers();
+          const existingCustomer = (customers || []).find((c: any) => c.customer_name === customer_name);
 
-          const customerData: Omit<Customer, 'id' | 'created_at'> = {
+          const customerData: Omit<Customer, 'id' | 'created_at' | 'updated_at'> = {
             customer_name,
             phone,
             customer_type: customer_type as 'Retail' | 'Wholesale' | 'Credit' | 'Other',
@@ -558,7 +560,8 @@ export class CSVService {
       }
 
       // Get existing data for validation
-      const products = await dataService.getProducts();
+      const productsResult = await dataService.getProducts();
+      const products = (productsResult as any).products;
       const categories = await dataService.getCategories();
 
       // Process each row
@@ -630,18 +633,18 @@ export class CSVService {
           let target_id: number | null = null;
 
           if (applies_to_type === 'PRODUCT') {
-            const product = products.find(p => p.sku === applies_to_value);
+            const product = products.find((p: any) => p.sku === applies_to_value);
             if (!product) {
               result.errors.push(`Row ${rowNum}: Product with SKU '${applies_to_value}' not found`);
               continue;
             }
             target_id = product.id;
           } else if (applies_to_type === 'CATEGORY') {
-            let category = categories.find(c => c.name === applies_to_value);
+            let category = (categories as any[]).find((c: any) => c.name === applies_to_value);
             if (!category && options.autoCreateCategories) {
               // Auto-create category
               category = await dataService.createCategory({ name: applies_to_value });
-              categories.push(category);
+              (categories as any[]).push(category);
               result.warnings.push(`Row ${rowNum}: Created new category '${applies_to_value}'`);
             }
             if (!category) {
@@ -667,15 +670,18 @@ export class CSVService {
           const discountRule: Omit<DiscountRule, 'id'> = {
             name,
             applies_to: applies_to_type as 'PRODUCT' | 'CATEGORY',
+            level: (applies_to_type === 'PRODUCT' ? 'PRODUCT' : 'GROUP') as 'PRODUCT' | 'GROUP',
             target_id,
             type: type as 'PERCENT' | 'AMOUNT',
             value,
             max_qty_or_weight,
-            active_from,
-            active_to,
+            active_from: active_from.toISOString(),
+            active_to: active_to.toISOString(),
             priority,
             reason_required,
-            active
+            active,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           };
 
           if (existingRule) {
@@ -960,7 +966,7 @@ export class CSVService {
     const metadata = [
       ['Stock Export'],
       ['Generated:', new Date().toLocaleString()],
-      ['Filters Applied:', filters ? Object.entries(filters).filter(([k, v]) => v).map(([k, v]) => `${k}=${v}`).join(', ') : 'None'],
+      ['Filters Applied:', filters ? Object.entries(filters).filter(([_k, v]) => v).map(([k, v]) => `${k}=${v}`).join(', ') : 'None'],
       [''] // Empty row separator
     ];
 
@@ -1037,7 +1043,7 @@ export class CSVService {
       }
 
       // Validate headers
-      const expectedHeaders = ['sku', 'counted_qty', 'note'];
+      // const expectedHeaders = ['sku', 'counted_qty', 'note'];
       const headers = rows[0].map(h => h.toLowerCase().trim());
       
       const requiredHeaders = ['sku', 'counted_qty'];
@@ -1622,7 +1628,7 @@ export class CSVService {
 
       // Parse header
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-      const expectedHeaders = ['name', 'role', 'active', 'pin'];
+      // const expectedHeaders = ['name', 'role', 'active', 'pin'];
       
       // Validate required headers
       const requiredHeaders = ['name', 'role'];
@@ -1701,11 +1707,11 @@ export class CSVService {
         item.name_ta || '',
         item.category || '',
         item.unit,
-        item.price_retail.toString(),
-        item.price_wholesale.toString(),
-        item.price_credit.toString(),
-        item.price_other.toString(),
-        item.qty.toString(),
+        (item.price_retail || 0).toString(),
+        (item.price_wholesale || 0).toString(),
+        (item.price_credit || 0).toString(),
+        (item.price_other || 0).toString(),
+        (item.qty || 0).toString(),
         item.price_tier,
         item.language || 'EN',
         item.packedDate || '',
@@ -1723,32 +1729,33 @@ export class CSVService {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const exportFilename = filename || `labels-${timestamp}.csv`;
 
-    const headers = [
-      'preset',
-      'name', 
-      'sku',
-      'barcode',
-      'price',
-      'price_tier',
-      'language',
-      'label_type',
-      'qty',
-      'packed_date',
-      'expiry_date',
-      'mrp',
-      'batch_no'
-    ];
+    // Remove unused headers variable
+    // const headers = [
+    //   'preset',
+    //   'name', 
+    //   'sku',
+    //   'barcode',
+    //   'price',
+    //   'price_tier',
+    //   'language',
+    //   'label_type',
+    //   'qty',
+    //   'packed_date',
+    //   'expiry_date',
+    //   'mrp',
+    //   'batch_no'
+    // ];
 
     const csvData = items.map(item => ({
       preset: '', // Will be filled by caller
       name: item.name_en,
       sku: item.sku,
       barcode: item.barcode || '',
-      price: this.formatPrice(item, item.price_tier),
+      price: this.formatPrice(item, (item.price_tier || 'retail') as 'retail' | 'wholesale' | 'credit' | 'other'),
       price_tier: item.price_tier,
       language: item.language || '',
       label_type: '', // Will be filled by caller  
-      qty: item.qty.toString(),
+      qty: (item.qty || 0).toString(),
       packed_date: item.packedDate || '',
       expiry_date: item.expiryDate || '',
       mrp: item.mrp ? item.mrp.toString() : '',
@@ -1756,6 +1763,78 @@ export class CSVService {
     }));
 
     this.exportData(csvData, exportFilename);
+  }
+
+  /**
+   * Validate a label item
+   */
+  private validateLabelItem(item: LabelItem, rowNumber: number): Array<{ row: number; error: string; data: any }> {
+    const errors: Array<{ row: number; error: string; data: any }> = [];
+
+    // Validate MRP
+    if (item.mrp !== null && item.mrp !== undefined) {
+      if (isNaN(item.mrp)) {
+        errors.push({
+          row: rowNumber,
+          error: 'Invalid MRP value',
+          data: item
+        });
+      } else if (item.mrp < 0) {
+        errors.push({
+          row: rowNumber,
+          error: 'MRP must be >= 0',
+          data: item
+        });
+      }
+    }
+
+    // Validate language
+    if (item.language && !['EN', 'SI', 'TA'].includes(item.language)) {
+      errors.push({
+        row: rowNumber,
+        error: 'Invalid language. Must be EN, SI, or TA',
+        data: item
+      });
+    }
+
+    // Validate date formats and relationships
+    if (item.packedDate && item.packedDate !== '') {
+      const packedDate = new Date(item.packedDate);
+      if (isNaN(packedDate.getTime())) {
+        errors.push({
+          row: rowNumber,
+          error: 'Invalid packed_date format. Use YYYY-MM-DD',
+          data: item
+        });
+      }
+    }
+    
+    if (item.expiryDate && item.expiryDate !== '') {
+      const expiryDate = new Date(item.expiryDate);
+      if (isNaN(expiryDate.getTime())) {
+        errors.push({
+          row: rowNumber,
+          error: 'Non-ISO date format detected. Consider using YYYY-MM-DD',
+          data: item
+        });
+      }
+    }
+    
+    // Validate date relationship if both dates exist
+    if (item.packedDate && item.packedDate !== '' && item.expiryDate && item.expiryDate !== '') {
+      const packedDate = new Date(item.packedDate);
+      const expiryDate = new Date(item.expiryDate);
+      
+      if (!isNaN(packedDate.getTime()) && !isNaN(expiryDate.getTime()) && expiryDate < packedDate) {
+        errors.push({
+          row: rowNumber,
+          error: 'Expiry date cannot be before packed date',
+          data: item
+        });
+      }
+    }
+
+    return errors;
   }
 
   /**
@@ -1774,7 +1853,10 @@ export class CSVService {
       const line = lines[i].trim();
       if (!line) continue;
 
-      const values = line.split(',').map(v => v.trim());
+      const values = line.split(',').map(v => {
+        const trimmed = v.trim();
+        return trimmed === '' ? null : trimmed;
+      });
       if (values.length !== headers.length) {
         errors.push({
           row: i + 1,
@@ -1785,31 +1867,46 @@ export class CSVService {
       }
 
       try {
-        const item: LabelItem = {
-          id: `item-${i}`,
-          sku: values[headers.indexOf('sku')] || '',
-          barcode: values[headers.indexOf('barcode')] || undefined,
-          name_en: values[headers.indexOf('name_en')] || '',
-          name_si: values[headers.indexOf('name_si')] || undefined,
-          name_ta: values[headers.indexOf('name_ta')] || undefined,
-          category: values[headers.indexOf('category')] || undefined,
-          unit: 'pcs', // Default unit
-          price_retail: parseFloat(values[headers.indexOf('price_retail')] || '0'),
-          price_wholesale: parseFloat(values[headers.indexOf('price_wholesale')] || '0'),
-          price_credit: parseFloat(values[headers.indexOf('price_credit')] || '0'),
-          price_other: parseFloat(values[headers.indexOf('price_other')] || '0'),
-          qty: parseInt(values[headers.indexOf('qty')] || '1'),
-          price_tier: (values[headers.indexOf('price_tier')] as 'retail' | 'wholesale' | 'credit' | 'other') || 'retail',
-          language: (values[headers.indexOf('language')] as 'EN' | 'SI' | 'TA') || 'EN',
-          custom_line1: values[headers.indexOf('custom_line1')] || undefined,
-          custom_line2: values[headers.indexOf('custom_line2')] || undefined,
-          packedDate: values[headers.indexOf('packed_date')] || undefined,
-          expiryDate: values[headers.indexOf('expiry_date')] || undefined,
-          mrp: values[headers.indexOf('mrp')] ? parseFloat(values[headers.indexOf('mrp')]) : null,
-          batchNo: values[headers.indexOf('batch_no')] || undefined
+        // Helper function to safely get value by header name
+        const getValue = (headerName: string): string | null => {
+          const index = headers.indexOf(headerName);
+          return index >= 0 ? values[index] : null;
         };
 
-        items.push(item);
+        const item: LabelItem = {
+          id: `item-${i}`,
+          product_id: 0, // Will be resolved later
+          product_name: getValue('name_en') || '',
+          sku: getValue('sku') || '',
+          barcode: getValue('barcode') || undefined,
+          name_en: getValue('name_en') || '',
+          name_si: getValue('name_si') || undefined,
+          name_ta: getValue('name_ta') || undefined,
+          category: getValue('category') || undefined,
+          unit: 'pcs', // Default unit
+          price: parseFloat(getValue('price_retail') || '0'),
+          price_retail: parseFloat(getValue('price_retail') || '0'),
+          price_wholesale: parseFloat(getValue('price_wholesale') || '0'),
+          price_credit: parseFloat(getValue('price_credit') || '0'),
+          price_other: parseFloat(getValue('price_other') || '0'),
+          qty: parseInt(getValue('qty') || '1'),
+          price_tier: (getValue('price_tier') as 'retail' | 'wholesale' | 'credit' | 'other') || 'retail',
+          language: (getValue('language') as 'EN' | 'SI' | 'TA') || 'EN',
+          custom_line1: getValue('custom_line1') || undefined,
+          custom_line2: getValue('custom_line2') || undefined,
+          packedDate: getValue('packed_date') || undefined,
+          expiryDate: getValue('expiry_date') || undefined,
+          mrp: getValue('mrp') ? parseFloat(getValue('mrp')!) : null,
+          batchNo: getValue('batch_no') || undefined
+        };
+
+        // Validate the parsed item
+        const validationErrors = this.validateLabelItem(item, i + 1);
+        if (validationErrors.length > 0) {
+          errors.push(...validationErrors);
+        } else {
+          items.push(item);
+        }
       } catch (error) {
         errors.push({
           row: i + 1,
@@ -1827,17 +1924,19 @@ export class CSVService {
    */
   async importLabelsCSVFromString(csvContent: string): Promise<{
     items: LabelItem[];
-    errors: Array<{ row: number; error: string; data: any }>;
+    errors: string[];
     warnings: string[];
     success: boolean;
   }> {
     try {
+      console.log('CSV Content:', csvContent);
       const lines = csvContent.split('\n').filter(line => line.trim());
+      console.log('Lines:', lines);
       
       if (lines.length === 0) {
         return {
           items: [],
-          errors: [{ row: 0, error: 'CSV content is empty', data: {} }],
+          errors: ['Row 0: CSV content is empty'],
           warnings: [],
           success: false
         };
@@ -1845,17 +1944,25 @@ export class CSVService {
 
       // Parse headers - accept any of the expected headers
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      console.log('Headers:', headers);
       
       const result = this.parseLabelsCSV(lines, headers);
+      console.log('Parse result:', result);
+      
+      // Convert error objects to strings
+      const errorStrings = result.errors.map(err => `Row ${err.row}: ${err.error}`);
+      
       return {
-        ...result,
+        items: result.items,
+        errors: errorStrings,
+        warnings: result.warnings,
         success: result.errors.length === 0
       };
     } catch (error) {
       console.error('Error importing labels from CSV string:', error);
       return {
         items: [],
-        errors: [{ row: 0, error: error instanceof Error ? error.message : 'Unknown error', data: {} }],
+        errors: [`Row 0: ${error instanceof Error ? error.message : 'Unknown error'}`],
         warnings: [],
         success: false
       };
@@ -1880,10 +1987,10 @@ export class CSVService {
 
       // Parse headers - accept any of the expected headers
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-      const acceptedHeaders = [
-        'barcode', 'sku', 'qty', 'price_tier', 'language', 
-        'custom_line1', 'custom_line2', 'packed_date', 'expiry_date', 'mrp', 'batch_no'
-      ];
+      // const acceptedHeaders = [
+      //   'barcode', 'sku', 'qty', 'price_tier', 'language', 
+      //   'custom_line1', 'custom_line2', 'packed_date', 'expiry_date', 'mrp', 'batch_no'
+      // ];
 
       // Validate at least one identifier is present
       if (!headers.includes('barcode') && !headers.includes('sku')) {
@@ -1895,8 +2002,9 @@ export class CSVService {
       const warnings: string[] = [];
 
       // Get products for validation
-      const products = await dataService.getProducts();
-      const categories = await dataService.getCategories();
+      const productsResult = await dataService.getProducts();
+      const products = productsResult as any[];
+      const categories = await dataService.getCategories() as any[];
 
       // Parse data rows
       for (let i = 1; i < lines.length; i++) {
@@ -2013,10 +2121,10 @@ export class CSVService {
           // Find product by barcode first, then by SKU
           let product: Product | undefined;
           if (barcode) {
-            product = products.find(p => p.barcode === barcode);
+            product = products.find((p: any) => p.barcode === barcode);
           }
           if (!product && sku) {
-            product = products.find(p => p.sku === sku);
+            product = products.find((p: any) => p.sku === sku);
           }
 
           if (!product) {
@@ -2029,11 +2137,13 @@ export class CSVService {
           }
 
           // Find category
-          const category = categories.find(c => c.id === product.category_id);
+          const category = categories.find((c: any) => c.id === product.category_id);
 
           // Create label item
           const labelItem: LabelItem = {
             id: `csv-${product.id}-${Date.now()}-${i}`,
+            product_id: product.id,
+            product_name: product.name_en,
             sku: product.sku,
             barcode: product.barcode,
             name_en: product.name_en,
@@ -2041,6 +2151,7 @@ export class CSVService {
             name_ta: product.name_ta,
             category: category?.name,
             unit: product.unit,
+            price: product.price_retail,
             price_retail: product.price_retail,
             price_wholesale: product.price_wholesale,
             price_credit: product.price_credit,
@@ -2084,7 +2195,7 @@ export class CSVService {
     const filename = `label-jobs-${timestamp}.csv`;
 
     const csvData = jobs.map(job => ({
-      timestamp: job.timestamp instanceof Date ? job.timestamp.toISOString() : job.timestamp,
+      timestamp: typeof job.timestamp === 'string' ? job.timestamp : (job.timestamp as any)?.toISOString?.() || '',
       preset_name: job.preset_name,
       source: job.source,
       items_count: job.items_count,
@@ -2102,16 +2213,16 @@ export class CSVService {
     let price = 0;
     switch (tier) {
       case 'retail':
-        price = item.price_retail;
+        price = item.price_retail || 0;
         break;
       case 'wholesale':
-        price = item.price_wholesale;
+        price = item.price_wholesale || 0;
         break;
       case 'credit':
-        price = item.price_credit;
+        price = item.price_credit || 0;
         break;
       case 'other':
-        price = item.price_other;
+        price = item.price_other || 0;
         break;
     }
 
@@ -2132,8 +2243,8 @@ export class CSVService {
         sku: line.product?.sku || '',
         barcode: line.product?.barcode || '',
         name_en: line.product?.name || '',
-        name_si: line.product?.nameSinhala || '',
-        name_ta: line.product?.nameTamil || '',
+        name_si: line.product?.name_si || '',
+        name_ta: line.product?.name_ta || '',
         qty: line.qty,
         unit_cost: line.unit_cost,
         mrp: line.mrp || '',
@@ -2228,11 +2339,11 @@ export class CSVService {
         // Find product by SKU or barcode
         let product: Product | null = null;
         if (options.matchBy === 'sku') {
-          const products = await dataService.getProducts({ search: rowData.sku });
-          product = products.find(p => p.sku === rowData.sku) || null;
+          const productsResult = await dataService.getProducts({ search: rowData.sku });
+          product = (productsResult as any[]).find((p: any) => p.sku === rowData.sku) || null;
         } else {
-          const products = await dataService.getProducts({ search: rowData.barcode });
-          product = products.find(p => p.barcode === rowData.barcode) || null;
+          const productsResult = await dataService.getProducts({ search: rowData.barcode });
+          product = (productsResult as any[]).find((p: any) => p.barcode === rowData.barcode) || null;
         }
         
         if (!product) {
@@ -2259,10 +2370,14 @@ export class CSVService {
           grn_id: grnId,
           product_id: product.id,
           qty: qty,
+          qty_ordered: qty,
+          qty_received: qty,
           unit_cost: unitCost,
-          mrp: rowData.mrp ? parseFloat(rowData.mrp) : null,
+          mrp: rowData.mrp ? parseFloat(rowData.mrp) : undefined,
           batch_no: rowData.batch_no || null,
-          expiry_date: rowData.expiry_date || null
+          expiry_date: rowData.expiry_date || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         };
         
         try {

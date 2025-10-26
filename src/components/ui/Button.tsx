@@ -3,9 +3,10 @@ import { cn } from '@/utils/cn';
 import { Loader2 } from 'lucide-react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'ghost' | 'outline' | 'pos-primary' | 'pos-secondary' | 'pos-success' | 'pos-warning' | 'pos-danger';
+  variant?: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'ghost' | 'outline' | 'pos-primary' | 'pos-secondary' | 'pos-success' | 'pos-warning' | 'pos-danger' | 'destructive' | 'search' | 'link';
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   loading?: boolean;
+  loadingText?: string;
   children: React.ReactNode;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
@@ -14,6 +15,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   shadow?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
   'aria-label'?: string;
   'aria-describedby'?: string;
+  tooltip?: string;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -22,6 +24,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     variant = 'primary', 
     size = 'md', 
     loading = false,
+    loadingText,
     disabled,
     children,
     leftIcon,
@@ -31,11 +34,13 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     shadow = 'sm',
     'aria-label': ariaLabel,
     'aria-describedby': ariaDescribedby,
+    tooltip,
     ...props 
   }, ref) => {
     const baseClasses = 'inline-flex items-center justify-center font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 select-none';
     
     const variants = {
+      default: 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 focus-visible:ring-primary-500 shadow-sm hover:shadow-md',
       primary: 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 focus-visible:ring-primary-500 shadow-sm hover:shadow-md',
       secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200 active:bg-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700 dark:active:bg-gray-600 focus-visible:ring-gray-500 shadow-sm',
       success: 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800 focus-visible:ring-green-500 shadow-sm hover:shadow-md',
@@ -48,6 +53,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       'pos-success': 'bg-pos-success text-white hover:bg-green-700 active:bg-green-800 focus-visible:ring-green-500 shadow-pos hover:shadow-lg font-semibold',
       'pos-warning': 'bg-pos-warning text-white hover:bg-yellow-700 active:bg-yellow-800 focus-visible:ring-yellow-500 shadow-pos hover:shadow-lg font-semibold',
       'pos-danger': 'bg-pos-error text-white hover:bg-red-700 active:bg-red-800 focus-visible:ring-red-500 shadow-pos hover:shadow-lg font-semibold',
+      'destructive': 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 focus-visible:ring-red-500 shadow-sm hover:shadow-md',
+      'search': 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:active:bg-gray-600 focus-visible:ring-gray-500 shadow-sm',
+      'link': 'text-blue-600 hover:text-blue-700 active:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 dark:active:text-blue-200 focus-visible:ring-blue-500 underline-offset-4 hover:underline',
     };
 
     const sizes = {
@@ -85,6 +93,30 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       xl: 'w-6 h-6'
     };
 
+    const buttonContent = (
+      <>
+        {loading && (
+          <Loader2 className={cn("animate-spin", iconSize[size])} aria-hidden="true" />
+        )}
+        {!loading && leftIcon && (
+          <span className={cn("flex items-center", iconSize[size])} aria-hidden="true">
+            {leftIcon}
+          </span>
+        )}
+        <span className={cn(
+          "truncate",
+          (leftIcon || rightIcon || loading) && "flex-1"
+        )}>
+          {loading && loadingText ? loadingText : children}
+        </span>
+        {!loading && rightIcon && (
+          <span className={cn("flex items-center", iconSize[size])} aria-hidden="true">
+            {rightIcon}
+          </span>
+        )}
+      </>
+    );
+
     return (
       <button
         className={cn(
@@ -98,30 +130,13 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         )}
         ref={ref}
         disabled={disabled || loading}
-        aria-label={ariaLabel}
+        aria-label={ariaLabel || (loading && loadingText ? loadingText : undefined)}
         aria-describedby={ariaDescribedby}
         aria-disabled={disabled || loading}
+        title={tooltip}
         {...props}
       >
-        {loading && (
-          <Loader2 className={cn("animate-spin", iconSize[size])} aria-hidden="true" />
-        )}
-        {!loading && leftIcon && (
-          <span className={cn("flex items-center", iconSize[size])} aria-hidden="true">
-            {leftIcon}
-          </span>
-        )}
-        <span className={cn(
-          "truncate",
-          (leftIcon || rightIcon || loading) && "flex-1"
-        )}>
-          {children}
-        </span>
-        {!loading && rightIcon && (
-          <span className={cn("flex items-center", iconSize[size])} aria-hidden="true">
-            {rightIcon}
-          </span>
-        )}
+        {buttonContent}
       </button>
     );
   }

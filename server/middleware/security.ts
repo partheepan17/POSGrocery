@@ -294,3 +294,17 @@ export function sqlInjectionProtection(req: Request, res: Response, next: NextFu
   
   next();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

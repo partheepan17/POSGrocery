@@ -1,5 +1,5 @@
 import { database } from './database';
-import { Shift, ShiftMovement, ShiftSummary, ShiftStatus, ShiftMovementType } from '../types';
+import { Shift, ShiftMovement, ShiftSummary, ShiftStatus } from '../types';
 
 export class ShiftService {
   private db = database;
@@ -65,6 +65,10 @@ export class ShiftService {
       return result.lastID;
     } catch (error) {
       console.error('Error opening shift:', error);
+      // Re-throw the original error if it's already a meaningful error message
+      if (error instanceof Error && error.message.includes('already an open shift')) {
+        throw error;
+      }
       throw new Error('Failed to open shift');
     }
   }
@@ -125,6 +129,10 @@ export class ShiftService {
       await this.db.execute(query, [declaredCash, variance, note, id]);
     } catch (error) {
       console.error('Error closing shift:', error);
+      // Re-throw the original error if it's already a meaningful error message
+      if (error instanceof Error && (error.message.includes('Shift not found') || error.message.includes('Shift is not open'))) {
+        throw error;
+      }
       throw new Error('Failed to close shift');
     }
   }
@@ -154,6 +162,10 @@ export class ShiftService {
       await this.db.execute(query, [reason, id]);
     } catch (error) {
       console.error('Error voiding shift:', error);
+      // Re-throw the original error if it's already a meaningful error message
+      if (error instanceof Error && (error.message.includes('Shift not found') || error.message.includes('Only open shifts can be voided'))) {
+        throw error;
+      }
       throw new Error('Failed to void shift');
     }
   }
@@ -183,6 +195,10 @@ export class ShiftService {
       };
     } catch (error) {
       console.error('Error getting shift:', error);
+      // Re-throw the original error if it's already a meaningful error message
+      if (error instanceof Error && error.message.includes('Shift not found')) {
+        throw error;
+      }
       throw new Error('Failed to get shift');
     }
   }
@@ -309,6 +325,9 @@ export class ShiftService {
         shift,
         sales,
         payments,
+        movements: [],
+        cashier_name: '',
+        terminal_name: '',
         cashDrawer
       };
     } catch (error) {
@@ -341,7 +360,7 @@ export class ShiftService {
   async expectedCashForShift(id: number): Promise<number> {
     try {
       const summary = await this.getShiftSummary(id);
-      return summary.cashDrawer.expectedCash;
+      return summary.cashDrawer?.expectedCash || 0;
     } catch (error) {
       console.error('Error calculating expected cash:', error);
       throw new Error('Failed to calculate expected cash');

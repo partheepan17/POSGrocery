@@ -32,7 +32,7 @@ describe('csvService - Label Extensions', () => {
       // Check third item (no expiry date)
       const item3 = result.items[2];
       expect(item3.language).toBe('TA');
-      expect(item3.expiryDate).toBe(null);
+      expect(item3.expiryDate).toBe(undefined);
       expect(item3.mrp).toBe(299.99);
       expect(item3.batchNo).toBe('BATCH456');
     });
@@ -79,7 +79,7 @@ describe('csvService - Label Extensions', () => {
 
     it('should handle empty optional fields', async () => {
       const csvContent = `barcode,sku,qty,packed_date,expiry_date,mrp,batch_no
-123456789012,ITEM001,1,,,
+123456789012,ITEM001,1,,,,
 123456789013,ITEM002,1,2024-03-15,,,B001`;
 
       const result = await csvService.importLabelsCSVFromString(csvContent);
@@ -88,14 +88,14 @@ describe('csvService - Label Extensions', () => {
       expect(result.items).toHaveLength(2);
       
       const item1 = result.items[0];
-      expect(item1.packedDate).toBe(null);
-      expect(item1.expiryDate).toBe(null);
+      expect(item1.packedDate).toBe(undefined);
+      expect(item1.expiryDate).toBe(undefined);
       expect(item1.mrp).toBe(null);
-      expect(item1.batchNo).toBe(null);
+      expect(item1.batchNo).toBe(undefined);
       
       const item2 = result.items[1];
       expect(item2.packedDate).toBe('2024-03-15');
-      expect(item2.expiryDate).toBe(null);
+      expect(item2.expiryDate).toBe(undefined);
       expect(item2.mrp).toBe(null);
       expect(item2.batchNo).toBe('B001');
     });
@@ -112,7 +112,7 @@ describe('csvService - Label Extensions', () => {
           name_ta: 'Test Product 1 TA',
           barcode: '123456789012',
           unit: 'pcs',
-          price_retail: 100,
+          price: 100,
           price_wholesale: 90,
           price_credit: 95,
           price_other: 100,
@@ -122,7 +122,9 @@ describe('csvService - Label Extensions', () => {
           packedDate: '2024-03-15',
           expiryDate: '2024-09-15',
           mrp: 150.00,
-          batchNo: 'B001'
+          batchNo: 'B001',
+          product_id: 1,
+          product_name: 'Test Product 1'
         },
         {
           id: 'test-2',
@@ -132,7 +134,7 @@ describe('csvService - Label Extensions', () => {
           name_ta: 'Test Product 2 TA',
           barcode: '123456789013',
           unit: 'pcs',
-          price_retail: 75,
+          price: 75,
           price_wholesale: 70,
           price_credit: 72,
           price_other: 75,
@@ -142,11 +144,13 @@ describe('csvService - Label Extensions', () => {
           packedDate: null,
           expiryDate: null,
           mrp: null,
-          batchNo: null
+          batchNo: null,
+          product_id: 2,
+          product_name: 'Test Product 2'
         }
       ];
 
-      const csvContent = await csvService.exportLabelsCSV(items);
+      const csvContent = csvService.exportLabelsCSVToString(items);
       
       expect(csvContent).toContain('packed_date,expiry_date,mrp,batch_no');
       expect(csvContent).toContain('2024-03-15,2024-09-15,150,B001');
@@ -163,7 +167,7 @@ describe('csvService - Label Extensions', () => {
           name_ta: 'Test Product 1 TA',
           barcode: '123456789012',
           unit: 'pcs',
-          price_retail: 100,
+          price: 100,
           price_wholesale: 90,
           price_credit: 95,
           price_other: 100,
@@ -173,11 +177,13 @@ describe('csvService - Label Extensions', () => {
           packedDate: '2024-03-15',
           expiryDate: null,
           mrp: 150.00,
-          batchNo: null
+          batchNo: null,
+          product_id: 1,
+          product_name: 'Test Product 1'
         }
       ];
 
-      const csvContent = await csvService.exportLabelsCSV(items);
+      const csvContent = csvService.exportLabelsCSVToString(items);
       
       expect(csvContent).toContain('2024-03-15,,150,');
     });
@@ -194,7 +200,7 @@ describe('csvService - Label Extensions', () => {
           name_ta: 'Test Product TA',
           barcode: '123456789012',
           unit: 'pcs',
-          price_retail: 100,
+          price: 100,
           price_wholesale: 90,
           price_credit: 95,
           price_other: 100,
@@ -204,7 +210,9 @@ describe('csvService - Label Extensions', () => {
           packedDate: '2024-03-15',
           expiryDate: '2024-09-15',
           mrp: 150.00,
-          batchNo: 'B001'
+          batchNo: 'B001',
+          product_id: 1,
+          product_name: 'Test Product'
         }
       ];
 

@@ -114,7 +114,7 @@ export default function Returns() {
       setSale(saleData);
       
       // Get return ledger for this sale
-      const ledger = await refundService.getSaleReturnLedger(saleData.id);
+      const ledger = await refundService.getSaleReturnLedger(Number(saleData.id));
       const ledgerMap = new Map(ledger.map(item => [item.sale_line_id, item.returned_qty]));
 
       // Initialize return items
@@ -295,12 +295,16 @@ export default function Returns() {
       }
 
       const returnLines: ReturnLine[] = itemsToReturn.map(item => ({
+        id: Date.now() + Math.random(),
+        return_id: 0, // Will be set by service
         sale_line_id: item.sale_line_id,
         product_id: item.product_id,
         qty: item.return_qty,
+        qty_returned: item.return_qty,
         unit_price: item.unit_price,
         line_refund: item.line_refund,
-        reason_code: item.reason_code
+        reason_code: item.reason_code,
+        reason: item.reason_code
       }));
 
       const refundSplit = getRefundSplit();
@@ -309,7 +313,7 @@ export default function Returns() {
       ).join('; ');
 
       const result = await refundService.createReturn({
-        saleId: sale!.id,
+        saleId: Number(sale!.id),
         lines: returnLines,
         payments: refundSplit,
         reason_summary: reasonSummary,
@@ -407,10 +411,10 @@ export default function Returns() {
               {sale && (
                 <div className="p-4 bg-muted rounded-lg">
                   <h3 className="font-semibold">{t('returns.saleDetails')}</h3>
-                  <p>{t('returns.date')}: {new Date(sale.datetime).toLocaleString()}</p>
+                  <p>{t('returns.date')}: {new Date(sale.datetime || '').toLocaleString()}</p>
                   <p>{t('returns.cashier')}: {sale.cashier_id || t('returns.unknown')}</p>
                   <p>{t('returns.tier')}: {sale.price_tier}</p>
-                  <p>{t('returns.total')}: LKR {sale.net.toFixed(2)}</p>
+                  <p>{t('returns.total')}: LKR {(sale.net || 0).toFixed(2)}</p>
                 </div>
               )}
             </CardContent>

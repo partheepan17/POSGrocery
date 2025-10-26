@@ -111,3 +111,17 @@ SELECT
     COUNT(idempotency_key) as with_idempotency,
     COUNT(DISTINCT idempotency_key) as unique_keys
 FROM grn_headers;
+
+
+
+
+
+
+
+
+
+
+
+
+
+

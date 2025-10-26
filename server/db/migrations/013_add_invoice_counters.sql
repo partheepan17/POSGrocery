@@ -14,3 +14,17 @@ CREATE INDEX IF NOT EXISTS idx_invoice_counters_date ON invoice_counters(date);
 INSERT OR IGNORE INTO invoice_counters (date, last_seq) 
 VALUES (date('now'), 0);
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

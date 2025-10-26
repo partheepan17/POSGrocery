@@ -92,3 +92,5 @@ export function TestNavigation() {
     </div>
   );
 }
+
+export default TestNavigation;

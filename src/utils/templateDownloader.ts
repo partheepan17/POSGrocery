@@ -15,7 +15,7 @@ export interface TemplateColumn {
 
 export interface TemplateConfig {
   filename: string;
-  columns: TemplateColumn[];
+  columns: readonly TemplateColumn[];
   sampleData?: Record<string, any>[];
   sheetName?: string;
 }

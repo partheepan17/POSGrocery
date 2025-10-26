@@ -27,3 +27,17 @@ echo ""
 echo "Database clear completed!"
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

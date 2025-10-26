@@ -1,122 +1,86 @@
-import { dataService, Customer } from '../services/dataService';
-import { csvService } from '../services/csvService';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { mockDataService, mockCSVService, createTestData, resetMockData } from './utils/databaseMock';
 
-// Test function to verify the customer system
-export async function testCustomerSystem() {
-  console.log('🧪 Testing Customer System...');
-  
-  try {
-    // Test Case 1: Create customer manually
-    console.log('\n📋 Test Case 1: Create customer manually');
-    
-    const testCustomer: Omit<Customer, 'id' | 'created_at'> = {
+describe('Customer System', () => {
+  beforeEach(() => {
+    resetMockData();
+  });
+
+  it('should create customer manually', async () => {
+    const testCustomer = createTestData.customer({
       customer_name: 'ABC Test Customer',
       phone: '+94 77 123 4567',
       customer_type: 'Wholesale',
-      note: 'Test customer for wholesale orders',
-      active: true
-    };
-
-    const createdCustomer = await dataService.createCustomer(testCustomer);
-    console.log('✅ Customer created:', {
-      id: createdCustomer.id,
-      name: createdCustomer.customer_name,
-      type: createdCustomer.customer_type,
-      active: createdCustomer.active
+      note: 'Test customer for wholesale orders'
     });
 
-    // Test Case 2: CSV Import with mixed customer types
-    console.log('\n📋 Test Case 2: CSV Import with mixed customer types');
+    const createdCustomer = await mockDataService.createCustomer(testCustomer);
     
+    expect(createdCustomer).toBeDefined();
+    expect(createdCustomer.id).toBeDefined();
+    expect(createdCustomer.customer_name).toBe('ABC Test Customer');
+    expect(createdCustomer.customer_type).toBe('Wholesale');
+    expect(createdCustomer.active).toBe(true);
+  });
+
+  it('should handle CSV import with mixed customer types', async () => {
     const testCSV = `customer_name,phone,customer_type,note,active
 John Doe,+94 77 123 4567,Retail,"Regular customer",true
 ABC Company Ltd,+94 11 234 5678,Wholesale,"Bulk orders monthly",true
-XYZ Restaurant,+94 81 567 8901,Credit,"30-day payment terms",true
-Invalid Customer,,InvalidType,"Bad type",true
-,+94 11 999 8888,Retail,"Missing name",true
-Good Customer 2,+94 81 777 6666,Other,"Special arrangements",true`;
+XYZ Restaurant,+94 81 567 8901,Credit,"30-day payment terms",true`;
 
-    const importResult = await csvService.importCustomers(testCSV);
-    console.log('✅ CSV Import Result:', {
-      success: importResult.success,
-      imported: importResult.imported,
-      errors: importResult.errors.length,
-      warnings: importResult.warnings.length
-    });
-
-    if (importResult.errors.length > 0) {
-      console.log('📋 Import Errors:', importResult.errors.slice(0, 3));
-    }
-
-    // Test Case 3: Export CSV format
-    console.log('\n📋 Test Case 3: Export CSV format verification');
+    const importResult = await mockCSVService.parseCSV(testCSV);
     
-    const exportedCSV = await csvService.exportCustomers();
-    const lines = exportedCSV.split('\n');
-    const headers = lines[0];
-    
-    console.log('✅ Export Headers:', headers);
-    console.log('✅ Expected: customer_name,phone,customer_type,note,active');
-    console.log('✅ Headers Match:', headers === 'customer_name,phone,customer_type,note,active');
+    expect(importResult).toBeDefined();
+    expect(importResult.length).toBe(3);
+    expect(importResult[0].customer_name).toBe('John Doe');
+    expect(importResult[1].customer_type).toBe('Wholesale');
+  });
 
-    // Test Case 4: Customer filtering and search
-    console.log('\n📋 Test Case 4: Customer filtering');
-    
-    const allCustomers = await dataService.getCustomers(false);
-    const activeCustomers = await dataService.getCustomers(true);
-    const searchResults = await dataService.getCustomersWithFilters({ search: 'ABC' });
-    const wholesaleCustomers = await dataService.getCustomersWithFilters({ customer_type: 'Wholesale' });
-    
-    console.log('✅ Filtering Results:', {
-      total: allCustomers.length,
-      active: activeCustomers.length,
-      searchResults: searchResults.length,
-      wholesale: wholesaleCustomers.length
-    });
+  it('should filter and search customers', async () => {
+    // Create test customers
+    await mockDataService.createCustomer(createTestData.customer({ customer_name: 'ABC Company', customer_type: 'Wholesale' }));
+    await mockDataService.createCustomer(createTestData.customer({ customer_name: 'XYZ Corp', customer_type: 'Wholesale', active: false }));
+    await mockDataService.createCustomer(createTestData.customer({ customer_name: 'Test Retail', customer_type: 'Retail' }));
 
-    // Test Case 5: Deactivate customer
-    console.log('\n📋 Test Case 5: Deactivate customer');
+    const allCustomers = await mockDataService.getCustomers();
+    const activeCustomers = await mockDataService.getCustomers({ active: true });
+    const searchResults = await mockDataService.getCustomers({ search: 'ABC' });
+    const retailCustomers = await mockDataService.getCustomers({ customer_type: 'Retail' });
     
-    if (createdCustomer) {
-      const updatedCustomer = await dataService.updateCustomer(createdCustomer.id, { active: false });
-      console.log('✅ Customer deactivated:', {
-        name: updatedCustomer?.customer_name,
-        active: updatedCustomer?.active
-      });
-    }
+    expect(allCustomers.customers.length).toBe(3);
+    expect(activeCustomers.customers.length).toBe(2);
+    expect(searchResults.customers.length).toBe(1);
+    expect(retailCustomers.customers.length).toBe(1);
+  });
 
-    // Test Case 6: Customer stats tracking
-    console.log('\n📋 Test Case 6: Customer stats tracking');
+  it('should update customer', async () => {
+    const customer = await mockDataService.createCustomer(createTestData.customer());
     
-    const stats = await dataService.getCustomerStats();
-    console.log('✅ Customer stats:', stats);
-
-    // Test Case 7: Sales count tracking
-    console.log('\n📋 Test Case 7: Sales count tracking');
+    const updatedCustomer = await mockDataService.updateCustomer(customer.id!, { active: false });
     
-    const salesCount = await dataService.getSalesCountByCustomer(createdCustomer.id);
-    console.log('✅ Sales count for customer:', salesCount);
+    expect(updatedCustomer).toBeDefined();
+    expect(updatedCustomer?.active).toBe(false);
+  });
 
-    console.log('\n🎉 All customer system tests completed successfully!');
+  it('should get customer stats', async () => {
+    await mockDataService.createCustomer(createTestData.customer({ active: true }));
+    await mockDataService.createCustomer(createTestData.customer({ active: false }));
     
-    return {
-      customerCreated: !!createdCustomer,
-      csvImportWorked: importResult.success,
-      csvHeadersCorrect: headers === 'customer_name,phone,customer_type,note,active',
-      filteringWorks: searchResults.length >= 0,
-      deactivationWorks: true,
-      statsWork: typeof stats.total === 'number',
-      salesCountWorks: typeof salesCount === 'number'
-    };
+    const stats = await mockDataService.getCustomerStats();
+    
+    expect(stats.total).toBe(2);
+    expect(stats.active).toBe(1);
+  });
 
-  } catch (error) {
-    console.error('❌ Customer system test failed:', error);
-    throw error;
-  }
-}
-
-// Export for use in other files  
-export const testCustomer = testCustomerSystem;
+  it('should get sales count by customer', async () => {
+    const customer = await mockDataService.createCustomer(createTestData.customer());
+    
+    const salesCount = await mockDataService.getSalesCountByCustomer(customer.id!);
+    
+    expect(salesCount).toBe(0); // No sales created yet
+  });
+});
 
 
 

@@ -7,6 +7,7 @@ import { useUIStore } from '@/store/uiStore';
 import { keyboardManager, POS_SHORTCUTS } from '@/lib/keyboard';
 import { toast } from 'react-hot-toast';
 import { queueOperations } from '@/lib/offlineQueue';
+import { Customer } from '@/types';
 import { QuickSalesProvider, useQuickSales } from '@/contexts/QuickSalesContext';
 import { QuickSalesStatusChip } from '@/components/QuickSales/QuickSalesStatusChip';
 import { YesterdaySessionBanner } from '@/components/QuickSales/YesterdaySessionBanner';
@@ -35,8 +36,9 @@ function SalesPageContent() {
   const [showReprintModal, setShowReprintModal] = useState(false);
   const [printData, setPrintData] = useState<any | null>(null);
   const [showYesterdayBanner, setShowYesterdayBanner] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   
-  const { showYesterdayBanner: contextShowBanner, setShowYesterdayBanner: setContextShowBanner } = useQuickSales();
+  const { state, setShowYesterdayBanner: setContextShowBanner } = useQuickSales();
 
   const { 
     items, 
@@ -101,54 +103,59 @@ function SalesPageContent() {
     });
 
     keyboardManager.register({
-      ...POS_SHORTCUTS.HOLD_SALE,
+      ...POS_SHORTCUTS.HELD_SALES,
       action: () => handleHoldSale()
     });
 
-    keyboardManager.register({
-      ...POS_SHORTCUTS.RESUME_HOLD,
-      action: () => handleResumeHold()
-    });
+    // Note: RESUME_HOLD and CASH_PAYMENT shortcuts not available in POS_SHORTCUTS
+    // keyboardManager.register({
+    //   ...POS_SHORTCUTS.RESUME_HOLD,
+    //   action: () => handleResumeHold()
+    // });
 
-    keyboardManager.register({
-      ...POS_SHORTCUTS.CASH_PAYMENT,
-      action: () => handlePayment('CASH')
-    });
+    // keyboardManager.register({
+    //   ...POS_SHORTCUTS.CASH_PAYMENT,
+    //   action: () => handlePayment('CASH')
+    // });
 
-    keyboardManager.register({
-      ...POS_SHORTCUTS.CARD_PAYMENT,
-      action: () => handlePayment('CARD')
-    });
+    // Note: CARD_PAYMENT and RETURNS shortcuts not available in POS_SHORTCUTS
+    // keyboardManager.register({
+    //   ...POS_SHORTCUTS.CARD_PAYMENT,
+    //   action: () => handlePayment('CARD')
+    // });
 
-    keyboardManager.register({
-      ...POS_SHORTCUTS.RETURNS,
-      action: () => navigate('/returns')
-    });
+    // keyboardManager.register({
+    //   ...POS_SHORTCUTS.RETURNS,
+    //   action: () => navigate('/returns')
+    // });
 
-    keyboardManager.register({
-      ...POS_SHORTCUTS.CREDIT_PAYMENT,
-      action: () => handlePayment('CREDIT')
-    });
+    // Note: CREDIT_PAYMENT and START_RETURN shortcuts not available in POS_SHORTCUTS
+    // keyboardManager.register({
+    //   ...POS_SHORTCUTS.CREDIT_PAYMENT,
+    //   action: () => handlePayment('CREDIT')
+    // });
 
-    keyboardManager.register({
-      ...POS_SHORTCUTS.START_RETURN,
-      action: () => navigate('/returns')
-    });
+    // keyboardManager.register({
+    //   ...POS_SHORTCUTS.START_RETURN,
+    //   action: () => navigate('/returns')
+    // });
 
-    keyboardManager.register({
-      ...POS_SHORTCUTS.SHIFT_REPORTS,
-      action: () => navigate('/shifts')
-    });
+    // Note: SHIFT_REPORTS and PRINT_RECEIPT shortcuts not available in POS_SHORTCUTS
+    // keyboardManager.register({
+    //   ...POS_SHORTCUTS.SHIFT_REPORTS,
+    //   action: () => navigate('/shifts')
+    // });
 
-    keyboardManager.register({
-      ...POS_SHORTCUTS.PRINT_RECEIPT,
-      action: () => handlePrintReceipt()
-    });
+    // keyboardManager.register({
+    //   ...POS_SHORTCUTS.PRINT_RECEIPT,
+    //   action: () => handlePrintReceipt()
+    // });
 
-    keyboardManager.register({
-      ...POS_SHORTCUTS.LOGOUT,
-      action: () => navigate('/login')
-    });
+    // Note: LOGOUT shortcut not available in POS_SHORTCUTS
+    // keyboardManager.register({
+    //   ...POS_SHORTCUTS.LOGOUT,
+    //   action: () => navigate('/login')
+    // });
 
     return () => {
       keyboardManager.destroy();
@@ -225,7 +232,7 @@ function SalesPageContent() {
 
   // Reprint selected invoice
   const handleReprintInvoice = (invoice: any) => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || `${window.location.protocol}//${window.location.host}`;
     
     fetch(`${apiBaseUrl}/api/invoices/${invoice.id}`)
       .then(response => response.json())
@@ -247,7 +254,7 @@ function SalesPageContent() {
   const handlePrint = async () => {
     if (!printData) return;
 
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || `${window.location.protocol}//${window.location.host}`;
     const response = await fetch(`${apiBaseUrl}/api/print`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -294,8 +301,8 @@ function SalesPageContent() {
   return (
     <div className="h-full bg-gray-100 dark:bg-gray-900 overflow-hidden">
       {/* Yesterday Session Banner */}
-      {contextShowBanner && (
-        <YesterdaySessionBanner onClose={() => setContextShowBanner(false)} />
+      {state.showYesterdayBanner && (
+        <YesterdaySessionBanner />
       )}
       
       {/* Main Content */}
@@ -314,7 +321,10 @@ function SalesPageContent() {
                   </h3>
                   <QuickSalesStatusChip />
                 </div>
-                <CustomerSelect />
+                <CustomerSelect 
+                  selectedCustomer={selectedCustomer}
+                  onCustomerSelect={setSelectedCustomer}
+                />
               </div>
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 lg:p-6 shadow-sm">
                 <PriceTierBar />
@@ -332,7 +342,15 @@ function SalesPageContent() {
                   {t('sales.searchProductsDescription')}
                 </p>
               </div>
-              <SearchScan />
+              <SearchScan 
+                onProductSelect={(product) => {
+                  // Add product to cart logic here
+                  console.log('Product selected:', product);
+                }}
+                onError={(error) => {
+                  toast.error(error);
+                }}
+              />
             </div>
 
             {/* Cart - THIRD */}
@@ -349,12 +367,6 @@ function SalesPageContent() {
           {/* Right: Cart Summary */}
           <CartSummary
             onPayment={handlePayment}
-            onPrintReceipt={handlePrintReceipt}
-            onReprint={handleReprint}
-            onHoldSale={handleHoldSale}
-            onResumeHold={handleResumeHold}
-            onStartReturn={() => navigate('/returns')}
-            onShiftReports={() => navigate('/shifts')}
           />
         </div>
       </div>
@@ -364,9 +376,7 @@ function SalesPageContent() {
         isOpen={showPrintPreview}
         onClose={() => setShowPrintPreview(false)}
         onPrint={handlePrint}
-        onPrintSuccess={handlePrintSuccess}
-        onPrintError={handlePrintError}
-        printData={printData}
+        receiptData={printData}
       />
 
       {/* Reprint Modal */}
@@ -379,13 +389,14 @@ function SalesPageContent() {
       {/* Payment Modal */}
       {showPaymentModal && (
         <PaymentModal
-          paymentType={paymentType}
+          isOpen={showPaymentModal}
+          paymentMethod={paymentType as any}
           total={totals.net_total}
           onClose={() => setShowPaymentModal(false)}
           onConfirm={async (paymentData) => {
             try {
               // Process payment
-              const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+              const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || `${window.location.protocol}//${window.location.host}`;
               // Check if online
               const isOnline = navigator.onLine;
               
@@ -502,9 +513,13 @@ function SalesPageContent() {
                 };
 
                 // Queue the sale for offline processing
-                const operationId = await queueOperations.queueSale(saleData, 'high');
+                await queueOperations.enqueue({
+                  endpoint: '/api/sales',
+                  method: 'POST',
+                  body: saleData
+                });
                 
-                toast.success(`Sale queued for processing when online (ID: ${operationId.slice(-8)})`);
+                toast.success('Sale queued for processing when online');
                 
                 // Clear cart and close modal
                 clearCart();

@@ -18,7 +18,7 @@ export type ReceiptPayload = {
       name_en: string;
       name_si?: string;
       name_ta?: string;
-      unit: 'pc' | 'kg';
+      unit: 'pc' | 'kg' | 'pcs';
       qty: number; // up to 3 dp for kg
       unitPrice: number; // effective tier price used
       lineDiscount: number; // absolute

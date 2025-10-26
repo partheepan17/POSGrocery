@@ -311,11 +311,13 @@ export const PrintTest: React.FC = () => {
               <Select
                 value={selectedAdapter}
                 onChange={(e) => setSelectedAdapter(e.target.value)}
-                options={printAdapters.map(adapter => ({
-                  value: adapter.id,
-                  label: `${adapter.name} (${adapter.width}mm)`
-                }))}
-                placeholder="Select print adapter"
+                options={[
+                  { value: '', label: 'Select print adapter' },
+                  ...printAdapters.map(adapter => ({
+                    value: adapter.id,
+                    label: `${adapter.name} (${adapter.width}mm)`
+                  }))
+                ]}
               />
             </div>
 
@@ -324,11 +326,13 @@ export const PrintTest: React.FC = () => {
               <Select
                 value={selectedTheme}
                 onChange={(e) => setSelectedTheme(e.target.value)}
-                options={themes.map(theme => ({
-                  value: theme.id,
-                  label: theme.name
-                }))}
-                placeholder="Select theme"
+                options={[
+                  { value: '', label: 'Select theme' },
+                  ...themes.map(theme => ({
+                    value: theme.id,
+                    label: theme.name
+                  }))
+                ]}
               />
             </div>
 
@@ -410,4 +414,6 @@ export const PrintTest: React.FC = () => {
       </Card>
     </div>
   );
-};
+}
+
+export default PrintTest;;

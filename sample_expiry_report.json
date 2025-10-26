@@ -1,0 +1,168 @@
+{
+  "ok": true,
+  "data": {
+    "summary": {
+      "total_lots": 15,
+      "expired_lots": 2,
+      "critical_lots": 3,
+      "near_expiry_lots": 10,
+      "total_value_at_risk": 250000,
+      "threshold_days": 30
+    },
+    "products": [
+      {
+        "product_id": 101,
+        "sku": "MILK-001",
+        "name_en": "Fresh Milk 1L",
+        "name_si": "තැනුම් කිරි 1L",
+        "name_ta": "புதிய பால் 1L",
+        "unit": "pcs",
+        "category_name": "Dairy",
+        "lot_id": 501,
+        "lot_number": "LOT-2024-001",
+        "quantity_remaining": 10,
+        "expiry_date": "2024-01-12",
+        "days_to_expiry": -3,
+        "expiry_status": "Expired",
+        "unit_cost_cents": 12000,
+        "total_value_cents": 120000
+      },
+      {
+        "product_id": 102,
+        "sku": "BREAD-001",
+        "name_en": "White Bread Loaf",
+        "name_si": "සුදු පාන් රෝටිය",
+        "name_ta": "வெள்ளை ரொட்டி",
+        "unit": "pcs",
+        "category_name": "Bakery",
+        "lot_id": 502,
+        "lot_number": "LOT-2024-002",
+        "quantity_remaining": 15,
+        "expiry_date": "2024-01-17",
+        "days_to_expiry": 2,
+        "expiry_status": "Critical",
+        "unit_cost_cents": 4500,
+        "total_value_cents": 67500
+      },
+      {
+        "product_id": 103,
+        "sku": "YOGURT-001",
+        "name_en": "Greek Yogurt 500g",
+        "name_si": "ග්‍රීක තක්කාලි 500g",
+        "name_ta": "கிரேக்க தயிர் 500g",
+        "unit": "pcs",
+        "category_name": "Dairy",
+        "lot_id": 503,
+        "lot_number": "LOT-2024-003",
+        "quantity_remaining": 8,
+        "expiry_date": "2024-01-20",
+        "days_to_expiry": 5,
+        "expiry_status": "Critical",
+        "unit_cost_cents": 8500,
+        "total_value_cents": 68000
+      },
+      {
+        "product_id": 104,
+        "sku": "CHEESE-001",
+        "name_en": "Cheddar Cheese 200g",
+        "name_si": "චෙඩර් චීස් 200g",
+        "name_ta": "செடார் சீஸ் 200g",
+        "unit": "pcs",
+        "category_name": "Dairy",
+        "lot_id": 504,
+        "lot_number": "LOT-2024-004",
+        "quantity_remaining": 12,
+        "expiry_date": "2024-01-25",
+        "days_to_expiry": 10,
+        "expiry_status": "Critical",
+        "unit_cost_cents": 15000,
+        "total_value_cents": 180000
+      },
+      {
+        "product_id": 105,
+        "sku": "JUICE-001",
+        "name_en": "Orange Juice 1L",
+        "name_si": "දොඩම් යුෂ 1L",
+        "name_ta": "ஆரஞ்சு சாறு 1L",
+        "unit": "bottles",
+        "category_name": "Beverages",
+        "lot_id": 505,
+        "lot_number": "LOT-2024-005",
+        "quantity_remaining": 20,
+        "expiry_date": "2024-01-30",
+        "days_to_expiry": 15,
+        "expiry_status": "Near Expiry",
+        "unit_cost_cents": 18000,
+        "total_value_cents": 360000
+      },
+      {
+        "product_id": 106,
+        "sku": "COOKIES-001",
+        "name_en": "Chocolate Cookies 200g",
+        "name_si": "චොකලට් කුකී 200g",
+        "name_ta": "சாக்லேட் குக்கீ 200g",
+        "unit": "packs",
+        "category_name": "Snacks",
+        "lot_id": 506,
+        "lot_number": "LOT-2024-006",
+        "quantity_remaining": 25,
+        "expiry_date": "2024-02-05",
+        "days_to_expiry": 21,
+        "expiry_status": "Near Expiry",
+        "unit_cost_cents": 3200,
+        "total_value_cents": 80000
+      },
+      {
+        "product_id": 107,
+        "sku": "CEREAL-001",
+        "name_en": "Corn Flakes 500g",
+        "name_si": "කොර්න් ෆ්ලේක්ස් 500g",
+        "name_ta": "கார்ன் ஃப்ளேக்ஸ் 500g",
+        "unit": "boxes",
+        "category_name": "Breakfast",
+        "lot_id": 507,
+        "lot_number": "LOT-2024-007",
+        "quantity_remaining": 18,
+        "expiry_date": "2024-02-10",
+        "days_to_expiry": 26,
+        "expiry_status": "Near Expiry",
+        "unit_cost_cents": 12000,
+        "total_value_cents": 216000
+      },
+      {
+        "product_id": 108,
+        "sku": "SOUP-001",
+        "name_en": "Tomato Soup 400g",
+        "name_si": "තක්කාලි සුප් 400g",
+        "name_ta": "தக்காளி சூப் 400g",
+        "unit": "cans",
+        "category_name": "Canned Goods",
+        "lot_id": 508,
+        "lot_number": "LOT-2024-008",
+        "quantity_remaining": 30,
+        "expiry_date": "2024-02-15",
+        "days_to_expiry": 31,
+        "expiry_status": "Near Expiry",
+        "unit_cost_cents": 8500,
+        "total_value_cents": 255000
+      }
+    ],
+    "generated_at": "2024-01-15T08:30:45.123Z",
+    "filters": {
+      "days_threshold": 30,
+      "status": "all",
+      "category_id": null
+    }
+  },
+  "requestId": "req_123456789"
+}
+
+
+
+
+
+
+
+
+
+

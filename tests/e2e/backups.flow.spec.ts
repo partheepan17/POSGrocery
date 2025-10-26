@@ -304,7 +304,7 @@ test.describe('Backups Flow', () => {
       
       // Read CSV content to verify headers
       const csvPath = await download.path();
-      const fs = require('fs');
+      const fs = (globalThis as any).require('fs');
       const csvContent = fs.readFileSync(csvPath!, 'utf-8');
       
       // Verify exact headers

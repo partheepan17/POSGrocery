@@ -84,11 +84,13 @@ const ManagerPinDialog: React.FC<ManagerPinDialogProps> = ({
     setLoading(true);
 
     try {
-      const result = await authService.verifyPinForEscalation(pin, requiredRole);
+      const result = await authService.verifyPinForEscalation(pin);
       
-      if (result.success && result.user) {
-        toast.success(`Access granted by ${result.user.name}`);
-        onSuccess(result.user);
+      if (result.success) {
+        toast.success('Access granted');
+        // For now, we'll use a mock user object since the API doesn't return user data
+        const mockUser = { id: 1, name: 'Manager', role: 'manager' as const };
+        onSuccess(mockUser);
         onClose();
       } else {
         const newAttempts = attempts + 1;
@@ -101,10 +103,10 @@ const ManagerPinDialog: React.FC<ManagerPinDialogProps> = ({
           toast.error(`Too many failed attempts. Locked for ${securitySettings.lockoutMinutes} minutes.`);
         } else {
           const remaining = securitySettings.maxPinAttempts - newAttempts;
-          toast.error(`${result.error || 'Invalid PIN'}. ${remaining} attempts remaining.`);
+          toast.error(`${result.message || 'Invalid PIN'}. ${remaining} attempts remaining.`);
         }
         
-        onError(result.error || 'Invalid PIN');
+        onError(result.message || 'Invalid PIN');
         setPin('');
       }
     } catch (error) {

@@ -59,3 +59,17 @@ describe('parseWeightedBarcode', () => {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

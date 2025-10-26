@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, Keyboard, Mouse, Scan, Printer, Calculator } from 'lucide-react';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
-import { Card, CardContent, CardHeader } from './ui/Card';
-import { Badge } from './ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Card, CardContent, CardHeader } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 
 interface KeyboardShortcut {
   key: string;

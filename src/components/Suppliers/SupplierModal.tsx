@@ -46,7 +46,7 @@ export function SupplierModal({ supplier, onClose, onSave }: SupplierModalProps)
         contact_email: supplier.contact_email || '',
         address: supplier.address || '',
         tax_id: supplier.tax_id || '',
-        active: supplier.active
+        active: supplier.active || false
       });
     }
   }, [supplier]);
@@ -66,7 +66,8 @@ export function SupplierModal({ supplier, onClose, onSave }: SupplierModalProps)
         newErrors.supplier_name = 'Supplier name can only contain letters, numbers, spaces, hyphens, underscores, and periods';
       } else {
         // Check for duplicate name (case-insensitive)
-        const existingSupplier = await dataService.getSupplierByName(trimmedName);
+        const existingSupplierResponse = await dataService.getSupplierByName(trimmedName);
+        const existingSupplier = existingSupplierResponse?.data as any;
         if (existingSupplier && existingSupplier.id !== supplier?.id) {
           newErrors.supplier_name = 'A supplier with this name already exists';
         }

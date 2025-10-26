@@ -93,7 +93,7 @@ export class WebScaleAdapter extends ScaleAdapter {
       if (reading) {
         this.emitReading(reading);
       }
-    }, 1000); // Read every second
+    }, 2000); // Read every 2 seconds instead of 1 second
   }
 
   async stopContinuousReading(): Promise<void> {

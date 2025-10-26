@@ -133,3 +133,17 @@ try {
 }
 
 Write-Host "`n🎉 Products List API testing completed!" -ForegroundColor Green
+
+
+
+
+
+
+
+
+
+
+
+
+
+

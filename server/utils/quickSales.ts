@@ -67,11 +67,11 @@ export function ensureTodayQuickSalesOpen(openedBy: number = 1, requestId?: stri
       
       // No open session exists, create a new one
       const insertSession = db.prepare(`
-        INSERT INTO quick_sales_sessions (session_date, opened_by, status)
-        VALUES (?, ?, 'open')
+        INSERT INTO quick_sales_sessions (session_date, opened_by, status, terminal_id, terminal_name)
+        VALUES (?, ?, 'open', ?, ?)
       `);
       
-      const insertResult = insertSession.run(today, openedBy);
+      const insertResult = insertSession.run(today, openedBy, null, null);
       const sessionId = insertResult.lastInsertRowid;
       
       // Fetch the created session

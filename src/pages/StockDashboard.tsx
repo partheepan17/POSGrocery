@@ -311,11 +311,14 @@ export default function StockDashboard() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Dropdown>
-                <Button variant="outline" className="flex items-center space-x-2">
-                  <Settings className="w-4 h-4" />
-                  <span>Method: {filters.method.toUpperCase()}</span>
-                </Button>
+              <Dropdown
+                trigger={
+                  <Button variant="outline" className="flex items-center space-x-2">
+                    <Settings className="w-4 h-4" />
+                    <span>Method: {filters.method.toUpperCase()}</span>
+                  </Button>
+                }
+              >
                 <DropdownMenu>
                   <DropdownItem onClick={() => handleMethodChange('average')}>
                     Average Cost
@@ -328,11 +331,14 @@ export default function StockDashboard() {
                   </DropdownItem>
                 </DropdownMenu>
               </Dropdown>
-              <Dropdown>
-                <Button variant="outline" className="flex items-center space-x-2">
-                  <Filter className="w-4 h-4" />
-                  <span>Page Size: {filters.pageSize}</span>
-                </Button>
+              <Dropdown
+                trigger={
+                  <Button variant="outline" className="flex items-center space-x-2">
+                    <Filter className="w-4 h-4" />
+                    <span>Page Size: {filters.pageSize}</span>
+                  </Button>
+                }
+              >
                 <DropdownMenu>
                   <DropdownItem onClick={() => handlePageSizeChange(10)}>10 per page</DropdownItem>
                   <DropdownItem onClick={() => handlePageSizeChange(20)}>20 per page</DropdownItem>

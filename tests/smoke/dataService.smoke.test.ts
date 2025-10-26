@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { dataService } from '../../src/services/database';
+
+// Import comprehensive mocks
+import { setupComprehensiveMocks, resetMockData } from '../../src/test/setup/databaseMocks';
+
+// Setup mocks BEFORE importing the service
+setupComprehensiveMocks();
+
+import { dataService } from '../../src/services/dataService';
 import type { 
   Product, 
   Customer, 
@@ -15,6 +22,11 @@ import type {
  */
 
 describe('DataService Smoke Tests', () => {
+  beforeEach(() => {
+    // Don't reset mock data between tests as they are sequential
+    // resetMockData();
+  });
+  
   // Note: These tests assume a clean database or proper cleanup
   // In a real environment, you might want to use a test database
 

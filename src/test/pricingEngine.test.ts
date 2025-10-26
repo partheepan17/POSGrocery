@@ -4,7 +4,7 @@ import { pricingService } from '@/services/pricingService';
 describe('pricingService.compute', () => {
   it('returns base price when no tiers hit', async () => {
     // Mock fetch
-    const mock = vi.spyOn(global, 'fetch' as any).mockResolvedValue({
+    const mock = vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
       ok: true,
       json: async () => ({ unit_price: 100, reason: 'base' })
     } as any);
@@ -13,6 +13,20 @@ describe('pricingService.compute', () => {
     mock.mockRestore();
   });
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

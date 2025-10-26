@@ -33,7 +33,7 @@ export function LabelPreview({ batch, className }: LabelPreviewProps) {
     batch.items.forEach(item => {
       // Date validation
       if (item.packedDate || item.expiryDate) {
-        const dateFormat = batch.preset?.fields.dateFormat || 'YYYY-MM-DD';
+        const dateFormat = (batch.preset?.fields as any)?.dateFormat || 'YYYY-MM-DD';
         const validation = validateLabelItemDates(item, dateFormat);
         if (!validation.valid) {
           dateErrors++;
@@ -41,7 +41,7 @@ export function LabelPreview({ batch, className }: LabelPreviewProps) {
       }
       
       // MRP validation - only warn if preset shows MRP but item has no MRP
-      if (batch.preset?.fields.showMRP && (item.mrp === null || item.mrp === undefined)) {
+      if ((batch.preset?.fields as any)?.showMRP && (item.mrp === null || item.mrp === undefined)) {
         missingMrp++;
       }
     });
@@ -127,7 +127,7 @@ export function LabelPreview({ batch, className }: LabelPreviewProps) {
   const canGoPrevious = currentPage > 0;
   const canGoNext = currentPage < totalPages - 1;
 
-  const totalLabels = batch.items.reduce((sum, item) => sum + item.qty, 0);
+  const totalLabels = batch.items.reduce((sum, item) => sum + (item.qty || 0), 0);
 
   if (loading) {
     return (

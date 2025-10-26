@@ -236,7 +236,7 @@ export function CSVImportModal({ categories, suppliers, onClose, onImport }: CSV
     
     if (!category && autoCreateMissing) {
       // Create new category
-      category = await dataService.createCategory({ name: categoryName });
+      category = await dataService.createCategory({ name: categoryName }) as any;
     }
 
     if (!category) {
@@ -258,7 +258,7 @@ export function CSVImportModal({ categories, suppliers, onClose, onImport }: CSV
         address: '',
         tax_id: '',
         active: true
-      });
+      }) as any;
     }
 
     if (!supplier) {

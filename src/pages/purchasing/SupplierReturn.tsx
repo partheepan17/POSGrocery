@@ -18,7 +18,7 @@ export default function SupplierReturnPage() {
       const clean = lines.filter(l => Number(l.product_id) > 0 && Number(l.qty) > 0);
       if (clean.length === 0) throw new Error('Add at least one valid line');
       const res = await dataService.createSupplierReturn({ supplier_id: supplierId, lines: clean });
-      setSrId(res.id);
+      setSrId((res as any).id);
     } catch (e: any) {
       setError(e.message);
     } finally {

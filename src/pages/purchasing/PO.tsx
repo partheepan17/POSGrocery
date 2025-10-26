@@ -18,7 +18,7 @@ export default function POPage() {
       const cleanLines = lines.filter(l => Number(l.product_id) > 0 && Number(l.qty) > 0);
       if (cleanLines.length === 0) throw new Error('Add at least one valid line');
       const res = await dataService.createPO({ supplier_id: supplierId, lines: cleanLines });
-      setPoId(res.id);
+      setPoId((res as any).id);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -55,6 +55,20 @@ export default function POPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

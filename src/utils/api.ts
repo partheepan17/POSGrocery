@@ -4,6 +4,22 @@ export function getApiBaseUrl(): string {
   return window.location.origin;
 }
 
+// Type declaration for RequestInit
+type RequestInit = {
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+  mode?: string;
+  credentials?: string;
+  cache?: string;
+  redirect?: string;
+  referrer?: string;
+  referrerPolicy?: string;
+  integrity?: string;
+  keepalive?: boolean;
+  signal?: AbortSignal;
+};
+
 /**
  * API utility functions
  */
@@ -21,7 +37,17 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}): P
     },
   };
 
-  return fetch(url, { ...defaultOptions, ...options });
+  // Merge options properly to avoid cache type conflicts
+  const mergedOptions: RequestInit = {
+    ...defaultOptions,
+    ...options,
+    headers: {
+      ...defaultOptions.headers,
+      ...options.headers,
+    },
+  };
+
+  return fetch(url, mergedOptions as any);
 };
 
 

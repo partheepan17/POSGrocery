@@ -1,5 +1,4 @@
-import { dataService, Product, Customer, Sale, SaleLine, DiscountRule } from './dataService';
-import { generateReceiptNumber } from '@/utils/receiptNumber';
+import { dataService, Sale, SaleLine } from './dataService';
 import { SETTINGS } from '@/config/settings';
 
 export interface POSSaleRequest {
@@ -56,9 +55,9 @@ export class POSService {
 
   // Start a new sale
   async startSale(request: POSSaleRequest): Promise<Sale> {
-    this.currentSale = await dataService.startSale(request);
+    this.currentSale = await dataService.startSale(request) as any;
     this.currentLines = [];
-    return this.currentSale;
+    return this.currentSale!;
   }
 
   // Add line to current sale
@@ -100,20 +99,22 @@ export class POSService {
     }
 
     const lineDiscount = request.line_discount || 0;
-    const subtotal = (unitPrice * request.qty) - lineDiscount;
+    const subtotal = ((unitPrice || 0) * request.qty) - lineDiscount;
     // FIX: Tax is computed after all discounts at invoice level to avoid drift.
     const tax = 0; // Per-line tax removed - computed at invoice level
     const total = subtotal + tax;
 
     const saleLine: SaleLine = {
       id: Date.now(),
-      sale_id: this.currentSale.id,
+      sale_id: Number(this.currentSale.id),
       product_id: request.product_id,
       qty: request.qty,
-      unit_price: unitPrice,
+      unit_price: unitPrice || 0,
       line_discount: lineDiscount,
       tax,
-      total
+      total,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     // Check if line already exists for this product
@@ -125,14 +126,14 @@ export class POSService {
       // Increment quantity of existing line
       this.currentLines[existingLineIndex].qty += request.qty;
       this.currentLines[existingLineIndex].total = 
-        ((this.currentLines[existingLineIndex].qty * unitPrice) - lineDiscount);
+        ((this.currentLines[existingLineIndex].qty * (unitPrice || 0)) - lineDiscount);
     } else {
       // Add new line
       this.currentLines.push(saleLine);
     }
 
     // Apply discount rules
-    await this.applyRuleCaps(this.currentSale.id);
+    await this.applyRuleCaps(Number(this.currentSale.id));
 
     return saleLine;
   }
@@ -165,7 +166,7 @@ export class POSService {
   }
 
   // Apply discount rule caps
-  async applyRuleCaps(saleId: number): Promise<void> {
+  async applyRuleCaps(_saleId: number): Promise<void> {
     if (!this.currentSale) {
       return;
     }
@@ -185,7 +186,7 @@ export class POSService {
         
         // Find lines for this product
         const productLines = this.currentLines.filter(line => line.product_id === rule.target_id);
-        let totalQty = productLines.reduce((sum, line) => sum + line.qty, 0);
+        const totalQty = productLines.reduce((sum, line) => sum + line.qty, 0);
 
         if (totalQty > 0 && rule.max_qty_or_weight) {
           let eligibleQty = Math.min(totalQty, rule.max_qty_or_weight);
@@ -231,16 +232,16 @@ export class POSService {
   async resumeSale(saleId: number): Promise<POSHeldSale | null> {
     const sale = await dataService.resumeSale(saleId);
     if (sale) {
-      this.currentSale = sale;
-      this.currentLines = await dataService.getSaleLines(saleId);
+      this.currentSale = sale as Sale;
+      this.currentLines = await dataService.getSaleLines(saleId) as SaleLine[];
     }
     return sale ? {
-      id: sale.id,
-      datetime: sale.datetime,
-      customer_id: sale.customer_id,
-      price_tier: sale.price_tier,
+      id: (sale as any).id,
+      datetime: (sale as any).datetime,
+      customer_id: (sale as any).customer_id,
+      price_tier: (sale as any).price_tier,
       lines: this.currentLines,
-      total: sale.net
+      total: (sale as any).net
     } : null;
   }
 
@@ -264,7 +265,7 @@ export class POSService {
     this.currentSale.net = net;
 
     // Finalize with payments
-    const finalizedSale = await dataService.finalizeSale(this.currentSale.id, {
+    const finalizedSale = await dataService.finalizeSale(Number(this.currentSale.id), {
       pay_cash: request.payments.cash,
       pay_card: request.payments.card,
       pay_wallet: request.payments.wallet
@@ -274,7 +275,7 @@ export class POSService {
     this.currentSale = null;
     this.currentLines = [];
 
-    return finalizedSale;
+    return finalizedSale as Sale;
   }
 
   // Scale barcode parsing
@@ -287,7 +288,7 @@ export class POSService {
       return null;
     }
 
-    const productBarcode = barcode.substring(0, 13);
+    const _productBarcode = barcode.substring(0, 13);
     const scaleData = barcode.substring(13);
 
     if (scaleData.startsWith('P')) {

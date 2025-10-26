@@ -22,7 +22,7 @@ class TelemetryLogger {
   private config: TelemetryConfig;
   private events: TelemetryEvent[] = [];
   private sessionId: string;
-  private flushTimer?: NodeJS.Timeout;
+  private flushTimer?: ReturnType<typeof setTimeout>;
   private isFlushing = false;
 
   constructor(config: TelemetryConfig) {
@@ -211,11 +211,11 @@ class TelemetryLogger {
 
 // Default configuration
 const defaultConfig: TelemetryConfig = {
-  enabled: process.env.NODE_ENV === 'development' || false,
+  enabled: (typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process.env?.NODE_ENV === 'development') || false,
   batchSize: 10,
   flushInterval: 30000, // 30 seconds
   maxRetries: 3,
-  debug: process.env.NODE_ENV === 'development',
+  debug: (typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process.env?.NODE_ENV === 'development') || false,
 };
 
 // Create singleton instance

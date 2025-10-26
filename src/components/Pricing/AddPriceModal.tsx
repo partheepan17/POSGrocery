@@ -19,9 +19,9 @@ export function AddPriceModal({ onClose, onAdded }: AddPriceModalProps) {
 
   useEffect(() => {
     const load = async () => {
-      const list = await dataService.getProducts({ active_filter: 'active' });
-      setProducts(list);
-      if (list.length > 0) setProductId(list[0].id as any);
+      const products = await dataService.getProducts({ active_filter: 'active' });
+      setProducts(products);
+      if (products.length > 0) setProductId(products[0].id as any);
     };
     load();
   }, []);

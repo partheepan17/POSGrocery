@@ -11,9 +11,9 @@ import {
   CheckCircle,
   Loader2
 } from 'lucide-react';
-import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
-import { Card, CardHeader, CardContent } from '../ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 
 interface ScalePanelProps {
   connected: boolean;

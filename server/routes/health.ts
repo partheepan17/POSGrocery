@@ -30,39 +30,15 @@ const checkDatabase = () => {
 // Basic health check - always returns ok:true if server is running
 const basicHealthCheck = (req: Request, res: Response) => {
   try {
-    // Debug environment variables
-    console.log('DEBUG: env.APP_NAME:', env.APP_NAME);
-    console.log('DEBUG: env.APP_VERSION:', env.APP_VERSION);
-    console.log('DEBUG: env.BUILD_SHA:', env.BUILD_SHA);
-    console.log('DEBUG: env.BUILD_TIME:', env.BUILD_TIME);
-    
-    // Generate build time if not set in env or is 'unknown'
-    const buildTime = (env.BUILD_TIME && env.BUILD_TIME !== 'unknown') ? env.BUILD_TIME : 
-      new Date().toISOString().split('T')[0];
-    
-    // Generate build SHA if not set in env or is 'unknown'
-    const buildSha = (env.BUILD_SHA && env.BUILD_SHA !== 'unknown') ? env.BUILD_SHA : 
-      'dev-' + Date.now().toString(36);
-
     const health = {
       ok: true,
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      version: env.APP_VERSION,
-      environment: env.NODE_ENV,
-      service: 'pos-grocery',
-      build: {
-        name: env.APP_NAME,
-        version: env.APP_VERSION,
-        buildSha: buildSha,
-        buildTime: buildTime
-      }
+      ts: new Date().toISOString()
     };
 
     res.json(health);
   } catch (error) {
     console.error('Error in basicHealthCheck:', error);
-    res.status(500).json({ error: 'Internal server error', message: error instanceof Error ? error.message : 'Unknown error' });
+    res.status(500).json({ ok: false, ts: new Date().toISOString(), error: 'Internal server error' });
   }
 };
 
@@ -94,43 +70,12 @@ const checkBackupStatus = () => {
 // Detailed health check with service status
 const detailedHealthCheck = asyncHandler(async (req, res) => {
   const dbCheck = checkDatabase();
-  const memoryUsage = process.memoryUsage();
-  const memoryUsagePercent = memoryUsage.heapUsed / memoryUsage.heapTotal;
-  const backupCheck = checkBackupStatus();
-
+  
+  // Return simplified format for API health check
   const health = {
     ok: true, // Always true if server is responding
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    version: env.APP_VERSION,
-    environment: env.NODE_ENV,
-    service: 'pos-grocery',
-    build: {
-      name: env.APP_NAME,
-      version: env.APP_VERSION,
-      buildSha: env.BUILD_SHA || 'unknown',
-      buildTime: env.BUILD_TIME || 'unknown'
-    },
-    services: {
-      database: dbCheck,
-      memory: {
-        ok: memoryUsagePercent < 0.9, // Alert if >90% memory usage
-        usage: Math.round(memoryUsagePercent * 100) / 100,
-        heapUsed: memoryUsage.heapUsed,
-        heapTotal: memoryUsage.heapTotal
-      },
-      backup: backupCheck
-    },
-    warnings: [] as string[]
+    ts: new Date().toISOString()
   };
-
-  // Add warnings for backup issues
-  if (backupCheck.isStale) {
-    health.warnings.push(`Last backup was ${backupCheck.ageHours} hours ago (threshold: 24h)`);
-  }
-  if (backupCheck.errorCount > 0) {
-    health.warnings.push(`Backup has ${backupCheck.errorCount} recent errors`);
-  }
 
   // Set appropriate HTTP status based on critical services
   const statusCode = dbCheck.ok ? 200 : 503;

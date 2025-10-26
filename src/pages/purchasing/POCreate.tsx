@@ -20,7 +20,7 @@ export default function POCreate() {
   const submit = async () => {
     try {
       const res = await dataService.createPO({ supplier_id: supplierId, lines });
-      toast.success(`PO #${res.id} created`);
+      toast.success(`PO #${(res as any).id} created`);
       setLines([]);
     } catch (e: any) {
       toast.error(e?.message || 'Failed to create PO');
@@ -55,6 +55,20 @@ export default function POCreate() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

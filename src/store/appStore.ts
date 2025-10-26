@@ -71,6 +71,16 @@ interface AppState {
 
 const defaultSettings: AppSettings = {
   // New structured settings
+  company_name: 'My Grocery Store',
+  company_address: '123 Main Street\nColombo 01\nSri Lanka',
+  company_phone: '+94 11 123 4567',
+  company_email: 'info@mygrocery.com',
+  tax_rate: 0.15,
+  language: 'en',
+  label_settings: {
+    defaultDateFormat: 'DD/MM/YYYY',
+    default_preset_id: 1
+  },
   storeInfo: {
     name: 'My Grocery Store',
     address: '123 Main Street\nColombo 01\nSri Lanka',
@@ -79,18 +89,14 @@ const defaultSettings: AppSettings = {
     defaultReceiptLanguage: 'SI',
   },
   devices: {
-    receiptPaper: '80mm',
     cashDrawerOpenOnCash: true,
-    barcodeInputMode: 'keyboard_wedge',
-    scaleMode: 'off',
   },
   languageFormatting: {
-    displayLanguage: 'EN',
-    roundingMode: 'NEAREST_1',
+    roundingMode: 'round',
     kgDecimals: 3,
   },
   pricingPolicies: {
-    missingPricePolicy: 'warn_fallback',
+    missingPricePolicy: 'warn',
     requiredTiers: ['retail'],
     autoCreateCategories: true,
     autoCreateSuppliers: true,
@@ -106,15 +112,7 @@ const defaultSettings: AppSettings = {
   backupSettings: {
     provider: 'local',
     schedule: {
-      dailyTime: '22:30',
       onSettingsChange: true,
-    },
-    retention: {
-      keepDaily: 30,
-      keepConfigChange: 5,
-    },
-    credentials: {
-      encryptionKey: 'default-development-key-change-in-production',
     },
   },
   
@@ -126,52 +124,13 @@ const defaultSettings: AppSettings = {
   taxRate: 15,
   receiptLanguage: 'si',
   theme: 'auto',
-  autoBackup: true,
-  backupFrequency: 'daily',
-  barcodeScanner: true,
   scaleIntegration: false,
-  printerSettings: {
+  print_settings: {
     enabled: false,
     copies: 1,
-  },
-  receiptSettings: {
-    defaultPaper: '80mm',
-    drawerOnCash: true,
-    showQR: true,
-    showBarcode: true,
-    footerTextEN: 'Warranty: 7 days | Hotline: 011-1234567',
-    footerTextSI: 'වගකීම: දින 7 | දුරකථන: 011-1234567',
-    footerTextTA: 'உத்தரவாதம்: 7 நாட்கள் | தொலைபேசி: 011-1234567',
-    decimalPlacesKg: 3,
-  },
-  pricingSettings: {
-    missingPricePolicy: 'warn',
-    requiredTiers: ['retail'],
-    autoCreateCategories: true,
-    autoCreateSuppliers: true,
-  },
-  // Refund settings
-  refund: {
-    managerPinThreshold: 1000,
-    defaultReason: 'DAMAGED',
-    requireManagerApproval: true,
-    autoRestoreInventory: true,
-  },
-  // GRN settings
-  grnSettings: {
-    autoNumberPrefix: 'GRN',
-    autoUpdateCostPolicy: 'latest',
-    expiryReminderDays: 7,
-    defaultTaxPercent: 0,
-  },
-  // Shift settings
-  shiftSettings: {
-    requireShiftForSales: true,
-    allowMultipleOpenPerTerminal: false,
-    cashDrawerPulseOnOpen: true,
-    sessionTimeoutMinutes: 480,
-    xReportFooterEN: 'Thank you',
-    zReportFooterEN: 'End of Day',
+    receipt_printer: '',
+    label_printer: '',
+    receipt_template: ''
   },
 };
 
@@ -215,9 +174,9 @@ export const useAppStore = create<AppState>()(
         
         // Label settings
         labelSettings: {
+          default_preset_id: 1,
           defaultPresetId: 'product-50x30',
           defaultDPI: 203 as const,
-          thermalPrinterName: '',
           a4Default: {
             rows: 7,
             cols: 3,

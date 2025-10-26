@@ -10,9 +10,9 @@ export interface ScheduleInfo {
 }
 
 class SchedulerService {
-  private intervalId: NodeJS.Timeout | null = null;
+  private intervalId: ReturnType<typeof setInterval> | null = null;
   private lastDailyRun: Date | null = null;
-  private settingsChangeTimeout: NodeJS.Timeout | null = null;
+  private settingsChangeTimeout: ReturnType<typeof setTimeout> | null = null;
   private isInitialized = false;
 
   constructor() {
@@ -79,13 +79,13 @@ class SchedulerService {
     }
 
     const { dailyTime, onSettingsChange } = backupSettings.schedule;
-    const nextRun = this.calculateNextRun(dailyTime);
+    const nextRun = this.calculateNextRun(dailyTime || '00:00');
     
     return {
       nextRun,
       lastRun: this.lastDailyRun,
       isEnabled: this.isBackupConfigured(),
-      dailyTime,
+      dailyTime: dailyTime || '00:00',
       onSettingsChange: onSettingsChange || false
     };
   }

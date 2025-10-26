@@ -220,11 +220,15 @@ export function Backups() {
       
       const updatedSettings = {
         ...settings,
-        backupSettings: {
-          ...settings.backupSettings,
-          provider: selectedProvider,
-          credentials: providerConfig
-        }
+      backupSettings: {
+        ...settings.backupSettings,
+        provider: selectedProvider,
+        schedule: {
+          onSettingsChange: true,
+          dailyTime: settings.backupSettings?.schedule?.dailyTime
+        },
+        credentials: providerConfig
+      }
       };
       
       updateSettings(updatedSettings);
@@ -254,6 +258,8 @@ export function Backups() {
       ...settings,
       backupSettings: {
         ...settings.backupSettings,
+        provider: settings.backupSettings?.provider || 'local',
+        schedule: settings.backupSettings?.schedule || { onSettingsChange: true },
         retention: {
           keepDaily,
           keepConfigChange: keepConfig

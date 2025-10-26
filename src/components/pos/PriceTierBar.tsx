@@ -1,72 +1,71 @@
+/**
+ * Price Tier Bar Component
+ * Displays and allows switching between price tiers
+ */
+
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { useCartStore } from '@/store/cartStore';
-import { AlertCircle } from 'lucide-react';
 
-interface PriceTierBarProps {
-  onTierChange?: (tier: string) => void;
-}
-
-export function PriceTierBar({ onTierChange }: PriceTierBarProps) {
+export function PriceTierBar() {
   const { t } = useTranslation();
   const { priceTier, setPriceTier } = useCartStore();
 
-  const tiers = [
-    { key: 'Retail', label: t('sales.retail'), color: 'blue' },
-    { key: 'Wholesale', label: t('sales.wholesale'), color: 'green' },
-    { key: 'Credit', label: t('sales.credit'), color: 'yellow' },
-    { key: 'Other', label: t('sales.other'), color: 'gray' }
+  const priceTiers = [
+    { key: 'Retail', label: t('pos.retail'), color: 'blue' },
+    { key: 'Wholesale', label: t('pos.wholesale'), color: 'green' },
+    { key: 'Credit', label: t('pos.credit'), color: 'purple' },
+    { key: 'Other', label: t('pos.other'), color: 'gray' },
   ] as const;
 
-  const handleTierChange = (tier: string) => {
-    setPriceTier(tier as any);
-    onTierChange?.(tier);
+  const getTierColor = (tier: string) => {
+    switch (tier) {
+      case 'Retail': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case 'Wholesale': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'Credit': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+      case 'Other': return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+    }
   };
 
-  const isNonRetailTier = priceTier !== 'Retail';
-
   return (
-    <div className="space-y-3">
-      {/* Price Tier Buttons */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          {t('sales.priceTier')}
-        </label>
-        <div className="grid grid-cols-4 gap-2">
-          {tiers.map((tier) => (
-            <button
-              key={tier.key}
-              onClick={() => handleTierChange(tier.key)}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                priceTier === tier.key
-                  ? `bg-${tier.color}-600 text-white`
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              {tier.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Current Tier Display */}
-      <div className="text-sm text-gray-600 dark:text-gray-400">
-        • {t('sales.currentTier')}: {priceTier}
-      </div>
-
-      {/* Discount Rules Warning */}
-      {isNonRetailTier && (
-        <div className="flex items-center p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-          <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mr-2 flex-shrink-0" />
-          <div className="text-sm text-amber-800 dark:text-amber-200">
-            <div className="font-medium">{t('sales.ruleBasedDiscountsDisabled')}</div>
-            <div className="text-amber-700 dark:text-amber-300">
-              {t('sales.discountRulesOnlyRetail')}
-            </div>
+    <div className="bg-white border-b border-gray-200 px-4 py-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {t('pos.priceTier')}:
+          </span>
+          
+          <div className="flex items-center space-x-2">
+            {priceTiers.map((tier) => (
+              <Button
+                key={tier.key}
+                size="sm"
+                variant={priceTier === tier.key ? 'default' : 'outline'}
+                onClick={() => setPriceTier(tier.key as any)}
+                className={`text-xs ${
+                  priceTier === tier.key 
+                    ? getTierColor(tier.key)
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
+              >
+                {tier.label}
+              </Button>
+            ))}
           </div>
         </div>
-      )}
+
+        <div className="flex items-center space-x-2">
+          <Badge 
+            variant="secondary" 
+            className={getTierColor(priceTier)}
+          >
+            {priceTiers.find(t => t.key === priceTier)?.label}
+          </Badge>
+        </div>
+      </div>
     </div>
   );
 }
-

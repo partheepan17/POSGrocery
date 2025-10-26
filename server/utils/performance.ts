@@ -1,414 +1,532 @@
-import { getDatabase } from '../db';
-import { createRequestLogger } from './logger';
+/**
+ * Performance Monitoring Utilities
+ * Tracks performance metrics, budgets, and provides optimization insights
+ */
 
-// LRU Cache for hot lookups (barcode → product)
-class LRUCache<K, V> {
-  private cache = new Map<K, V>();
-  private maxSize: number;
-  private ttl: number;
-  private timestamps = new Map<K, number>();
+import { createContextLogger } from './logger';
 
-  constructor(maxSize: number = 1000, ttl: number = 60000) {
-    this.maxSize = maxSize;
-    this.ttl = ttl;
-  }
+const logger = createContextLogger({ operation: 'performance_monitor' });
 
-  get(key: K): V | undefined {
-    const timestamp = this.timestamps.get(key);
-    if (timestamp && Date.now() - timestamp > this.ttl) {
-      this.delete(key);
-      return undefined;
-    }
-    
-    const value = this.cache.get(key);
-    if (value) {
-      // Move to end (most recently used)
-      this.cache.delete(key);
-      this.cache.set(key, value);
-      this.timestamps.set(key, Date.now());
-    }
-    return value;
-  }
-
-  set(key: K, value: V): void {
-      if (this.cache.size >= this.maxSize) {
-        // Remove least recently used
-        const firstKey = this.cache.keys().next().value;
-        if (firstKey !== undefined) {
-          this.delete(firstKey);
-        }
-      }
-    
-    this.cache.set(key, value);
-    this.timestamps.set(key, Date.now());
-  }
-
-  delete(key: K): boolean {
-    this.timestamps.delete(key);
-    return this.cache.delete(key);
-  }
-
-  clear(): void {
-    this.cache.clear();
-    this.timestamps.clear();
-  }
-
-  size(): number {
-    return this.cache.size;
-  }
-}
-
-// Global caches
-const barcodeCache = new LRUCache<string, any>(1000, 60000); // 1min TTL
-const productCache = new LRUCache<number, any>(500, 30000); // 30s TTL
-
-// Performance monitoring
-interface PerformanceMetric {
+export interface PerformanceMetrics {
+  timestamp: Date;
   operation: string;
   duration: number;
-  success: boolean;
+  memoryUsage: NodeJS.MemoryUsage;
+  cpuUsage: NodeJS.CpuUsage;
   requestId?: string;
-  metadata?: any;
+  metadata?: Record<string, any>;
+}
+
+export interface PerformanceBudget {
+  name: string;
+  threshold: number;
+  unit: 'ms' | 'bytes' | 'count';
+  category: 'api' | 'database' | 'memory' | 'cpu';
+  severity: 'warning' | 'error' | 'critical';
+}
+
+export interface PerformanceReport {
+  period: {
+    start: Date;
+    end: Date;
+  };
+  metrics: {
+    totalOperations: number;
+    averageDuration: number;
+    p95Duration: number;
+    p99Duration: number;
+    maxDuration: number;
+    minDuration: number;
+  };
+  budgets: Array<{
+    budget: PerformanceBudget;
+    violations: number;
+    worstViolation: number;
+  }>;
+  recommendations: string[];
 }
 
 class PerformanceMonitor {
-  private metrics: PerformanceMetric[] = [];
-  private maxMetrics = 10000;
+  private metrics: PerformanceMetrics[] = [];
+  private budgets: PerformanceBudget[] = [];
+  private maxMetrics = 10000; // Keep last 10k metrics
 
-  record(metric: PerformanceMetric): void {
+  constructor() {
+    this.initializeBudgets();
+    this.startPeriodicCleanup();
+  }
+
+  /**
+   * Initialize performance budgets
+   */
+  private initializeBudgets(): void {
+    this.budgets = [
+      // API Response Times
+      {
+        name: 'API Response Time - Fast',
+        threshold: 100,
+        unit: 'ms',
+        category: 'api',
+        severity: 'warning'
+      },
+      {
+        name: 'API Response Time - Slow',
+        threshold: 500,
+        unit: 'ms',
+        category: 'api',
+        severity: 'error'
+      },
+      {
+        name: 'API Response Time - Critical',
+        threshold: 1000,
+        unit: 'ms',
+        category: 'api',
+        severity: 'critical'
+      },
+
+      // Database Operations
+      {
+        name: 'Database Query Time',
+        threshold: 200,
+        unit: 'ms',
+        category: 'database',
+        severity: 'warning'
+      },
+      {
+        name: 'Database Query Time - Slow',
+        threshold: 1000,
+        unit: 'ms',
+        category: 'database',
+        severity: 'error'
+      },
+
+      // Memory Usage
+      {
+        name: 'Memory Usage - Warning',
+        threshold: 100 * 1024 * 1024, // 100MB
+        unit: 'bytes',
+        category: 'memory',
+        severity: 'warning'
+      },
+      {
+        name: 'Memory Usage - Critical',
+        threshold: 500 * 1024 * 1024, // 500MB
+        unit: 'bytes',
+        category: 'memory',
+        severity: 'critical'
+      },
+
+      // CPU Usage
+      {
+        name: 'CPU Usage - High',
+        threshold: 80, // 80%
+        unit: 'ms',
+        category: 'cpu',
+        severity: 'warning'
+      }
+    ];
+  }
+
+  /**
+   * Start performance monitoring for an operation
+   */
+  startOperation(operation: string, requestId?: string): () => void {
+    const startTime = process.hrtime.bigint();
+    const startCpuUsage = process.cpuUsage();
+    const startMemoryUsage = process.memoryUsage();
+
+    return () => {
+      const endTime = process.hrtime.bigint();
+      const endCpuUsage = process.cpuUsage(startCpuUsage);
+      const endMemoryUsage = process.memoryUsage();
+
+      const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
+      const cpuUsage = (endCpuUsage.user + endCpuUsage.system) / 1000; // Convert to milliseconds
+
+      const metric: PerformanceMetrics = {
+        timestamp: new Date(),
+        operation,
+        duration,
+        memoryUsage: endMemoryUsage,
+        cpuUsage: { user: endCpuUsage.user, system: endCpuUsage.system },
+        requestId,
+        metadata: {
+          memoryDelta: endMemoryUsage.heapUsed - startMemoryUsage.heapUsed,
+          cpuDelta: cpuUsage
+        }
+      };
+
+      this.recordMetric(metric);
+    };
+  }
+
+  /**
+   * Record a performance metric
+   */
+  recordMetric(metric: PerformanceMetrics): void {
     this.metrics.push(metric);
+
+    // Check budgets
+    this.checkBudgets(metric);
+
+    // Trim metrics if needed
     if (this.metrics.length > this.maxMetrics) {
       this.metrics = this.metrics.slice(-this.maxMetrics);
     }
   }
 
-  getP95(operation: string): number {
-    const operationMetrics = this.metrics
-      .filter(m => m.operation === operation && m.success)
-      .map(m => m.duration)
-      .sort((a, b) => a - b);
-    
-    if (operationMetrics.length === 0) return 0;
-    
-    const index = Math.ceil(operationMetrics.length * 0.95) - 1;
-    return operationMetrics[index];
+  /**
+   * Check performance budgets
+   */
+  private checkBudgets(metric: PerformanceMetrics): void {
+    for (const budget of this.budgets) {
+      let value: number;
+
+      switch (budget.category) {
+        case 'api':
+        case 'database':
+          if (metric.operation.includes(budget.category) || budget.name.includes(metric.operation)) {
+            value = metric.duration;
+          } else {
+            continue;
+          }
+          break;
+        case 'memory':
+          value = metric.memoryUsage.heapUsed;
+          break;
+        case 'cpu':
+          value = metric.cpuUsage.user + metric.cpuUsage.system;
+          break;
+        default:
+          continue;
+      }
+
+      if (value > budget.threshold) {
+        this.handleBudgetViolation(budget, value, metric);
+      }
+    }
   }
 
-  getStats(operation: string): { p50: number; p95: number; p99: number; count: number } {
-    const operationMetrics = this.metrics
-      .filter(m => m.operation === operation && m.success)
-      .map(m => m.duration)
-      .sort((a, b) => a - b);
+  /**
+   * Handle budget violation
+   */
+  private handleBudgetViolation(budget: PerformanceBudget, value: number, metric: PerformanceMetrics): void {
+    const message = `Performance budget violation: ${budget.name} - ${value}${budget.unit} exceeds ${budget.threshold}${budget.unit}`;
     
-    if (operationMetrics.length === 0) {
-      return { p50: 0, p95: 0, p99: 0, count: 0 };
+    const logData = {
+      budget: budget.name,
+      threshold: budget.threshold,
+      actual: value,
+      unit: budget.unit,
+      operation: metric.operation,
+      requestId: metric.requestId,
+      severity: budget.severity
+    };
+
+    switch (budget.severity) {
+      case 'warning':
+        logger.warn(logData, message);
+        break;
+      case 'error':
+        logger.error(logData, message);
+        break;
+      case 'critical':
+        logger.error(logData, `CRITICAL: ${message}`);
+        break;
     }
-    
-    const p50Index = Math.ceil(operationMetrics.length * 0.5) - 1;
-    const p95Index = Math.ceil(operationMetrics.length * 0.95) - 1;
-    const p99Index = Math.ceil(operationMetrics.length * 0.99) - 1;
-    
+  }
+
+  /**
+   * Get performance report for a time period
+   */
+  getPerformanceReport(startDate: Date, endDate: Date): PerformanceReport {
+    const periodMetrics = this.metrics.filter(
+      m => m.timestamp >= startDate && m.timestamp <= endDate
+    );
+
+    if (periodMetrics.length === 0) {
+      return {
+        period: { start: startDate, end: endDate },
+        metrics: {
+          totalOperations: 0,
+          averageDuration: 0,
+          p95Duration: 0,
+          p99Duration: 0,
+          maxDuration: 0,
+          minDuration: 0
+        },
+        budgets: [],
+        recommendations: []
+      };
+    }
+
+    const durations = periodMetrics.map(m => m.duration).sort((a, b) => a - b);
+    const totalDuration = durations.reduce((sum, d) => sum + d, 0);
+
+    const metrics = {
+      totalOperations: periodMetrics.length,
+      averageDuration: totalDuration / periodMetrics.length,
+      p95Duration: this.percentile(durations, 0.95),
+      p99Duration: this.percentile(durations, 0.99),
+      maxDuration: Math.max(...durations),
+      minDuration: Math.min(...durations)
+    };
+
+    const budgetViolations = this.calculateBudgetViolations(periodMetrics);
+    const recommendations = this.generateRecommendations(metrics, budgetViolations);
+
     return {
-      p50: operationMetrics[p50Index],
-      p95: operationMetrics[p95Index],
-      p99: operationMetrics[p99Index],
-      count: operationMetrics.length
+      period: { start: startDate, end: endDate },
+      metrics,
+      budgets: budgetViolations,
+      recommendations
     };
   }
 
-  clear(): void {
+  /**
+   * Calculate budget violations
+   */
+  private calculateBudgetViolations(metrics: PerformanceMetrics[]): Array<{
+    budget: PerformanceBudget;
+    violations: number;
+    worstViolation: number;
+  }> {
+    const violations: Map<string, { budget: PerformanceBudget; violations: number; worstViolation: number }> = new Map();
+
+    for (const metric of metrics) {
+      for (const budget of this.budgets) {
+        let value: number;
+
+        switch (budget.category) {
+          case 'api':
+          case 'database':
+            if (metric.operation.includes(budget.category) || budget.name.includes(metric.operation)) {
+              value = metric.duration;
+            } else {
+              continue;
+            }
+            break;
+          case 'memory':
+            value = metric.memoryUsage.heapUsed;
+            break;
+          case 'cpu':
+            value = metric.cpuUsage.user + metric.cpuUsage.system;
+            break;
+          default:
+            continue;
+        }
+
+        if (value > budget.threshold) {
+          const key = budget.name;
+          if (!violations.has(key)) {
+            violations.set(key, {
+              budget,
+              violations: 0,
+              worstViolation: 0
+            });
+          }
+
+          const violation = violations.get(key)!;
+          violation.violations++;
+          violation.worstViolation = Math.max(violation.worstViolation, value);
+        }
+      }
+    }
+
+    return Array.from(violations.values());
+  }
+
+  /**
+   * Generate performance recommendations
+   */
+  private generateRecommendations(metrics: any, budgetViolations: any[]): string[] {
+    const recommendations: string[] = [];
+
+    // Duration recommendations
+    if (metrics.averageDuration > 500) {
+      recommendations.push('Consider optimizing slow operations - average duration is high');
+    }
+
+    if (metrics.p95Duration > 1000) {
+      recommendations.push('95th percentile duration is very high - investigate slow queries');
+    }
+
+    // Memory recommendations
+    const memoryMetrics = this.metrics.slice(-100); // Last 100 metrics
+    const avgMemory = memoryMetrics.reduce((sum, m) => sum + m.memoryUsage.heapUsed, 0) / memoryMetrics.length;
+    
+    if (avgMemory > 200 * 1024 * 1024) { // 200MB
+      recommendations.push('High memory usage detected - consider memory optimization');
+    }
+
+    // Budget violation recommendations
+    for (const violation of budgetViolations) {
+      if (violation.violations > 10) {
+        recommendations.push(`Frequent violations of ${violation.budget.name} - investigate root cause`);
+      }
+    }
+
+    // General recommendations
+    if (metrics.totalOperations > 1000) {
+      recommendations.push('High operation volume - consider implementing caching');
+    }
+
+    return recommendations;
+  }
+
+  /**
+   * Calculate percentile
+   */
+  private percentile(sortedArray: number[], percentile: number): number {
+    const index = Math.ceil(sortedArray.length * percentile) - 1;
+    return sortedArray[Math.max(0, index)];
+  }
+
+  /**
+   * Get current performance snapshot
+   */
+  getCurrentSnapshot(): {
+    timestamp: Date;
+    memoryUsage: NodeJS.MemoryUsage;
+    cpuUsage: NodeJS.CpuUsage;
+    activeOperations: number;
+  } {
+    return {
+      timestamp: new Date(),
+      memoryUsage: process.memoryUsage(),
+      cpuUsage: process.cpuUsage(),
+      activeOperations: this.metrics.length
+    };
+  }
+
+  /**
+   * Start periodic cleanup
+   */
+  private startPeriodicCleanup(): void {
+    setInterval(() => {
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+      this.metrics = this.metrics.filter(m => m.timestamp > cutoff);
+    }, 60 * 60 * 1000); // Every hour
+  }
+
+  /**
+   * Add custom budget
+   */
+  addBudget(budget: PerformanceBudget): void {
+    this.budgets.push(budget);
+  }
+
+  /**
+   * Get all budgets
+   */
+  getBudgets(): PerformanceBudget[] {
+    return [...this.budgets];
+  }
+
+  /**
+   * Clear all metrics
+   */
+  clearMetrics(): void {
     this.metrics = [];
   }
 }
 
 export const performanceMonitor = new PerformanceMonitor();
 
-// Prepared statements for hot paths
-let preparedStatements: Record<string, any> = {};
+/**
+ * Performance decorator for methods
+ */
+export function measurePerformance(operation: string) {
+  return function (target: any, propertyName: string, descriptor: PropertyDescriptor) {
+    const method = descriptor.value;
 
-export function initializePreparedStatements(): void {
-  const db = getDatabase();
-  
-  preparedStatements = {
-    // Barcode lookup (P95 ≤ 50ms target)
-    barcodeLookup: db.prepare(`
-      SELECT id, sku, barcode, name_en, name_si, name_ta, unit, 
-             price_retail, price_wholesale, price_credit, price_other,
-             is_scale_item, is_active
-      FROM products 
-      WHERE barcode = ? AND is_active = 1
-    `),
-    
-    // Product by ID
-    productById: db.prepare(`
-      SELECT id, sku, barcode, name_en, name_si, name_ta, unit,
-             price_retail, price_wholesale, price_credit, price_other,
-             is_scale_item, is_active, category_id
-      FROM products 
-      WHERE id = ?
-    `),
-    
-    // Product search (P95 ≤ 200ms target)
-    productSearch: db.prepare(`
-      SELECT id, sku, barcode, name_en, name_si, name_ta, unit,
-             price_retail, price_wholesale, price_credit, price_other,
-             is_scale_item, is_active
-      FROM products 
-      WHERE (name_en LIKE ? OR name_si LIKE ? OR name_ta LIKE ? OR sku LIKE ?)
-        AND is_active = 1
-      ORDER BY name_en
-      LIMIT ?
-    `),
-    
-    // Invoice creation (P95 ≤ 100ms target) - using existing schema
-    createInvoice: db.prepare(`
-      INSERT INTO invoices (receipt_no, customer_id, gross, discount, tax, net, cashier_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `),
-    
-    createInvoiceLine: db.prepare(`
-      INSERT INTO invoice_lines (invoice_id, product_id, qty, unit_price, total)
-      VALUES (?, ?, ?, ?, ?)
-    `),
-    
-    // Note: invoice_payments table doesn't exist in current schema
-    // createInvoicePayment: db.prepare(`
-    //   INSERT INTO invoice_payments (invoice_id, payment_method, amount, request_id)
-    //   VALUES (?, ?, ?, ?)
-    // `),
-    
-    // Z Report queries (P95 ≤ 500ms target)
-    zReportDaily: db.prepare(`
-      SELECT 
-        COUNT(*) as invoice_count,
-        COALESCE(SUM(net), 0) as total_sales,
-        COALESCE(SUM(tax), 0) as total_tax,
-        COALESCE(SUM(net), 0) as cash_sales,
-        0 as card_sales
-      FROM invoices 
-      WHERE DATE(created_at) = ?
-    `)
+    descriptor.value = async function (...args: any[]) {
+      const endOperation = performanceMonitor.startOperation(operation);
+      try {
+        const result = await method.apply(this, args);
+        return result;
+      } finally {
+        endOperation();
+      }
+    };
+
+    return descriptor;
   };
 }
 
-export function getPreparedStatement(name: string): any {
-  if (!preparedStatements[name]) {
-    const db = getDatabase();
-    switch (name) {
-      case 'barcodeLookup':
-        preparedStatements[name] = db.prepare(`
-          SELECT 
-            p.id, p.sku, p.barcode, p.name_en, p.name_si, p.name_ta,
-            p.unit, p.category_id, p.is_scale_item, p.tax_code,
-            p.price_retail, p.price_wholesale, p.price_credit, p.price_other,
-            p.cost, p.reorder_level, p.preferred_supplier_id, p.is_active,
-            c.name as category_name,
-            s.supplier_name
-          FROM products p
-          LEFT JOIN categories c ON p.category_id = c.id
-          LEFT JOIN suppliers s ON p.preferred_supplier_id = s.id
-          WHERE p.barcode = ? AND p.is_active = 1
-        `);
-        break;
-      case 'skuLookup':
-        preparedStatements[name] = db.prepare(`
-          SELECT 
-            p.id, p.sku, p.barcode, p.name_en, p.name_si, p.name_ta,
-            p.unit, p.category_id, p.is_scale_item, p.tax_code,
-            p.price_retail, p.price_wholesale, p.price_credit, p.price_other,
-            p.cost, p.reorder_level, p.preferred_supplier_id, p.is_active,
-            c.name as category_name,
-            s.supplier_name
-          FROM products p
-          LEFT JOIN categories c ON p.category_id = c.id
-          LEFT JOIN suppliers s ON p.preferred_supplier_id = s.id
-          WHERE p.sku = ? AND p.is_active = 1
-        `);
-        break;
-      default:
-        throw new Error(`Unknown prepared statement: ${name}`);
-    }
-  }
-  return preparedStatements[name];
+/**
+ * Performance middleware for Express
+ */
+export function performanceMiddleware(req: any, res: any, next: any) {
+  const operation = `${req.method} ${req.path}`;
+  const endOperation = performanceMonitor.startOperation(operation, req.requestId);
+
+  res.on('finish', () => {
+    endOperation();
+  });
+
+  next();
 }
 
-// Cached barcode lookup with performance monitoring and SKU fallback
-export function getProductByBarcode(barcode: string, requestId?: string, fallbackToSku: boolean = true): any {
-  const startTime = Date.now();
-  
-  try {
-    // Check cache first
-    let product = barcodeCache.get(barcode);
-    
-    if (!product) {
-      // Cache miss - try barcode lookup first
-      const barcodeStmt = getPreparedStatement('barcodeLookup');
-      product = barcodeStmt.get(barcode);
-      
-      // If not found by barcode and fallback is enabled, try SKU lookup
-      if (!product && fallbackToSku) {
-        const skuStmt = getPreparedStatement('skuLookup');
-        product = skuStmt.get(barcode);
-      }
-      
-      if (product) {
-        barcodeCache.set(barcode, product);
-      }
-    }
-    
-    const duration = Date.now() - startTime;
-    performanceMonitor.record({
-      operation: 'BARCODE_LOOKUP',
-      duration,
-      success: !!product,
-      requestId,
-      metadata: { 
-        barcode, 
-        cacheHit: !!barcodeCache.get(barcode),
-        lookupType: product ? (product.barcode === barcode ? 'barcode' : 'sku') : 'none'
-      }
-    });
-    
-    return product;
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    performanceMonitor.record({
-      operation: 'BARCODE_LOOKUP',
-      duration,
-      success: false,
-      requestId,
-      metadata: { barcode, error: error instanceof Error ? error.message : 'Unknown error' }
-    });
-    throw error;
-  }
-}
-
-// Cached product lookup by ID
-export function getProductById(id: number, requestId?: string): any {
-  const startTime = Date.now();
-  
-  try {
-    // Check cache first
-    let product = productCache.get(id);
-    
-    if (!product) {
-      // Cache miss - query database
-      const stmt = getPreparedStatement('productById');
-      product = stmt.get(id);
-      
-      if (product) {
-        productCache.set(id, product);
-      }
-    }
-    
-    const duration = Date.now() - startTime;
-    performanceMonitor.record({
-      operation: 'PRODUCT_BY_ID',
-      duration,
-      success: !!product,
-      requestId,
-      metadata: { productId: id, cacheHit: !!productCache.get(id) }
-    });
-    
-    return product;
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    performanceMonitor.record({
-      operation: 'PRODUCT_BY_ID',
-      duration,
-      success: false,
-      requestId,
-      metadata: { productId: id, error: error instanceof Error ? error.message : 'Unknown error' }
-    });
-    throw error;
-  }
-}
-
-// Product search with performance monitoring
+/**
+ * Optimized product search function
+ */
 export function searchProducts(query: string, limit: number = 50, requestId?: string): any[] {
-  const startTime = Date.now();
+  const endOperation = performanceMonitor.startOperation('search_products', requestId);
   
   try {
-    const stmt = getPreparedStatement('productSearch');
-    const searchTerm = `%${query}%`;
-    const products = stmt.all(searchTerm, searchTerm, searchTerm, searchTerm, limit);
+    // Import database here to avoid circular dependencies
+    const { getDatabase } = require('../db');
+    const db = getDatabase();
     
-    const duration = Date.now() - startTime;
-    performanceMonitor.record({
-      operation: 'PRODUCT_SEARCH',
-      duration,
-      success: true,
-      requestId,
-      metadata: { query, limit, resultCount: products.length }
-    });
+    if (!query || query.trim().length < 2) {
+      return [];
+    }
+    
+    const searchTerm = `%${query.trim()}%`;
+    
+    // Search in multiple fields with proper indexing
+    const products = db.prepare(`
+          SELECT 
+            p.id, p.sku, p.barcode, p.name_en, p.name_si, p.name_ta,
+            p.unit, p.category_id, p.is_scale_item, p.tax_code,
+            p.price_retail, p.price_wholesale, p.price_credit, p.price_other,
+            p.cost, p.reorder_level, p.preferred_supplier_id, p.is_active,
+        p.created_at, p.updated_at,
+            c.name as category_name,
+            s.supplier_name
+          FROM products p
+          LEFT JOIN categories c ON p.category_id = c.id
+          LEFT JOIN suppliers s ON p.preferred_supplier_id = s.id
+      WHERE p.is_active = 1 
+        AND (
+          p.name_en LIKE ? OR 
+          p.name_si LIKE ? OR 
+          p.name_ta LIKE ? OR 
+          p.sku LIKE ? OR 
+          p.barcode LIKE ?
+        )
+      ORDER BY 
+        CASE 
+          WHEN p.name_en LIKE ? THEN 1
+          WHEN p.sku LIKE ? THEN 2
+          WHEN p.barcode LIKE ? THEN 3
+          ELSE 4
+        END,
+        p.name_en
+      LIMIT ?
+    `).all(
+      searchTerm, searchTerm, searchTerm, searchTerm, searchTerm,
+      searchTerm, searchTerm, searchTerm,
+      limit
+    );
     
     return products;
+    
   } catch (error) {
-    const duration = Date.now() - startTime;
-    performanceMonitor.record({
-      operation: 'PRODUCT_SEARCH',
-      duration,
-      success: false,
-      requestId,
-      metadata: { query, limit, error: error instanceof Error ? error.message : 'Unknown error' }
-    });
-    throw error;
+    console.error('Search products error:', error);
+    return [];
+  } finally {
+    endOperation();
   }
 }
-
-// Cents-safe math utilities
-export function centsToDecimal(cents: number): number {
-  return Math.round(cents) / 100;
-}
-
-export function decimalToCents(decimal: number): number {
-  return Math.round(decimal * 100);
-}
-
-export function safeAdd(a: number, b: number): number {
-  return decimalToCents(centsToDecimal(a) + centsToDecimal(b));
-}
-
-export function safeSubtract(a: number, b: number): number {
-  return decimalToCents(centsToDecimal(a) - centsToDecimal(b));
-}
-
-export function safeMultiply(a: number, b: number): number {
-  return decimalToCents(centsToDecimal(a) * centsToDecimal(b));
-}
-
-// Performance targets validation
-export const PERFORMANCE_TARGETS = {
-  BARCODE_LOOKUP: 50,      // ms
-  PRODUCT_SEARCH: 200,     // ms
-  INVOICE_CREATE: 100,     // ms
-  Z_REPORT: 500,           // ms
-  COLD_START: 300          // ms
-};
-
-export function validatePerformanceTarget(operation: string, duration: number): boolean {
-  const target = PERFORMANCE_TARGETS[operation as keyof typeof PERFORMANCE_TARGETS];
-  return target ? duration <= target : true;
-}
-
-export function getPerformanceReport(): any {
-  return {
-    barcodeLookup: performanceMonitor.getStats('BARCODE_LOOKUP'),
-    productSearch: performanceMonitor.getStats('PRODUCT_SEARCH'),
-    invoiceCreate: performanceMonitor.getStats('INVOICE_CREATE'),
-    zReport: performanceMonitor.getStats('Z_REPORT'),
-    cacheStats: {
-      barcodeCache: barcodeCache.size(),
-      productCache: productCache.size()
-    }
-  };
-}
-
-// Clear caches (useful for testing)
-export function clearCaches(): void {
-  barcodeCache.clear();
-  productCache.clear();
-}
-
-// Export caches for direct access
-export { barcodeCache, productCache };

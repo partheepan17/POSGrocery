@@ -17,12 +17,12 @@ export interface DecryptionResult {
 }
 
 class CryptoService {
-  private readonly tempDir = join(process.cwd(), 'temp');
+  private readonly tempDir = join((globalThis as any).process.cwd(), 'temp');
   
   constructor() {
     // Ensure temp directory exists
     try {
-      const fs = require('fs');
+      const fs = (globalThis as any).require('fs');
       if (!fs.existsSync(this.tempDir)) {
         fs.mkdirSync(this.tempDir, { recursive: true });
       }
@@ -82,12 +82,12 @@ class CryptoService {
       const iv = randomBytes(16);
       
       // Encrypt data
-      const cipher = createCipheriv('aes-256-cbc', Buffer.from(key, 'hex').slice(0, 32), iv);
+      const cipher = createCipheriv('aes-256-cbc', (globalThis as any).Buffer.from(key, 'hex').slice(0, 32), iv);
       let encrypted = cipher.update(data);
-      encrypted = Buffer.concat([encrypted, cipher.final()]);
+      encrypted = (globalThis as any).Buffer.concat([encrypted, cipher.final()]);
       
       // Combine IV + encrypted data
-      const result = Buffer.concat([iv, encrypted]);
+      const result = (globalThis as any).Buffer.concat([iv, encrypted]);
       
       // Write to temp file
       const encryptedPath = join(this.tempDir, `encrypted_${Date.now()}.enc`);
@@ -129,9 +129,9 @@ class CryptoService {
       const key = this.deriveKey(passwordOrKey);
       
       // Decrypt
-      const decipher = createDecipheriv('aes-256-cbc', Buffer.from(key, 'hex').slice(0, 32), iv);
+      const decipher = createDecipheriv('aes-256-cbc', (globalThis as any).Buffer.from(key, 'hex').slice(0, 32), iv);
       let decrypted = decipher.update(encrypted);
-      decrypted = Buffer.concat([decrypted, decipher.final()]);
+      decrypted = (globalThis as any).Buffer.concat([decrypted, decipher.final()]);
       
       // Write to temp file
       const decryptedPath = join(this.tempDir, `decrypted_${Date.now()}.tmp`);

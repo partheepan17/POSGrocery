@@ -148,3 +148,17 @@ try {
 }
 
 Write-Host "`n🎉 Delete Product API testing completed!" -ForegroundColor Green
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -95,16 +95,22 @@ export default function GRNReceive() {
       if (isNewGRN) {
         // Create new GRN
         const newGRN: GRN = {
-          supplier_id: 0,
+          id: 0,
+          grn_number: '',
           grn_no: '',
+          supplier_id: 0,
+          received_date: new Date().toISOString(),
           datetime: new Date().toISOString(),
-          received_by: null,
+          received_by: undefined,
           note: '',
-          status: 'OPEN',
+          status: 'PENDING',
+          total_amount: 0,
           subtotal: 0,
           tax: 0,
           other: 0,
-          total: 0
+          total: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         };
         setGrn(newGRN);
         setLines([]);
@@ -134,8 +140,14 @@ export default function GRNReceive() {
         // Create new GRN
         const grnId = await grnService.createGRN({
           supplier_id: selectedSupplier!,
-          received_by: null,
-          note: note
+          grn_number: '',
+          received_date: new Date().toISOString(),
+          datetime: new Date().toISOString(),
+          received_by: undefined,
+          note: note,
+          total_amount: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         });
         
         // Save lines
@@ -175,7 +187,7 @@ export default function GRNReceive() {
   };
 
   const handlePostGRN = async () => {
-    if (!grn || grn.status !== 'OPEN') {
+    if (!grn || grn.status !== 'PENDING') {
       setError('Only OPEN GRNs can be posted');
       return;
     }
@@ -203,27 +215,32 @@ export default function GRNReceive() {
   const handleAddProduct = () => {
     if (!selectedProduct) return;
     
-    const existingLine = lines.find(line => line.product_id === parseInt(selectedProduct.id));
+    const existingLine = lines.find(line => line.product_id === selectedProduct.id);
     
     if (existingLine) {
       // Update existing line
       const updatedLines = lines.map(line =>
         line.id === existingLine.id
-          ? { ...line, qty: line.qty + 1, line_total: (line.qty + 1) * line.unit_cost }
+          ? { ...line, qty: (line.qty || 0) + 1, line_total: ((line.qty || 0) + 1) * line.unit_cost }
           : line
       );
       setLines(updatedLines);
     } else {
       // Add new line
       const newLine: GRNLineWithProduct = {
-        grn_id: grn?.id,
-        product_id: parseInt(selectedProduct.id),
+        id: 0,
+        grn_id: grn?.id || 0,
+        product_id: selectedProduct.id,
+        qty_ordered: 1,
+        qty_received: 1,
         qty: 1,
         unit_cost: selectedProduct.cost || 0,
-        mrp: null,
-        batch_no: null,
-        expiry_date: null,
         line_total: selectedProduct.cost || 0,
+        mrp: undefined,
+        batch_no: undefined,
+        expiry_date: undefined,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
         product: selectedProduct
       };
       setLines([...lines, newLine]);
@@ -238,7 +255,7 @@ export default function GRNReceive() {
       if (line.id === lineId) {
         const updatedLine = { ...line, [field]: value };
         if (field === 'qty' || field === 'unit_cost') {
-          updatedLine.line_total = updatedLine.qty * updatedLine.unit_cost;
+          updatedLine.line_total = (updatedLine.qty || 0) * updatedLine.unit_cost;
         }
         return updatedLine;
       }
@@ -309,7 +326,7 @@ export default function GRNReceive() {
           <Button variant="outline" onClick={() => navigate('/grn')}>
             Back to List
           </Button>
-          {grn?.status === 'POSTED' && (
+          {grn?.status === 'COMPLETE' && (
             <Badge variant="default" className="bg-green-600">Posted</Badge>
           )}
         </div>
@@ -344,11 +361,11 @@ export default function GRNReceive() {
                   <Select 
                     value={selectedSupplier?.toString() || ''} 
                     onChange={(value) => setSelectedSupplier(parseInt(value))}
-                    disabled={grn?.status === 'POSTED'}
+                    disabled={grn?.status === 'COMPLETE'}
                     placeholder="Select supplier"
                     options={suppliers.map(supplier => ({
                       value: supplier.id.toString(),
-                      label: supplier.name || supplier.supplier_name || 'Unknown'
+                      label: supplier.supplier_name || 'Unknown'
                     }))}
                   />
                 </div>
@@ -393,7 +410,7 @@ export default function GRNReceive() {
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Optional notes..."
-                  disabled={grn?.status === 'POSTED'}
+                  disabled={grn?.status === 'COMPLETE'}
                   textareaSize="md"
                 />
               </div>
@@ -418,12 +435,12 @@ export default function GRNReceive() {
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10"
-                      disabled={grn?.status === 'POSTED'}
+                      disabled={grn?.status === 'COMPLETE'}
                     />
                   </div>
                   <Button 
                     onClick={handleAddProduct}
-                    disabled={!selectedProduct || grn?.status === 'POSTED'}
+                    disabled={!selectedProduct || grn?.status === 'COMPLETE'}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -477,7 +494,7 @@ export default function GRNReceive() {
                             type="number"
                             value={line.qty}
                             onChange={(e) => handleUpdateLine(line.id!, 'qty', parseFloat(e.target.value) || 0)}
-                            disabled={grn?.status === 'POSTED'}
+                            disabled={grn?.status === 'COMPLETE'}
                             min="0"
                             step="0.001"
                           />
@@ -488,7 +505,7 @@ export default function GRNReceive() {
                             type="number"
                             value={line.unit_cost}
                             onChange={(e) => handleUpdateLine(line.id!, 'unit_cost', parseFloat(e.target.value) || 0)}
-                            disabled={grn?.status === 'POSTED'}
+                            disabled={grn?.status === 'COMPLETE'}
                             min="0"
                             step="0.01"
                           />
@@ -499,7 +516,7 @@ export default function GRNReceive() {
                             type="number"
                             value={line.mrp || ''}
                             onChange={(e) => handleUpdateLine(line.id!, 'mrp', parseFloat(e.target.value) || null)}
-                            disabled={grn?.status === 'POSTED'}
+                            disabled={grn?.status === 'COMPLETE'}
                             min="0"
                             step="0.01"
                             placeholder="MRP"
@@ -510,7 +527,7 @@ export default function GRNReceive() {
                           <Input
                             value={line.batch_no || ''}
                             onChange={(e) => handleUpdateLine(line.id!, 'batch_no', e.target.value || null)}
-                            disabled={grn?.status === 'POSTED'}
+                            disabled={grn?.status === 'COMPLETE'}
                             placeholder="Batch"
                           />
                         </div>
@@ -520,7 +537,7 @@ export default function GRNReceive() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteLine(line.id!)}
-                            disabled={grn?.status === 'POSTED'}
+                            disabled={grn?.status === 'COMPLETE'}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -533,7 +550,7 @@ export default function GRNReceive() {
                             type="date"
                             value={line.expiry_date || ''}
                             onChange={(e) => handleUpdateLine(line.id!, 'expiry_date', e.target.value || null)}
-                            disabled={grn?.status === 'POSTED'}
+                            disabled={grn?.status === 'COMPLETE'}
                             className={isExpired(line.expiry_date) ? 'border-red-500' : ''}
                           />
                           {isExpired(line.expiry_date) && (
@@ -572,7 +589,7 @@ export default function GRNReceive() {
                   type="number"
                   value={tax}
                   onChange={(e) => setTax(parseFloat(e.target.value) || 0)}
-                  disabled={grn?.status === 'POSTED'}
+                  disabled={grn?.status === 'COMPLETE'}
                   className="w-24 text-right"
                   min="0"
                   step="0.01"
@@ -585,7 +602,7 @@ export default function GRNReceive() {
                   type="number"
                   value={other}
                   onChange={(e) => setOther(parseFloat(e.target.value) || 0)}
-                  disabled={grn?.status === 'POSTED'}
+                  disabled={grn?.status === 'COMPLETE'}
                   className="w-24 text-right"
                   min="0"
                   step="0.01"
@@ -603,7 +620,7 @@ export default function GRNReceive() {
           <div className="flex gap-2">
             <Button
               onClick={handleSaveDraft}
-              disabled={saving || grn?.status === 'POSTED'}
+              disabled={saving || grn?.status === 'COMPLETE'}
               variant="outline"
             >
               <Save className="h-4 w-4 mr-2" />
@@ -612,7 +629,7 @@ export default function GRNReceive() {
             
             <Button
               onClick={handlePostGRN}
-              disabled={saving || grn?.status === 'POSTED' || lines.length === 0}
+              disabled={saving || grn?.status === 'COMPLETE' || lines.length === 0}
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               Post GRN

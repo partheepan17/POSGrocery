@@ -55,3 +55,17 @@ Write-Host "  - cashier1 (PIN: 1234) - Cashier" -ForegroundColor White
 Write-Host "  - cashier2 (PIN: 5678) - Cashier" -ForegroundColor White
 
 Write-Host "`n⚠️  Note: All test data has been removed. Only user authentication and system configuration remain." -ForegroundColor Yellow
+
+
+
+
+
+
+
+
+
+
+
+
+
+

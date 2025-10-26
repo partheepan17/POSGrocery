@@ -7,6 +7,12 @@ export type { ButtonProps } from './Button';
 export { Input } from './Input';
 export type { InputProps } from './Input';
 
+export { Switch } from './Switch';
+export type { SwitchProps } from './Switch';
+
+export { Label } from './Label';
+export type { LabelProps } from './Label';
+
 export { Select } from './Select';
 export type { SelectProps, SelectOption } from './Select';
 
@@ -14,8 +20,8 @@ export { Badge } from './Badge';
 export type { BadgeProps } from './Badge';
 
 // Layout Components
-export { Card, CardHeader, CardContent, CardFooter } from './Card';
-export type { CardProps, CardHeaderProps, CardContentProps, CardFooterProps } from './Card';
+export { Card, CardHeader, CardContent, CardFooter, CardTitle, CardDescription } from './Card';
+export type { CardProps, CardHeaderProps, CardContentProps, CardFooterProps, CardTitleProps, CardDescriptionProps } from './Card';
 
 export { 
   Table, 
@@ -60,8 +66,7 @@ export type {
 export { 
   ToastProvider, 
   useToast, 
-  toast, 
-  toastStyles 
+  toast
 } from './Toast';
 export type { Toast } from './Toast';
 
@@ -81,23 +86,25 @@ export {
 // Enhanced Modal System
 export { 
   Modal, 
+  useModal, 
+  ModalTrigger, 
   ModalHeader, 
+  ModalBody, 
   ModalContent, 
   ModalFooter, 
   ModalTitle, 
   ModalDescription,
-  ConfirmModal,
-  AlertModal,
-  DrawerModal
+  SimpleModal
 } from './Modal';
 export type { 
   ModalProps, 
   ModalHeaderProps, 
   ModalContentProps, 
   ModalFooterProps,
-  ConfirmModalProps,
-  AlertModalProps,
-  DrawerModalProps
+  ModalTitleProps,
+  ModalDescriptionProps,
+  ModalBodyProps,
+  ModalTriggerProps
 } from './Modal';
 
 // Dropdown Components

@@ -17,7 +17,7 @@ test.describe('Performance Budget Tests', () => {
     });
     
     // LCP should be under 2.5s in production, 2.0s in dev
-    const budget = process.env.NODE_ENV === 'production' ? 2500 : 2000;
+    const budget = (globalThis as any).process.env.NODE_ENV === 'production' ? 2500 : 2000;
     expect(lcp).toBeLessThan(budget);
   });
 
@@ -173,6 +173,20 @@ test.describe('Performance Budget Tests', () => {
     expect(cls).toBeLessThan(0.1);
   });
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -6,6 +6,8 @@ import { S3BackupAdapter } from '@/adapters/backup/S3BackupAdapter';
 import { cryptoService } from './cryptoService';
 import { useAppStore } from '@/store/appStore';
 import { dataService } from './dataService';
+import { authService } from './authService';
+import { terminalService } from './terminalService';
 
 export interface BackupLog {
   id: number;
@@ -50,6 +52,21 @@ class BackupService {
   
   constructor() {
     this.loadLogs();
+  }
+
+  /**
+   * Get current user for audit tracking
+   */
+  private getCurrentUser(): string {
+    const currentUser = authService.getCurrentUser();
+    return currentUser?.name || currentUser?.username || 'system';
+  }
+
+  /**
+   * Get current terminal name for backup metadata
+   */
+  private getCurrentTerminalName(): string {
+    return terminalService.getTerminalName() || 'Counter-1';
   }
 
   /**
@@ -189,7 +206,7 @@ class BackupService {
         bytes: uploadResult.bytes,
         checksum: encryptionResult.checksum,
         result: 'Success',
-        by_user: 'system', // TODO: Get current user
+        by_user: this.getCurrentUser(),
         note: `${type} backup created in ${Math.round((Date.now() - startTime) / 1000)}s`
       };
 
@@ -481,12 +498,12 @@ class BackupService {
       // Determine which files to delete
       const toDelete: RemoteItem[] = [];
       
-      if (dailyBackups.length > retention.keepDaily) {
-        toDelete.push(...dailyBackups.slice(retention.keepDaily));
+      if (dailyBackups.length > (retention.keepDaily || 7)) {
+        toDelete.push(...dailyBackups.slice(retention.keepDaily || 7));
       }
       
-      if (configBackups.length > retention.keepConfigChange) {
-        toDelete.push(...configBackups.slice(retention.keepConfigChange));
+      if (configBackups.length > (retention.keepConfigChange || 3)) {
+        toDelete.push(...configBackups.slice(retention.keepConfigChange || 3));
       }
 
       // Delete old backups
@@ -505,7 +522,7 @@ class BackupService {
         provider: settings?.backupSettings?.provider || 'unknown',
         result: 'Success',
         by_user: 'system',
-        note: `Rotation complete: kept ${dailyBackups.length - Math.max(0, dailyBackups.length - retention.keepDaily)} daily, ${configBackups.length - Math.max(0, configBackups.length - retention.keepConfigChange)} config; removed ${toDelete.length} old backups`
+        note: `Rotation complete: kept ${dailyBackups.length - Math.max(0, dailyBackups.length - (retention.keepDaily || 7))} daily, ${configBackups.length - Math.max(0, configBackups.length - (retention.keepConfigChange || 3))} config; removed ${toDelete.length} old backups`
       };
 
       await this.addLog(log);
@@ -595,7 +612,7 @@ class BackupService {
       sessionStorage.setItem(settingsPath, JSON.stringify(settings));
     } else {
       // In Node.js environment, write to file
-      const fs = require('fs');
+      const fs = (globalThis as any).require('fs');
       fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
     }
     
@@ -610,8 +627,8 @@ class BackupService {
       created_at: new Date().toISOString(),
       type,
       app_version: 'v1',
-      terminal: 'Counter-1', // TODO: Get from settings
-      by_user: 'system', // TODO: Get current user
+      terminal: this.getCurrentTerminalName(),
+      by_user: this.getCurrentUser(),
       db_bytes: 500000, // Mock size
       checksum_sha256: '', // Will be filled after compression
       provider: 'local', // Will be updated by caller

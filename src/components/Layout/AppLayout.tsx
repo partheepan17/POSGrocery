@@ -20,9 +20,9 @@ import {
   Scale,
   ChevronDown
 } from 'lucide-react';
-import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
-import { Input } from '../ui/Input';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { Input } from '@/components/ui/Input';
 import { CommandPalette } from './CommandPalette';
 import { HeaderStatus } from './HeaderStatus';
 
@@ -182,7 +182,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   leftIcon={<Search className="w-4 h-4" />}
-                  variant="search"
+                  variant="outline"
                   inputSize="sm"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {

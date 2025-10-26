@@ -1,222 +1,279 @@
-import React, { useEffect, useMemo, useState } from 'react';
+/**
+ * Cart Component
+ * Displays cart items and handles cart operations
+ */
+
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trash2, Tag, Lock } from 'lucide-react';
+import { Minus, Plus, Trash2, Tag, Edit3 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { useCartStore } from '@/store/cartStore';
-import { formatCurrency } from '@/lib/currency';
-import { validateQuantity } from '@/lib/validation';
-import BatchPicker from '@/components/pos/BatchPicker';
-import PromoBadge from '@/components/pos/PromoBadge';
+import { CartItem } from '@/types';
+import { formatCurrency } from '@/utils/currency';
 
-interface CartProps {
-  onItemUpdate?: (item: any) => void;
-  onItemRemove?: (itemId: string) => void;
-}
-
-export function Cart({ onItemUpdate, onItemRemove }: CartProps) {
+export function Cart() {
   const { t } = useTranslation();
-  const { 
-    items, 
-    priceTier, 
-    updateItemQuantity, 
-    removeItem, 
-    updateItemDiscount 
-  } = useCartStore();
-  const isRetailTier = priceTier === 'Retail';
+  const { items, updateItemQuantity, removeItem } = useCartStore();
+  const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
 
-  // Local editable state for debounced qty changes
-  const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
+  const handleQuantityChange = (itemId: string, change: number) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
 
-  useEffect(() => {
-    // Initialize drafts from items when cart changes
-    const initial: Record<string, string> = {};
-    items.forEach(it => { initial[it.id] = it.qty.toFixed(3); });
-    setQtyDraft(initial);
-  }, [items]);
-
-  // Debounce timer map
-  const timers = useMemo(() => new Map<string, any>(), []);
-  const [batchOpenFor, setBatchOpenFor] = useState<string | null>(null);
-  const [selectedBatches, setSelectedBatches] = useState<Record<string, { id: number; code?: string; expiry?: string }>>({});
-  const [uomsByProduct, setUomsByProduct] = useState<Record<number, Array<{ code: string; conv_to_base: number; price_override?: number }>>>({});
-  const [uomByItem, setUomByItem] = useState<Record<string, string>>({});
-
-  const fetchUOMs = async (productId: number) => {
-    try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
-      const res = await fetch(`${apiBaseUrl}/api/products/${productId}/uom`);
-      const data = await res.json();
-      setUomsByProduct(prev => ({ ...prev, [productId]: data.uoms || [] }));
-    } catch {}
-  };
-
-  const onQtyInput = (itemId: string, value: string) => {
-    setQtyDraft(prev => ({ ...prev, [itemId]: value }));
-    const num = parseFloat(value);
-    const v = validateQuantity(num);
-    if (!v.isValid) return;
-    // debounce 300ms
-    if (timers.get(itemId)) clearTimeout(timers.get(itemId));
-    const t = setTimeout(async () => {
-      await updateItemQuantity(itemId, Number(num.toFixed(3)));
-      const item = items.find(i => i.id === itemId);
-      if (item) onItemUpdate?.(item);
-    }, 300);
-    timers.set(itemId, t);
-  };
-
-  // Handle discount change
-  const handleDiscountChange = (itemId: string, type: 'FIXED_AMOUNT' | 'PERCENTAGE', value: number) => {
-    if (!isRetailTier) return;
+    const step = item.unit === 'kg' ? 0.1 : 1;
+    const newQty = Math.max(0, item.qty + change * step);
     
-    updateItemDiscount(itemId, type, value);
-    onItemUpdate?.(items.find(i => i.id === itemId));
+    if (newQty === 0) {
+      removeItem(itemId);
+      return;
+    }
+
+    updateItemQuantity(itemId, newQty);
   };
 
-  // Handle item remove
-  const handleItemRemove = (itemId: string) => {
-    removeItem(itemId);
-    const removed = items.find(i => i.id === itemId);
-    onItemRemove?.(removed ? removed.id : itemId);
+  const handleQuantityEdit = (itemId: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+
+    setEditingItem(itemId);
+    setEditValue(item.qty.toString());
+  };
+
+  const handleQuantitySubmit = (itemId: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+
+    const parsed = item.unit === 'kg' ? parseFloat(editValue || '0') : Number(editValue || '0');
+    
+    if (isNaN(parsed) || parsed < 0) {
+      setEditingItem(null);
+      setEditValue('');
+      return;
+    }
+
+    const newQty = Math.max(0, parsed);
+    
+    if (newQty === 0) {
+      removeItem(itemId);
+    } else {
+      updateItemQuantity(itemId, newQty);
+    }
+    
+    setEditingItem(null);
+    setEditValue('');
+  };
+
+  const handleQuantityCancel = () => {
+    setEditingItem(null);
+    setEditValue('');
+  };
+
+  const handleDiscountEdit = (itemId: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+
+    setEditingItem(itemId);
+    setEditValue(item.line_discount_value?.toString() || '0');
+  };
+
+  const handleDiscountSubmit = (itemId: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+
+    const discountValue = parseFloat(editValue || '0');
+    if (isNaN(discountValue) || discountValue < 0) {
+      setEditingItem(null);
+      setEditValue('');
+      return;
+    }
+
+    // TODO: Implement line discount functionality
+    console.log('Line discount not implemented yet', { itemId, discountValue });
+    setEditingItem(null);
+    setEditValue('');
+  };
+
+  const formatQuantity = (qty: number, unit: string) => {
+    if (unit === 'kg') {
+      return `${qty.toFixed(3)} kg`;
+    }
+    return `${qty} pc`;
+  };
+
+  const formatPrice = (price: number) => {
+    return `LKR ${price.toLocaleString()}`;
   };
 
   if (items.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl text-gray-400 mb-4">🛒</div>
-          <h3 className="text-xl font-semibold text-gray-300 mb-2">{t('cart.empty')}</h3>
-          <p className="text-gray-400">{t('cart.emptyDescription')}</p>
-        </div>
-      </div>
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle>{t('pos.cart')}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-64">
+          <div className="text-center text-gray-500">
+            <div className="text-lg font-medium mb-2">{t('pos.emptyCart')}</div>
+            <div className="text-sm">{t('pos.addItemsToCart')}</div>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="flex-1 bg-gray-900 p-6 flex flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-white">{t('cart.title')}</h2>
-        <div className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium">{priceTier}</div>
-      </div>
+    <Card className="h-full flex flex-col">
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <span>{t('pos.cart')}</span>
+          <Badge variant="secondary">{items.length} {t('pos.items')}</Badge>
+        </CardTitle>
+      </CardHeader>
+      
+      <CardContent className="flex-1 overflow-hidden">
+        <div className="space-y-3 overflow-y-auto max-h-96">
+          {items.map((item) => (
+            <div key={item.id} className="border border-gray-200 rounded-lg p-3">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900">{item.name}</div>
+                  <div className="text-sm text-gray-500">SKU: {item.sku}</div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => removeItem(item.id)}
+                  className="h-6 w-6 p-0 text-red-600 hover:text-red-800"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
 
-      <div className="flex-1 overflow-auto rounded-lg border border-gray-700">
-        <table className="min-w-full text-sm text-gray-100">
-          <thead className="bg-gray-800 text-gray-300 uppercase text-xs">
-            <tr>
-              <th className="px-3 py-2 text-left">{t('cart.product')}</th>
-              <th className="px-3 py-2 text-right">{t('cart.quantity')}</th>
-              <th className="px-3 py-2 text-right">{t('cart.discount')}</th>
-              <th className="px-3 py-2 text-right">{t('cart.lineTotal')}</th>
-              <th className="px-3 py-2"> </th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map(item => (
-              <tr key={item.id} className="border-t border-gray-700">
-                <td className="px-3 py-2">
-                  <div className="font-medium text-white">{item.name}</div>
-                  <div className="text-xs text-gray-400">{item.sku} • {item.unit} • {formatCurrency(item.current_price)} ea</div>
-                  {/* Promo badges placeholder; integrate with discount engine reasons if available */}
-                  {/* <div className="mt-1 flex gap-1"><PromoBadge text="Bundle" why="Bundle 3 for 1000" /></div> */}
-                  <div className="mt-1">
-                    {selectedBatches[item.id] ? (
-                      <div className="text-xs text-emerald-400">Batch: {selectedBatches[item.id].code || `#${selectedBatches[item.id].id}`} {selectedBatches[item.id].expiry ? `• Exp ${selectedBatches[item.id].expiry}` : ''}</div>
-                    ) : (
-                      <button
-                        onClick={() => setBatchOpenFor(batchOpenFor === item.id ? null : item.id)}
-                        className="text-xs text-blue-400 hover:text-blue-300"
-                      >{t('cart.selectBatch')}</button>
-                    )}
-                    {batchOpenFor === item.id && (
-                      <div className="mt-2 p-2 bg-gray-800 rounded border border-gray-700">
-                        <BatchPicker
-                          productId={Number(item.product_id || item.id)}
-                          onSelect={(b) => {
-                            if (b) {
-                              setSelectedBatches(prev => ({ ...prev, [item.id]: { id: b.id, code: b.batch_code, expiry: b.expiry } }));
-                            }
-                            setBatchOpenFor(null);
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </td>
-                <td className="px-3 py-2 align-middle text-right">
-                  <input
-                    type="number"
-                    step="0.001"
-                    min="0.001"
-                    value={qtyDraft[item.id] ?? item.qty.toFixed(3)}
-                    onChange={(e) => onQtyInput(item.id, e.target.value)}
-                    className="w-28 px-2 py-1 bg-gray-800 border border-gray-600 rounded text-right"
-                  />
-                  <div className="mt-1 flex items-center justify-end gap-2 text-xs">
-                    <select
-                      className="px-1 py-0.5 bg-gray-800 border border-gray-600 rounded"
-                      value={uomByItem[item.id] || 'BASE'}
-                      onFocus={() => fetchUOMs(Number(item.product_id || item.id))}
-                      onChange={(e) => {
-                        const code = e.target.value;
-                        setUomByItem(prev => ({ ...prev, [item.id]: code }));
-                        const uoms = uomsByProduct[Number(item.product_id || item.id)] || [];
-                        const found = uoms.find(u => u.code === code);
-                        if (found) {
-                          // Convert displayed qty to base qty for storage
-                          const current = parseFloat(qtyDraft[item.id] ?? item.qty.toFixed(3)) || item.qty;
-                          const baseQty = current * found.conv_to_base;
-                          onQtyInput(item.id, String(baseQty.toFixed(3)));
-                        }
-                      }}
-                    >
-                      <option value="BASE">{item.unit?.toUpperCase?.() || 'BASE'}</option>
-                      {(uomsByProduct[Number(item.product_id || item.id)] || []).map((u) => (
-                        <option key={u.code} value={u.code}>{u.code}</option>
-                      ))}
-                    </select>
-                    {uomByItem[item.id] && uomByItem[item.id] !== 'BASE' && (
-                      <span className="text-gray-400">UOM</span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-3 py-2 text-right">
-                  {isRetailTier ? (
-                    <div className="flex items-center justify-end gap-2">
-                      <select
-                        value={item.line_discount_type || 'FIXED_AMOUNT'}
-                        onChange={(e) => handleDiscountChange(item.id, e.target.value as 'FIXED_AMOUNT' | 'PERCENTAGE', item.line_discount_value || 0)}
-                        className="px-2 py-1 bg-gray-800 border border-gray-600 rounded"
-                      >
-                        <option value="FIXED_AMOUNT">{t('cart.fixed')}</option>
-                        <option value="PERCENTAGE">{t('cart.percentage')}</option>
-                      </select>
-                      <input
-                        type="number"
-                        step={item.line_discount_type === 'PERCENTAGE' ? '0.1' : '1'}
-                        min="0"
-                        max={item.line_discount_type === 'PERCENTAGE' ? '100' : undefined}
-                        value={item.line_discount_value || ''}
-                        onChange={(e) => handleDiscountChange(item.id, item.line_discount_type || 'FIXED_AMOUNT', parseFloat(e.target.value) || 0)}
-                        className="w-20 px-2 py-1 bg-gray-800 border border-gray-600 rounded text-right"
-                        placeholder="0"
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleQuantityChange(item.id, -1)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </Button>
+                  
+                  {editingItem === item.id ? (
+                    <div className="flex items-center space-x-1">
+                      <Input
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleQuantitySubmit(item.id);
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            handleQuantityCancel();
+                          }
+                        }}
+                        className="w-16 h-8 text-sm"
+                        autoFocus
                       />
-                      <Tag className="w-4 h-4 text-green-400" />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleQuantitySubmit(item.id)}
+                        className="h-8 w-8 p-0"
+                      >
+                        ✓
+                      </Button>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-end gap-2 text-gray-500"><Lock className="w-4 h-4" /> {t('cart.disabled')}</div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleQuantityEdit(item.id)}
+                      className="h-8 px-2 text-sm"
+                    >
+                      {formatQuantity(item.qty, item.unit)}
+                    </Button>
                   )}
-                </td>
-                <td className="px-3 py-2 text-right text-gray-300">{/* Auto discount placeholder */}0.00</td>
-                <td className="px-3 py-2 text-right font-medium">{formatCurrency(item.line_total)}</td>
-                <td className="px-3 py-2 text-right">
-                  <button onClick={() => handleItemRemove(item.id)} className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+                  
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleQuantityChange(item.id, 1)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </Button>
+                </div>
+
+                <div className="text-right">
+                  <div className="font-medium text-gray-900">
+                    {formatCurrency(item.line_total)}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {formatCurrency(item.current_price || 0)} each
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-2 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Tag className="w-3 h-3 text-orange-500" />
+                  {editingItem === item.id ? (
+                    <div className="flex items-center space-x-1">
+                      <Input
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleDiscountSubmit(item.id);
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            handleQuantityCancel();
+                          }
+                        }}
+                        className="w-20 h-6 text-xs"
+                        autoFocus
+                        placeholder="0"
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDiscountSubmit(item.id)}
+                        className="h-6 w-6 p-0"
+                      >
+                        ✓
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-orange-600">
+                      {item.line_discount_type && item.line_discount_value && item.line_discount_value > 0
+                        ? (item.line_discount_type === 'PERCENTAGE' 
+                            ? `${item.line_discount_value}% off`
+                            : `${formatPrice(item.line_discount_value)} off`)
+                        : 'No discount'
+                      }
+                    </span>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleDiscountEdit(item.id)}
+                  className="h-6 w-6 p-0 text-orange-600 hover:text-orange-800"
+                >
+                  <Edit3 className="w-3 h-3" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -4,9 +4,14 @@
  */
 
 export const SETTINGS = {
-  TAX_RATE: typeof process !== 'undefined' && process.env?.VITE_TAX_RATE
-    ? Number(process.env.VITE_TAX_RATE)
+  TAX_RATE: typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process.env?.VITE_TAX_RATE
+    ? Number((globalThis as any).process.env.VITE_TAX_RATE)
     : 0.15, // default 15%
-  TIMEZONE: (typeof process !== 'undefined' && process.env?.VITE_TZ) || 'Asia/Colombo'
+  TIMEZONE: (typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process.env?.VITE_TZ) || 'Asia/Colombo',
+  PRICING: {
+    requireManagerIfBelowCost: false,
+    requireManagerIfBelowMinMarginPercent: null as number | null,
+    perBillDisableIncludesFixedPrices: false
+  }
 };
 

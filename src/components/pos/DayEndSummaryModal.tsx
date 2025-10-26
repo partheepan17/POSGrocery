@@ -54,21 +54,21 @@ export const DayEndSummaryModal: React.FC<DayEndSummaryModalProps> = ({
         openedAt: summary.shift.opened_at,
         cashierId: summary.shift.cashier_id,
         cashBalance: {
-          opening: summary.cashDrawer.opening,
+          opening: summary.cashDrawer?.opening || 0,
           cashSales: summary.payments.cash,
           refunds: 0, // TODO: Calculate refunds from returns
           movements: {
-            cashIn: summary.cashDrawer.cashIn,
-            cashOut: summary.cashDrawer.cashOut,
-            drops: summary.cashDrawer.drops,
-            pickups: summary.cashDrawer.pickups,
-            petty: summary.cashDrawer.petty
+            cashIn: summary.cashDrawer?.cashIn || 0,
+            cashOut: summary.cashDrawer?.cashOut || 0,
+            drops: summary.cashDrawer?.drops || 0,
+            pickups: summary.cashDrawer?.pickups || 0,
+            petty: summary.cashDrawer?.petty || 0
           },
-          expectedCash: summary.cashDrawer.expectedCash
+          expectedCash: summary.cashDrawer?.expectedCash || 0
         }
       };
 
-      await printService.printCashBalance(cashBalanceData);
+      await printService.printCashBalance(summary.cashDrawer?.expectedCash || 0, 'Main');
     } catch (err) {
       console.error('Failed to print cash balance:', err);
       // Show error toast or notification
@@ -166,7 +166,7 @@ export const DayEndSummaryModal: React.FC<DayEndSummaryModalProps> = ({
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 dark:text-gray-400">Opening Cash:</span>
                     <span className="font-medium text-gray-900 dark:text-white">
-                      {formatCurrency(summary.cashDrawer.opening)}
+                      {formatCurrency(summary.cashDrawer?.opening || 0)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -184,25 +184,25 @@ export const DayEndSummaryModal: React.FC<DayEndSummaryModalProps> = ({
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 dark:text-gray-400">Cash In:</span>
                     <span className="font-medium text-green-600 dark:text-green-400">
-                      +{formatCurrency(summary.cashDrawer.cashIn)}
+                      +{formatCurrency(summary.cashDrawer?.cashIn || 0)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 dark:text-gray-400">Cash Out:</span>
                     <span className="font-medium text-red-600 dark:text-red-400">
-                      -{formatCurrency(summary.cashDrawer.cashOut)}
+                      -{formatCurrency(summary.cashDrawer?.cashOut || 0)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 dark:text-gray-400">Safe Drops:</span>
                     <span className="font-medium text-red-600 dark:text-red-400">
-                      -{formatCurrency(summary.cashDrawer.drops)}
+                      -{formatCurrency(summary.cashDrawer?.drops || 0)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 dark:text-gray-400">Petty Cash:</span>
                     <span className="font-medium text-red-600 dark:text-red-400">
-                      -{formatCurrency(summary.cashDrawer.petty)}
+                      -{formatCurrency(summary.cashDrawer?.petty || 0)}
                     </span>
                   </div>
                   <div className="border-t border-gray-300 dark:border-gray-600 pt-3">
@@ -211,7 +211,7 @@ export const DayEndSummaryModal: React.FC<DayEndSummaryModalProps> = ({
                         Expected Cash:
                       </span>
                       <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                        {formatCurrency(summary.cashDrawer.expectedCash)}
+                        {formatCurrency(summary.cashDrawer?.expectedCash || 0)}
                       </span>
                     </div>
                   </div>
@@ -286,4 +286,8 @@ export const DayEndSummaryModal: React.FC<DayEndSummaryModalProps> = ({
     </div>
   );
 };
+
+
+
+
 

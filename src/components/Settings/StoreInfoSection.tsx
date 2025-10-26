@@ -34,12 +34,12 @@ export function StoreInfoSection({ settings, updateSettings, onSettingsChange }:
     );
   }
 
-  const handleInputChange = (field: keyof AppSettings['storeInfo'], value: string) => {
+  const handleInputChange = (field: string, value: string) => {
     updateSettings({
       storeInfo: {
         ...settings.storeInfo,
         [field]: value,
-      },
+      } as any,
     });
     onSettingsChange();
   };

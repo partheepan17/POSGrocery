@@ -1,10 +1,7 @@
 // Backup Module Acceptance Test
 // This file contains test scenarios to verify the backup system meets all requirements
 
-import { backupService } from '@/services/backupService';
-import { schedulerService } from '@/services/schedulerService';
 import { cryptoService } from '@/services/cryptoService';
-import { csvService } from '@/services/csvService';
 
 export interface AcceptanceTestResult {
   testName: string;
@@ -61,7 +58,7 @@ export class BackupAcceptanceTest {
       for (const provider of providers) {
         try {
           // Mock provider configuration
-          const mockConfig = this.getMockProviderConfig(provider);
+          // const _mockConfig = this.getMockProviderConfig(provider);
           
           // In a real test, we would:
           // 1. Set provider configuration in settings
@@ -100,7 +97,7 @@ export class BackupAcceptanceTest {
       // Mock backup creation
       const mockBackupName = 'grocerypos_backup_20250929_183000_daily.zip';
       const mockBytes = 1024 * 500; // 500KB
-      const mockChecksum = 'abc123def456';
+      // const _mockChecksum = 'abc123def456';
       
       console.log('  ✓ Would create encrypted backup file');
       console.log(`  ✓ Would verify filename follows spec: ${mockBackupName}`);
@@ -128,11 +125,11 @@ export class BackupAcceptanceTest {
       console.log('🔍 Testing Backup Verification...');
       
       // Mock verification process
-      const mockChecksum = 'abc123def456';
+      // const _mockChecksum = 'abc123def456';
       
       console.log('  ✓ Would download latest backup file');
       console.log('  ✓ Would decrypt backup and verify integrity');
-      console.log(`  ✓ Would compare checksums: ${mockChecksum}`);
+      console.log(`  ✓ Would compare checksums: abc123def456`);
       console.log('  ✓ Would pass checksum verification');
       
       return {
@@ -187,7 +184,7 @@ export class BackupAcceptanceTest {
       console.log('⏰ Testing Scheduled Backup...');
       
       // Mock scheduled backup
-      const scheduledTime = '22:30';
+      // const _scheduledTime = '22:30';
       const nextMinute = new Date();
       nextMinute.setMinutes(nextMinute.getMinutes() + 1);
       const testTime = `${nextMinute.getHours().toString().padStart(2, '0')}:${nextMinute.getMinutes().toString().padStart(2, '0')}`;
@@ -257,20 +254,20 @@ export class BackupAcceptanceTest {
       console.log('📊 Testing Logs Export...');
       
       // Mock log data
-      const mockLogs = [
-        {
-          datetime: new Date('2025-09-29T18:30:00Z'),
-          type: 'Created',
-          provider: 'local',
-          location_url: '/backups/test.zip',
-          filename: 'grocerypos_backup_20250929_183000_daily.zip',
-          bytes: 524288,
-          checksum: 'abc123def456',
-          result: 'Success',
-          by_user: 'system',
-          note: 'Daily backup completed'
-        }
-      ];
+      // const _mockLogs = [
+      //   {
+      //     datetime: new Date('2025-09-29T18:30:00Z'),
+      //     type: 'Created',
+      //     provider: 'local',
+      //     location_url: '/backups/test.zip',
+      //     filename: 'grocerypos_backup_20250929_183000_daily.zip',
+      //     bytes: 524288,
+      //     checksum: 'abc123def456',
+      //     result: 'Success',
+      //     by_user: 'system',
+      //     note: 'Daily backup completed'
+      //   }
+      // ];
       
       const expectedHeaders = [
         'datetime',
@@ -311,8 +308,8 @@ export class BackupAcceptanceTest {
       console.log('🔐 Testing Encryption & Security...');
       
       // Mock encryption test
-      const mockKey = 'test-encryption-key-12345678';
-      const mockData = 'Test backup data';
+      // const _mockKey = 'test-encryption-key-12345678';
+      // const _mockData = 'Test backup data';
       
       console.log('  ✓ Would validate encryption key format');
       console.log('  ✓ Would encrypt backup data with AES-256');

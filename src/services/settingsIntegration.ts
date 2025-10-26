@@ -71,20 +71,26 @@ export class SettingsIntegrationService {
     if (!this.settings) return;
 
     // Update document language
-    document.documentElement.lang = this.settings.languageFormatting.displayLanguage.toLowerCase();
+    if (this.settings.languageFormatting?.displayLanguage) {
+      document.documentElement.lang = this.settings.languageFormatting.displayLanguage.toLowerCase();
+    }
 
     // Update currency symbol in CSS variables
     const root = document.documentElement;
-    root.style.setProperty('--currency-symbol', this.settings.currencySymbol);
+    if (this.settings.currencySymbol) {
+      root.style.setProperty('--currency-symbol', this.settings.currencySymbol);
+    }
   }
 
   private applyRounding(): void {
     if (!this.settings) return;
 
     // Create global rounding function
-    (window as any).applyRounding = SettingsValidationService.applyRoundingMode(
-      this.settings.languageFormatting.roundingMode
-    );
+    if (this.settings.languageFormatting?.roundingMode) {
+      (window as any).applyRounding = SettingsValidationService.applyRoundingMode(
+        this.settings.languageFormatting.roundingMode
+      );
+    }
 
     // Update any visible totals in the POS
     this.updateVisibleTotals();
@@ -97,14 +103,14 @@ export class SettingsIntegrationService {
     const receiptPreviewEvent = new CustomEvent('receiptSettingsChanged', {
       detail: {
         paper: this.settings.receiptOptions,
-        language: this.settings.storeInfo.defaultReceiptLanguage,
-        showQR: this.settings.receiptOptions.showQRCode,
-        showBarcode: this.settings.receiptOptions.showBarcode,
-        showTierBadge: this.settings.receiptOptions.showTierBadge,
+        language: this.settings.storeInfo?.defaultReceiptLanguage,
+        showQR: this.settings.receiptOptions?.showQRCode,
+        showBarcode: this.settings.receiptOptions?.showBarcode,
+        showTierBadge: this.settings.receiptOptions?.showTierBadge,
         footerTexts: {
-          EN: this.settings.receiptOptions.footerTextEN,
-          SI: this.settings.receiptOptions.footerTextSI,
-          TA: this.settings.receiptOptions.footerTextTA,
+          EN: this.settings.receiptOptions?.footerTextEN,
+          SI: this.settings.receiptOptions?.footerTextSI,
+          TA: this.settings.receiptOptions?.footerTextTA,
         }
       }
     });
@@ -117,9 +123,9 @@ export class SettingsIntegrationService {
     // Update device configuration
     const deviceSettingsEvent = new CustomEvent('deviceSettingsChanged', {
       detail: {
-        receiptPaper: this.settings.devices.receiptPaper,
-        cashDrawerOpenOnCash: this.settings.devices.cashDrawerOpenOnCash,
-        scaleMode: this.settings.devices.scaleMode,
+        receiptPaper: this.settings.devices?.receiptPaper,
+        cashDrawerOpenOnCash: this.settings.devices?.cashDrawerOpenOnCash,
+        scaleMode: this.settings.devices?.scaleMode,
       }
     });
     window.dispatchEvent(deviceSettingsEvent);
@@ -131,10 +137,10 @@ export class SettingsIntegrationService {
     // Update pricing validation
     const pricingEvent = new CustomEvent('pricingPoliciesChanged', {
       detail: {
-        missingPricePolicy: this.settings.pricingPolicies.missingPricePolicy,
-        requiredTiers: this.settings.pricingPolicies.requiredTiers,
-        autoCreateCategories: this.settings.pricingPolicies.autoCreateCategories,
-        autoCreateSuppliers: this.settings.pricingPolicies.autoCreateSuppliers,
+        missingPricePolicy: this.settings.pricingPolicies?.missingPricePolicy,
+        requiredTiers: this.settings.pricingPolicies?.requiredTiers,
+        autoCreateCategories: this.settings.pricingPolicies?.autoCreateCategories,
+        autoCreateSuppliers: this.settings.pricingPolicies?.autoCreateSuppliers,
       }
     });
     window.dispatchEvent(pricingEvent);
@@ -168,62 +174,62 @@ export class SettingsIntegrationService {
     if (!this.settings) return false;
     return SettingsValidationService.shouldOpenCashDrawer(
       paymentAmount,
-      this.settings.devices.cashDrawerOpenOnCash
+      this.settings.devices?.cashDrawerOpenOnCash || false
     );
   }
 
   getReceiptLanguage(): string {
     if (!this.settings) return 'EN';
-    return this.settings.storeInfo.defaultReceiptLanguage;
+    return this.settings.storeInfo?.defaultReceiptLanguage || 'EN';
   }
 
   formatAmount(amount: number): string {
     if (!this.settings) return amount.toFixed(2);
     
     const roundedAmount = SettingsValidationService.applyRoundingMode(
-      this.settings.languageFormatting.roundingMode
+      this.settings.languageFormatting?.roundingMode || 'round'
     )(amount);
     
-    return `${this.settings.currencySymbol} ${roundedAmount.toFixed(2)}`;
+    return `${this.settings.currencySymbol || '$'} ${roundedAmount.toFixed(2)}`;
   }
 
   formatWeight(weight: number): string {
     if (!this.settings) return weight.toFixed(2);
-    return SettingsValidationService.formatWeight(weight, this.settings.languageFormatting.kgDecimals);
+    return SettingsValidationService.formatWeight(weight, this.settings.languageFormatting?.kgDecimals || 2);
   }
 
   getRequiredPriceTiers(): string[] {
     if (!this.settings) return ['retail'];
-    return this.settings.pricingPolicies.requiredTiers;
+    return this.settings.pricingPolicies?.requiredTiers || ['retail'];
   }
 
   getMissingPricePolicy(): string {
     if (!this.settings) return 'warn_fallback';
-    return this.settings.pricingPolicies.missingPricePolicy;
+    return this.settings.pricingPolicies?.missingPricePolicy || 'warn_fallback';
   }
 
   shouldAutoCreateCategories(): boolean {
     if (!this.settings) return true;
-    return this.settings.pricingPolicies.autoCreateCategories;
+    return this.settings.pricingPolicies?.autoCreateCategories || true;
   }
 
   shouldAutoCreateSuppliers(): boolean {
     if (!this.settings) return true;
-    return this.settings.pricingPolicies.autoCreateSuppliers;
+    return this.settings.pricingPolicies?.autoCreateSuppliers || true;
   }
 
   // Backup integration
   scheduleBackup(): void {
-    if (!this.settings) return;
+    if (!this.settings || !this.settings.backupSettings) return;
 
     const { schedule, provider } = this.settings.backupSettings;
     
     if (provider === 'local') {
       // Schedule local backup
-      this.scheduleLocalBackup(schedule.dailyTime);
+      this.scheduleLocalBackup(schedule.dailyTime || '02:00');
     } else {
       // Schedule cloud backup
-      this.scheduleCloudBackup(schedule.dailyTime, provider);
+      this.scheduleCloudBackup(schedule.dailyTime || '02:00', provider);
     }
   }
 

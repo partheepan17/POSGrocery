@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Wifi, WifiOff, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { healthCheckService } from '@/services/healthCheckService';
 
 interface OnlineStatusToggleProps {
   onStatusChange?: (isOnline: boolean) => void;
@@ -14,7 +15,7 @@ export function OnlineStatusToggle({ onStatusChange }: OnlineStatusToggleProps) 
   const checkOnlineStatus = async () => {
     setIsChecking(true);
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || `${window.location.protocol}//${window.location.host}`;
       const response = await fetch(`${apiBaseUrl}/api/health`, {
         method: 'GET',
         timeout: 5000
@@ -58,15 +59,16 @@ export function OnlineStatusToggle({ onStatusChange }: OnlineStatusToggleProps) 
     }
   };
 
-  // Check status on mount
+  // Subscribe to centralized health check service
   useEffect(() => {
-    checkOnlineStatus();
-    
-    // Check every 30 seconds
-    const interval = setInterval(checkOnlineStatus, 30000);
-    
-    return () => clearInterval(interval);
-  }, []);
+    const unsubscribe = healthCheckService.subscribe((result) => {
+      setIsOnline(result.isOnline);
+      setLastChecked(result.lastChecked);
+      onStatusChange?.(result.isOnline);
+    });
+
+    return () => unsubscribe();
+  }, [onStatusChange]);
 
   return (
     <div className="flex items-center space-x-2">

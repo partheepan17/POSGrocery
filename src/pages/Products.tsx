@@ -1,7 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Search, Download, Upload, RefreshCw, Edit3, Copy, Eye, EyeOff, Trash2, Printer } from 'lucide-react';
+import { 
+  Plus, Search, Download, Upload, RefreshCw, Edit3, Copy, Eye, EyeOff, 
+  Trash2, Printer, MoreVertical, AlertTriangle, Filter, X, Check, 
+  ChevronUp, ChevronDown, SortAsc, SortDesc, Scale, Package
+} from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { dataService, Product, Category, Supplier } from '@/services/dataService';
 import { csvService } from '@/services/csvService';
@@ -9,6 +13,12 @@ import { AddProductModal } from '@/components/Products/AddProductModal';
 import { CSVImportModal } from '@/components/Products/CSVImportModal';
 import { labelPrintAdapter } from '@/services/print/LabelPrintAdapter';
 import { labelService } from '@/services/labelService';
+import { useAuth, RoleGuard, PermissionGuard } from '@/store/authStore';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
+import { Separator } from '@/components/ui/Separator';
 
 interface ProductWithRelations extends Product {
   category?: Category;
@@ -20,6 +30,8 @@ interface FilterState {
   category_id: string;
   scale_items_only: boolean;
   active_filter: 'all' | 'active' | 'inactive';
+  sort_by: 'name_en' | 'sku' | 'created_at' | 'price_retail';
+  sort_order: 'asc' | 'desc';
 }
 
 interface StatsCounts {
@@ -29,54 +41,61 @@ interface StatsCounts {
   scale_items: number;
 }
 
+interface PaginationMeta {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
 export function Products() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { canAccess } = useAuth();
+  
+  // State
   const [products, setProducts] = useState<ProductWithRelations[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<StatsCounts>({ total: 0, active: 0, inactive: 0, scale_items: 0 });
+  const [pagination, setPagination] = useState<PaginationMeta>({
+    page: parseInt(searchParams.get('page') || '1'),
+    pageSize: parseInt(searchParams.get('pageSize') || '20'),
+    total: 0,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
+  
+  // Filters
   const [filters, setFilters] = useState<FilterState>({
     search: searchParams.get('search') || '',
     category_id: searchParams.get('category_id') || '',
     scale_items_only: searchParams.get('scale_items_only') === 'true',
-    active_filter: searchParams.get('status') || 'all'
+    active_filter: (searchParams.get('status') as 'all' | 'active' | 'inactive') || 'all',
+    sort_by: (searchParams.get('sortBy') as any) || 'created_at',
+    sort_order: (searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc'
   });
 
-  // Pagination and sorting state
-  const [pagination, setPagination] = useState({
-    page: parseInt(searchParams.get('page') || '1'),
-    pageSize: parseInt(searchParams.get('pageSize') || '20'),
-    total: 0,
-    totalPages: 0
-  });
-  const [sorting, setSorting] = useState({
-    sortBy: searchParams.get('sortBy') || 'created_at',
-    sortOrder: (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc'
-  });
-
-  // Modals
+  // UI State
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [printingBarcode, setPrintingBarcode] = useState<number | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<number | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [editingPrice, setEditingPrice] = useState<{ id: number; field: string; value: string } | null>(null);
 
   // Refs
   const searchInputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<NodeJS.Timeout>();
+  const tableRef = useRef<HTMLDivElement>(null);
 
   // Update URL parameters
-  const updateURL = (updates: Partial<{
-    search: string;
-    category_id: string;
-    status: string;
-    scale_items_only: boolean;
-    page: number;
-    pageSize: number;
-    sortBy: string;
-    sortOrder: string;
-  }>) => {
+  const updateURL = useCallback((updates: Partial<FilterState & { page: number; pageSize: number }>) => {
     const newParams = new URLSearchParams(searchParams);
     
     Object.entries(updates).forEach(([key, value]) => {
@@ -88,68 +107,53 @@ export function Products() {
     });
     
     setSearchParams(newParams);
-  };
+  }, [searchParams, setSearchParams]);
 
-  // Load initial data
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // Debounced search effect
-  useEffect(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    debounceRef.current = setTimeout(() => {
-      loadData();
-    }, 250);
-  }, [filters]);
-
-  // Reload data when pagination or sorting changes
-  useEffect(() => {
-    loadData();
-  }, [pagination.page, pagination.pageSize, sorting.sortBy, sorting.sortOrder]);
-
-  const loadData = async () => {
+  // Load data
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [productsResult, categoriesData, suppliersData] = await Promise.all([
         dataService.getProducts({
-          ...filters,
+          search: filters.search,
+          category_id: filters.category_id,
+          scale_items_only: filters.scale_items_only,
+          active_filter: filters.active_filter,
+          sortBy: filters.sort_by,
+          sortOrder: filters.sort_order,
           page: pagination.page,
-          pageSize: pagination.pageSize,
-          sortBy: sorting.sortBy,
-          sortOrder: sorting.sortOrder
+          pageSize: pagination.pageSize
         }),
         dataService.getCategories(),
-        dataService.getSuppliers(false) // Get all suppliers including inactive ones
+        dataService.getSuppliers()
       ]);
 
-      const productsData = productsResult.products;
+      const productsData = (productsResult as any).products || [];
+      const meta = (productsResult as any).meta || {};
 
       // Enrich products with related data
       const enrichedProducts = productsData.map((product: Product) => ({
         ...product,
-        category: categoriesData.find((c: Category) => c.id === product.category_id),
-        preferred_supplier: suppliersData.find((s: Supplier) => s.id === product.preferred_supplier_id)
+        category: (categoriesData as any[]).find((c: Category) => c.id === product.category_id),
+        preferred_supplier: (suppliersData as any[]).find((s: Supplier) => s.id === product.preferred_supplier_id)
       }));
 
       setProducts(enrichedProducts);
-      setCategories(categoriesData);
-      setSuppliers(suppliersData);
+      setCategories(categoriesData as any);
+      setSuppliers(suppliersData as any);
 
-      // Update pagination info
-      if (productsResult.meta) {
-        setPagination(prev => ({
-          ...prev,
-          total: productsResult.meta.total,
-          totalPages: productsResult.meta.pages
-        }));
-      }
+      // Update pagination
+      setPagination(prev => ({
+        ...prev,
+        total: meta.total || 0,
+        totalPages: meta.pages || 0,
+        hasNextPage: (meta.page || 1) < (meta.pages || 1),
+        hasPrevPage: (meta.page || 1) > 1
+      }));
 
       // Calculate stats
       const stats: StatsCounts = {
-        total: productsResult.total || productsData.length,
+        total: meta.total || productsData.length,
         active: productsData.filter((p: Product) => p.is_active).length,
         inactive: productsData.filter((p: Product) => !p.is_active).length,
         scale_items: productsData.filter((p: Product) => p.is_scale_item).length
@@ -161,7 +165,34 @@ export function Products() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, pagination.page, pagination.pageSize]);
+
+  // Effects
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('[data-product-dropdown]')) {
+        setOpenDropdown(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      loadData();
+    }, 300);
+  }, [filters.search, loadData]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -176,36 +207,28 @@ export function Products() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Handlers
   const handleSearchChange = (value: string) => {
     setFilters(prev => ({ ...prev, search: value }));
     updateURL({ search: value, page: 1 });
   };
 
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      // Clear debounce and search immediately
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-      loadData();
-    }
-  };
-
   const handleFilterChange = (key: keyof FilterState, value: any) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-    // Reset to first page when filters change
-    setPagination(prev => ({ ...prev, page: 1 }));
-    
-    // Update URL
-    updateURL({
-      [key]: value,
-      page: 1
-    });
+    updateURL({ [key]: value, page: 1 });
+  };
+
+  const handleSortChange = (sortBy: FilterState['sort_by']) => {
+    const newSortOrder = filters.sort_by === sortBy && filters.sort_order === 'asc' ? 'desc' : 'asc';
+    setFilters(prev => ({ ...prev, sort_by: sortBy, sort_order: newSortOrder }));
+    updateURL({ sort_by: sortBy, sort_order: newSortOrder, page: 1 });
   };
 
   const handlePageChange = (newPage: number) => {
     setPagination(prev => ({ ...prev, page: newPage }));
     updateURL({ page: newPage });
+    // Scroll to top of table
+    tableRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const handlePageSizeChange = (newPageSize: number) => {
@@ -213,21 +236,60 @@ export function Products() {
     updateURL({ pageSize: newPageSize, page: 1 });
   };
 
-  const handleSortChange = (newSortBy: string) => {
-    const newSortOrder = sorting.sortBy === newSortBy && sorting.sortOrder === 'asc' ? 'desc' : 'asc';
-    setSorting({
-      sortBy: newSortBy,
-      sortOrder: newSortOrder
+  const handleClearFilters = () => {
+    setFilters({
+      search: '',
+      category_id: '',
+      scale_items_only: false,
+      active_filter: 'all',
+      sort_by: 'created_at',
+      sort_order: 'desc'
     });
-    updateURL({ sortBy: newSortBy, sortOrder: newSortOrder });
+    updateURL({ 
+      search: '', 
+      category_id: '', 
+      scale_items_only: false, 
+      active_filter: 'all',
+      sort_by: 'created_at',
+      sort_order: 'desc',
+      page: 1 
+    });
   };
 
+  // Inline price editing
+  const handlePriceEdit = (productId: number, field: string, currentValue: number) => {
+    setEditingPrice({ id: productId, field, value: currentValue.toString() });
+  };
+
+  const handlePriceSave = async (productId: number, field: string, value: string) => {
+    try {
+      const numericValue = parseFloat(value);
+      if (isNaN(numericValue) || numericValue < 0) {
+        toast.error('Invalid price value');
+        return;
+      }
+
+      await dataService.updateProduct(productId, { [field]: numericValue });
+      toast.success('Price updated successfully');
+      loadData();
+    } catch (error) {
+      console.error('Failed to update price:', error);
+      toast.error('Failed to update price');
+    } finally {
+      setEditingPrice(null);
+    }
+  };
+
+  const handlePriceCancel = () => {
+    setEditingPrice(null);
+  };
+
+  // Other handlers (keeping existing functionality)
   const handleExportCSV = async () => {
     try {
       const exportData = products.map(product => ({
         sku: product.sku,
         barcode: product.barcode || '',
-        alias_barcodes: '', // TODO: Implement alias barcodes
         name_en: product.name_en,
         name_si: product.name_si || '',
         name_ta: product.name_ta || '',
@@ -237,10 +299,6 @@ export function Products() {
         price_wholesale: product.price_wholesale,
         price_credit: product.price_credit,
         price_other: product.price_other,
-        tax_code: product.tax_code || '',
-        shelf_location: '', // TODO: Add shelf_location field
-        reorder_level: product.reorder_level || 0,
-        preferred_supplier: product.preferred_supplier?.supplier_name || '',
         is_scale_item: product.is_scale_item,
         is_active: product.is_active
       }));
@@ -254,51 +312,24 @@ export function Products() {
   };
 
   const handleProductSaved = () => {
-    loadData(); // Refresh the data
-    setShowAddModal(false); // Close the modal
+    loadData();
+    setShowAddModal(false);
   };
 
   const handleImportComplete = () => {
-    loadData(); // Refresh the data
-    setShowImportModal(false); // Close the modal
+    loadData();
+    setShowImportModal(false);
   };
 
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
   };
 
-  const handleDuplicateProduct = async (product: Product) => {
-    try {
-      const duplicatedProduct = {
-        ...product,
-        id: Date.now(), // New ID
-        sku: `${product.sku}-COPY-${Date.now()}`,
-        barcode: product.barcode ? `${product.barcode}-${Date.now()}` : undefined,
-        name_en: `${product.name_en} (Copy)`,
-        name_si: product.name_si ? `${product.name_si} (පිටපත)` : undefined,
-        name_ta: product.name_ta ? `${product.name_ta} (நகல்)` : undefined,
-        created_at: new Date(),
-        updated_at: new Date()
-      };
-
-      await dataService.createProduct(duplicatedProduct);
-      toast.success('Product duplicated successfully');
-      loadData(); // Refresh the data
-    } catch (error) {
-      console.error('Failed to duplicate product:', error);
-      toast.error('Failed to duplicate product');
-    }
-  };
-
   const handleToggleActive = async (product: Product) => {
     try {
-      const updates = {
-        is_active: !product.is_active
-      };
-
-      await dataService.updateProduct(product.id, updates);
-      toast.success(`Product ${updates.is_active ? 'activated' : 'deactivated'} successfully`);
-      loadData(); // Refresh the data
+      await dataService.updateProduct(product.id, { is_active: !product.is_active });
+      toast.success(`Product ${!product.is_active ? 'activated' : 'deactivated'} successfully`);
+      loadData();
     } catch (error) {
       console.error('Failed to toggle product status:', error);
       toast.error('Failed to update product status');
@@ -306,29 +337,17 @@ export function Products() {
   };
 
   const handleDeleteProduct = async (product: Product) => {
-    const confirmMessage = `Are you sure you want to delete "${product.name_en}" (${product.sku})?\n\nThis action cannot be undone.`;
+    const confirmMessage = `Are you sure you want to deactivate "${product.name_en}" (${product.sku})?`;
     if (!window.confirm(confirmMessage)) return;
 
     try {
-      const result = await dataService.deleteProduct(product.id);
-      
-      if (result.softDelete) {
-        toast.success(`Product deactivated (has references in sales/stock)`);
-      } else {
-        toast.success('Product deleted successfully');
-      }
-      
+      await dataService.deleteProduct(product.id);
+      toast.success('Product deactivated successfully');
       loadData();
     } catch (error) {
       console.error('Failed to delete product:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete product';
-      toast.error(errorMessage);
+      toast.error('Failed to delete product');
     }
-  };
-
-  const handleEditSaved = () => {
-    setEditingProduct(null);
-    loadData(); // Refresh the data
   };
 
   const handlePrintBarcode = async (product: Product) => {
@@ -339,21 +358,18 @@ export function Products() {
 
     setPrintingBarcode(product.id);
     try {
-      // Get default product label preset
       const productPreset = labelService.getPreset
-        ? await labelService.getPreset('product')
-        : (await labelService.getPreset('default')) || null;
+        ? await labelService.getPreset(1)
+        : (await labelService.getPreset(1)) || null;
       
       if (!productPreset) {
         toast.error('No label presets available');
         return;
       }
 
-      // Get category name
       const category = categories.find(c => c.id === product.category_id);
       const categoryName = category?.name || 'General';
 
-      // Create label item
       const labelItem = {
         id: product.id,
         name_en: product.name_en,
@@ -372,14 +388,12 @@ export function Products() {
         language: 'EN' as const
       };
 
-      // Create batch with single item
       const batch: any = {
         preset: productPreset,
         items: [{ ...labelItem, id: String(product.id), qty: 1, price_tier: 'retail' }],
         qty: 1
       };
 
-      // Print the label
       if (productPreset.paper === 'THERMAL') {
         await labelPrintAdapter.printThermal(batch);
       } else {
@@ -395,318 +409,426 @@ export function Products() {
     }
   };
 
+  const getSortIcon = (field: string) => {
+    if (filters.sort_by !== field) return null;
+    return filters.sort_order === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />;
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-LK', {
+      style: 'currency',
+      currency: 'LKR',
+      minimumFractionDigits: 2
+    }).format(value);
+  };
+
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{t('products.title')}</h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('products.title')}</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               {t('products.description')}
             </p>
           </div>
           <div className="flex items-center space-x-3">
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              {t('products.addProduct')}
-            </button>
-            <button
-              onClick={() => setShowImportModal(true)}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              {t('products.importCSV')}
-            </button>
-            <button
+            <PermissionGuard permission="products.create">
+              <Button
+                onClick={() => setShowAddModal(true)}
+                className="gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                {t('products.addProduct')}
+              </Button>
+            </PermissionGuard>
+            
+            <PermissionGuard permission="products.create">
+              <Button
+                onClick={() => setShowImportModal(true)}
+                variant="outline"
+                className="gap-2"
+              >
+                <Upload className="w-4 h-4" />
+                {t('products.importCSV')}
+              </Button>
+            </PermissionGuard>
+            
+            <Button
               onClick={handleExportCSV}
-              className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              variant="outline"
+              className="gap-2"
             >
-              <Download className="w-4 h-4 mr-2" />
+              <Download className="w-4 h-4" />
               {t('products.exportCSV')}
-            </button>
-            <button
+            </Button>
+            
+            <Button
               onClick={loadData}
-              className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              variant="outline"
               disabled={loading}
+              className="gap-2"
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               {t('common.refresh')}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Stats Pills */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3">
+      {/* Stats */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-3">
         <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-              {t('products.total')}: {stats.total}
-            </span>
-            <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-              {t('products.active')}: {stats.active}
-            </span>
-            <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
-              {t('products.inactive')}: {stats.inactive}
-            </span>
-            <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-              {t('products.scaleItems')}: {stats.scale_items}
-            </span>
-          </div>
+          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+            {t('products.total')}: {stats.total}
+          </Badge>
+          <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+            {t('products.active')}: {stats.active}
+          </Badge>
+          <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+            {t('products.inactive')}: {stats.inactive}
+          </Badge>
+          <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+            {t('products.scaleItems')}: {stats.scale_items}
+          </Badge>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder={t('products.searchPlaceholder')}
-              value={filters.search}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 bg-white"
-            />
+      <Card className="m-6">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="w-5 h-5" />
+              Filters
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setShowFilters(!showFilters)}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                {showFilters ? 'Hide' : 'Show'} Filters
+              </Button>
+              <Button
+                onClick={handleClearFilters}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <X className="w-4 h-4" />
+                Clear
+              </Button>
+            </div>
           </div>
+        </CardHeader>
+        
+        {showFilters && (
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search products..."
+                  value={filters.search}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
 
-          {/* Category Filter */}
-          <select
-            value={filters.category_id}
-            onChange={(e) => handleFilterChange('category_id', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
-          >
-            <option value="">{t('products.allCategories')}</option>
-            {categories.map(category => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+              {/* Category Filter */}
+              <select
+                value={filters.category_id}
+                onChange={(e) => handleFilterChange('category_id', e.target.value)}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+              >
+                <option value="">All Categories</option>
+                {categories.map(category => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
 
-          {/* Scale Items Toggle */}
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={filters.scale_items_only}
-              onChange={(e) => handleFilterChange('scale_items_only', e.target.checked)}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <span className="text-sm font-medium text-gray-700">Scale Items Only</span>
-          </label>
+              {/* Active Filter */}
+              <select
+                value={filters.active_filter}
+                onChange={(e) => handleFilterChange('active_filter', e.target.value)}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active Only</option>
+                <option value="inactive">Inactive Only</option>
+              </select>
 
-          {/* Active Filter */}
-          <select
-            value={filters.active_filter}
-            onChange={(e) => handleFilterChange('active_filter', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active Only</option>
-            <option value="inactive">Inactive Only</option>
-          </select>
+              {/* Scale Items Filter */}
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={filters.scale_items_only}
+                  onChange={(e) => handleFilterChange('scale_items_only', e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1">
+                  <Scale className="w-4 h-4" />
+                  Scale Items Only
+                </span>
+              </label>
+            </div>
 
-          {/* Page Size Selector */}
-          <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-gray-700">Per Page:</label>
-            <select
-              value={pagination.pageSize}
-              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
-            >
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-              <option value={200}>200</option>
-            </select>
-          </div>
-        </div>
-      </div>
+            <Separator />
+
+            {/* Sort Options */}
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Sort by:</span>
+              <div className="flex items-center gap-2">
+                {[
+                  { key: 'name_en', label: 'Name' },
+                  { key: 'sku', label: 'SKU' },
+                  { key: 'created_at', label: 'Created Date' },
+                  { key: 'price_retail', label: 'Price' }
+                ].map(({ key, label }) => (
+                  <Button
+                    key={key}
+                    onClick={() => handleSortChange(key as FilterState['sort_by'])}
+                    variant={filters.sort_by === key ? 'default' : 'outline'}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    {label}
+                    {getSortIcon(key)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
 
       {/* Products Table */}
-      <div className="flex-1 overflow-auto">
-        <div className="bg-white">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50 sticky top-0 z-10">
+      <div className="flex-1 overflow-hidden px-6 pb-6">
+        <Card>
+          <div ref={tableRef} className="overflow-auto max-h-[calc(100vh-400px)]">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     <button
                       onClick={() => handleSortChange('sku')}
-                      className="flex items-center space-x-1 hover:text-gray-700"
+                      className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-300"
                     >
                       <span>SKU</span>
-                      {sorting.sortBy === 'sku' && (
-                        <span className="text-blue-600">
-                          {sorting.sortOrder === 'asc' ? '↑' : '↓'}
-                        </span>
-                      )}
+                      {getSortIcon('sku')}
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <button
-                      onClick={() => handleSortChange('barcode')}
-                      className="flex items-center space-x-1 hover:text-gray-700"
-                    >
-                      <span>Barcode</span>
-                      {sorting.sortBy === 'barcode' && (
-                        <span className="text-blue-600">
-                          {sorting.sortOrder === 'asc' ? '↑' : '↓'}
-                        </span>
-                      )}
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     <button
                       onClick={() => handleSortChange('name_en')}
-                      className="flex items-center space-x-1 hover:text-gray-700"
+                      className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-300"
                     >
-                      <span>Name (EN)</span>
-                      {sorting.sortBy === 'name_en' && (
-                        <span className="text-blue-600">
-                          {sorting.sortOrder === 'asc' ? '↑' : '↓'}
-                        </span>
-                      )}
+                      <span>Name</span>
+                      {getSortIcon('name_en')}
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <span>Name (SI)</span>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Barcode
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <span>Name (TA)</span>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Category
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <span>Unit</span>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Unit
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <span>Category</span>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Retail Price
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <span>Price Retail</span>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Status
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <span>Active</span>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     <button
                       onClick={() => handleSortChange('created_at')}
-                      className="flex items-center space-x-1 hover:text-gray-700"
+                      className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-300"
                     >
                       <span>Created</span>
-                      {sorting.sortBy === 'created_at' && (
-                        <span className="text-blue-600">
-                          {sorting.sortOrder === 'asc' ? '↑' : '↓'}
-                        </span>
-                      )}
+                      {getSortIcon('created_at')}
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {loading ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                       <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
                       Loading products...
                     </td>
                   </tr>
                 ) : products.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                       No products found matching your filters.
                     </td>
                   </tr>
                 ) : (
                   products.map((product) => (
-                    <tr key={product.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        {product.sku}
+                    <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                        <div className="flex items-center gap-2">
+                          {product.sku}
+                          {product.is_scale_item && (
+                            <Badge variant="outline" className="text-xs">
+                              <Scale className="w-3 h-3 mr-1" />
+                              Scale
+                            </Badge>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        <div>
+                          <div className="font-medium">{product.name_en}</div>
+                          {product.name_si && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">{product.name_si}</div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {product.barcode || '-'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {product.name_en}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {product.name_si || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {product.name_ta || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {product.unit}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {product.category?.name || '-'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        රු {product.price_retail.toLocaleString('en-LK', { minimumFractionDigits: 2 })}
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        {product.unit}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          product.is_active 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {product.is_active ? 'Active' : 'Inactive'}
-                        </span>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        {editingPrice?.id === product.id && editingPrice.field === 'price_retail' ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              value={editingPrice.value}
+                              onChange={(e) => setEditingPrice(prev => prev ? { ...prev, value: e.target.value } : null)}
+                              className="w-24 h-8 text-sm"
+                              step="0.01"
+                              min="0"
+                            />
+                            <Button
+                              onClick={() => handlePriceSave(product.id, 'price_retail', editingPrice.value)}
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <Check className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              onClick={handlePriceCancel}
+                              size="sm"
+                              variant="outline"
+                              className="h-8 w-8 p-0"
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handlePriceEdit(product.id, 'price_retail', product.price_retail)}
+                            className="text-left hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded"
+                            title="Click to edit"
+                          >
+                            {formatCurrency(product.price_retail)}
+                          </button>
+                        )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant={product.is_active ? 'default' : 'secondary'}
+                            className={product.is_active 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                            }
+                          >
+                            {product.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                          <PermissionGuard permission="products.update">
+                            <Button
+                              onClick={() => handleToggleActive(product)}
+                              size="sm"
+                              variant="outline"
+                              className="h-6 w-6 p-0"
+                            >
+                              {product.is_active ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                            </Button>
+                          </PermissionGuard>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {new Date(product.created_at).toLocaleDateString()}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => handleEditProduct(product)}
-                            className="text-blue-600 hover:text-blue-900 transition-colors"
-                            title="Edit"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDuplicateProduct(product)}
-                            className="text-green-600 hover:text-green-900 transition-colors"
-                            title="Duplicate"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleToggleActive(product)}
-                            className={`${product.is_active ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'} transition-colors`}
-                            title={product.is_active ? 'Deactivate' : 'Activate'}
-                          >
-                            {product.is_active ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                          <button
+                          <PermissionGuard permission="products.update">
+                            <Button
+                              onClick={() => handleEditProduct(product)}
+                              size="sm"
+                              variant="outline"
+                              className="h-8 w-8 p-0"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </Button>
+                          </PermissionGuard>
+                          
+                          <Button
                             onClick={() => handlePrintBarcode(product)}
                             disabled={printingBarcode === product.id || (!product.barcode && !product.sku)}
-                            className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            title="Print Barcode"
+                            size="sm"
+                            variant="outline"
+                            className="h-8 w-8 p-0"
                           >
                             {printingBarcode === product.id ? (
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                              <RefreshCw className="w-4 h-4 animate-spin" />
                             ) : (
                               <Printer className="w-4 h-4" />
                             )}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteProduct(product)}
-                            className="text-gray-500 hover:text-red-700 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          </Button>
+                          
+                          <div className="relative" data-product-dropdown>
+                            <Button
+                              onClick={() => setOpenDropdown(openDropdown === product.id ? null : product.id)}
+                              size="sm"
+                              variant="outline"
+                              className="h-8 w-8 p-0"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                            
+                            {openDropdown === product.id && (
+                              <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg z-10 border border-gray-200 dark:border-gray-700">
+                                <div className="py-1">
+                                  <PermissionGuard permission="products.update">
+                                    <button
+                                      onClick={() => {
+                                        setOpenDropdown(null);
+                                        handleDeleteProduct(product);
+                                      }}
+                                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    >
+                                      <EyeOff className="w-4 h-4 mr-2" />
+                                      Deactivate Product
+                                    </button>
+                                  </PermissionGuard>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -715,83 +837,79 @@ export function Products() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       </div>
 
-      {/* Pagination Controls */}
-      <div className="bg-white border-t border-gray-200 px-6 py-4">
+      {/* Pagination */}
+      <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-700">Show</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">Show</span>
               <select
                 value={pagination.pageSize}
                 onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value={10}>10</option>
                 <option value={20}>20</option>
                 <option value={50}>50</option>
                 <option value={100}>100</option>
               </select>
-              <span className="text-sm text-gray-700">per page</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">per page</span>
             </div>
-            <div className="text-sm text-gray-700">
+            <div className="text-sm text-gray-700 dark:text-gray-300">
               Showing {((pagination.page - 1) * pagination.pageSize) + 1} to {Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total} results
             </div>
           </div>
           
           <div className="flex items-center space-x-2">
-            <button
+            <Button
               onClick={() => handlePageChange(pagination.page - 1)}
-              disabled={pagination.page <= 1}
-              className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!pagination.hasPrevPage}
+              variant="outline"
+              size="sm"
             >
               Previous
-            </button>
+            </Button>
             
             <div className="flex items-center space-x-1">
               {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                 const pageNum = i + 1;
                 const isActive = pageNum === pagination.page;
                 return (
-                  <button
+                  <Button
                     key={pageNum}
                     onClick={() => handlePageChange(pageNum)}
-                    className={`px-3 py-1 text-sm border rounded-md ${
-                      isActive
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'border-gray-300 hover:bg-gray-50'
-                    }`}
+                    variant={isActive ? 'default' : 'outline'}
+                    size="sm"
                   >
                     {pageNum}
-                  </button>
+                  </Button>
                 );
               })}
               {pagination.totalPages > 5 && (
                 <>
                   <span className="px-2 text-gray-500">...</span>
-                  <button
+                  <Button
                     onClick={() => handlePageChange(pagination.totalPages)}
-                    className={`px-3 py-1 text-sm border rounded-md ${
-                      pagination.page === pagination.totalPages
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'border-gray-300 hover:bg-gray-50'
-                    }`}
+                    variant={pagination.page === pagination.totalPages ? 'default' : 'outline'}
+                    size="sm"
                   >
                     {pagination.totalPages}
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
             
-            <button
+            <Button
               onClick={() => handlePageChange(pagination.page + 1)}
-              disabled={pagination.page >= pagination.totalPages}
-              className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!pagination.hasNextPage}
+              variant="outline"
+              size="sm"
             >
               Next
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -812,7 +930,10 @@ export function Products() {
           suppliers={suppliers}
           product={editingProduct}
           onClose={() => setEditingProduct(null)}
-          onSave={handleEditSaved}
+          onSave={() => {
+            setEditingProduct(null);
+            loadData();
+          }}
         />
       )}
 
@@ -827,3 +948,5 @@ export function Products() {
     </div>
   );
 }
+
+export default Products;

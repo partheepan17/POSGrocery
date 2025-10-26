@@ -25,3 +25,17 @@ CREATE INDEX IF NOT EXISTS idx_stock_movements_type ON stock_movements(movement_
 CREATE INDEX IF NOT EXISTS idx_stock_movements_reference ON stock_movements(reference_id, reference_type);
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

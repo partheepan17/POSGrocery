@@ -102,3 +102,17 @@ try {
 
 Write-Host "`nAdd Product UI Integration testing completed!" -ForegroundColor Green
 Write-Host "The Add Product functionality is working correctly!" -ForegroundColor Green
+
+
+
+
+
+
+
+
+
+
+
+
+
+

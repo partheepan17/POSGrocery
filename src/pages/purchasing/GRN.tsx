@@ -4,6 +4,7 @@ import { formatGrnForPrint } from '@/printing/grn';
 
 export default function GRNPage() {
   const [poId, setPoId] = useState<number | undefined>(undefined);
+  const [supplierId, setSupplierId] = useState<number | undefined>(undefined);
   const [lines, setLines] = useState<{ product_id: number; uom?: string; quantity_received: number; unit_cost: number; batch_id?: number }[]>([]);
   const [grnId, setGrnId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -13,7 +14,7 @@ export default function GRNPage() {
   const [mode, setMode] = useState<'qty' | 'value'>('qty');
   const [finalizing, setFinalizing] = useState(false);
   const [finalized, setFinalized] = useState<string | null>(null);
-  const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8250';
+  const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL || `${window.location.protocol}//${window.location.host}`;
 
   const addLine = () => setLines((prev) => [...prev, { product_id: 0, uom: 'pc', quantity_received: 1, unit_cost: 0 }]);
   const removeLine = (idx: number) => setLines((prev) => prev.filter((_, i) => i !== idx));
@@ -24,8 +25,9 @@ export default function GRNPage() {
     try {
       const clean = lines.filter(l => Number(l.product_id) > 0 && Number(l.quantity_received) > 0);
       if (clean.length === 0) throw new Error('Add at least one valid line');
-      const res = await dataService.createGRN({ po_id: poId, lines: clean });
-      setGrnId(res.id);
+      if (!supplierId) throw new Error('Supplier ID is required');
+      const res = await dataService.createGRN({ po_id: poId, supplier_id: supplierId, lines: clean });
+      setGrnId((res as any).id);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -40,7 +42,7 @@ export default function GRNPage() {
     setError(null);
     try {
       const res = await dataService.finalizeGRN(grnId, { extra_costs: extraCosts, mode });
-      setFinalized(`Allocated ${res.totalExtra} by ${res.mode}`);
+      setFinalized(`Allocated ${(res as any).totalExtra} by ${(res as any).mode}`);
     } catch (e: any) {
       setError(e.message);
     } finally {

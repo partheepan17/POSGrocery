@@ -14,3 +14,17 @@ const lines = db.prepare('SELECT * FROM invoice_lines ORDER BY id DESC LIMIT 5')
 console.log('Recent invoice lines:', lines);
 
 db.close();
+
+
+
+
+
+
+
+
+
+
+
+
+
+

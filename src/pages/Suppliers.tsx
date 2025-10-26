@@ -81,7 +81,7 @@ export function Suppliers() {
 
       // Get product counts for each supplier
       const suppliersWithCounts = await Promise.all(
-        suppliersData.map(async (supplier) => ({
+        (suppliersData as any[]).map(async (supplier: any) => ({
           ...supplier,
           product_count: await dataService.getProductCountBySupplier(supplier.id)
         }))
@@ -90,11 +90,11 @@ export function Suppliers() {
       setSuppliers(suppliersWithCounts);
 
       // Calculate stats from all suppliers (not filtered)
-      const allSuppliers = await dataService.getSuppliers(false);
+      const allSuppliers = await dataService.getSuppliers();
       const stats: StatsCounts = {
-        total: allSuppliers.length,
-        active: allSuppliers.filter(s => s.active).length,
-        inactive: allSuppliers.filter(s => !s.active).length
+        total: (allSuppliers as any[]).length,
+        active: (allSuppliers as any[]).filter((s: any) => s.active).length,
+        inactive: (allSuppliers as any[]).filter((s: any) => !s.active).length
       };
       setStats(stats);
     } catch (error) {
@@ -403,3 +403,5 @@ export function Suppliers() {
     </div>
   );
 }
+
+export default Suppliers;

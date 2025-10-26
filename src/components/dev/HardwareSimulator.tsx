@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Printer, Scale, Wifi, WifiOff, AlertTriangle, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
-import { Button } from '../ui/Button';
-import { Card, CardContent, CardHeader } from '../ui/Card';
-import { Badge } from '../ui/Badge';
-import { Switch } from '../ui/Switch';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardHeader } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Switch } from '@/components/ui/Switch';
 
 interface HardwareStatus {
   printer: 'online' | 'offline' | 'error';

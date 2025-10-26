@@ -1,145 +1,121 @@
 import React from 'react';
 import { cn } from '@/utils/cn';
-import { AlertCircle, CheckCircle } from 'lucide-react';
 
-interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
-  label?: string;
-  error?: string;
-  success?: boolean;
-  helperText?: string;
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link' | 'pos';
   inputSize?: 'sm' | 'md' | 'lg';
-  variant?: 'default' | 'pos' | 'search';
-  'aria-describedby'?: string;
+  error?: string;
+  helperText?: string;
+  label?: string;
+  required?: boolean;
 }
 
-const Input = React.forwardRef<HTMLInputElement, InputProps>(
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ 
-    className,
-    type = 'text',
-    label,
+    className, 
+    type, 
+    leftIcon, 
+    rightIcon, 
+    variant = 'default', 
+    inputSize = 'md', 
     error,
-    success,
     helperText,
-    leftIcon,
-    rightIcon,
-    inputSize = 'md',
-    variant = 'default',
-    'aria-describedby': ariaDescribedby,
+    label,
+    required,
     id,
     ...props 
   }, ref) => {
     const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
     const errorId = error ? `${inputId}-error` : undefined;
     const helperId = helperText ? `${inputId}-helper` : undefined;
-    const describedBy = [ariaDescribedby, errorId, helperId].filter(Boolean).join(' ');
-
-    const baseClasses = 'w-full border transition-colors focus:outline-none focus:ring-1 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed';
     
-    const variants = {
-      default: 'border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400 dark:focus:border-primary-400 dark:focus:ring-primary-400',
-      pos: 'border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:border-pos-info focus:ring-pos-info dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400 dark:focus:border-pos-info dark:focus:ring-pos-info font-medium',
-      search: 'border-gray-300 bg-gray-50 text-gray-900 placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 focus:bg-white dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-primary-400 dark:focus:ring-primary-400 dark:focus:bg-gray-800'
+    const baseClasses = "flex w-full rounded-md border bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:ring-offset-gray-900 dark:placeholder:text-gray-400";
+    
+    const variantClasses = {
+      default: "border-gray-300 focus-visible:ring-blue-500 dark:border-gray-600 dark:focus-visible:ring-blue-400",
+      destructive: "border-red-500 focus-visible:ring-red-500 dark:border-red-600 dark:focus-visible:ring-red-400",
+      outline: "border-gray-300 focus-visible:ring-blue-500 dark:border-gray-600 dark:focus-visible:ring-blue-400",
+      secondary: "border-gray-200 bg-gray-50 focus-visible:ring-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:focus-visible:ring-gray-400",
+      ghost: "border-transparent focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400",
+      link: "border-transparent underline-offset-4 hover:underline focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400",
+      pos: "border-blue-300 bg-blue-50 focus-visible:ring-blue-500 dark:border-blue-600 dark:bg-blue-900/20 dark:focus-visible:ring-blue-400"
     };
 
-    const sizes = {
-      sm: 'h-8 px-3 text-sm',
-      md: 'h-10 px-3 text-sm',
-      lg: 'h-12 px-4 text-base'
+    const sizeClasses = {
+      sm: "h-8 px-2 py-1 text-xs",
+      md: "h-10 px-3 py-2 text-sm",
+      lg: "h-12 px-4 py-3 text-base"
     };
 
-    const roundedClasses = 'rounded-md';
-
-    const stateClasses = error 
-      ? 'border-red-500 focus:border-red-500 focus:ring-red-500 dark:border-red-400 dark:focus:border-red-400 dark:focus:ring-red-400'
-      : success
-      ? 'border-green-500 focus:border-green-500 focus:ring-green-500 dark:border-green-400 dark:focus:border-green-400 dark:focus:ring-green-400'
-      : '';
-
-    const paddingClasses = leftIcon ? 'pl-10' : rightIcon ? 'pr-10' : '';
-
-    return (
-      <div className="w-full">
-        {label && (
-          <label 
-            htmlFor={inputId}
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-          >
-            {label}
-          </label>
+    const inputElement = (
+      <input
+        type={type}
+        id={inputId}
+        className={cn(
+          baseClasses,
+          variantClasses[error ? 'destructive' : variant],
+          sizeClasses[inputSize],
+          leftIcon && "pl-10",
+          rightIcon && "pr-10",
+          className
         )}
-        <div className="relative">
-          {leftIcon && (
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <span className={cn(
-                "text-gray-400",
-                inputSize === 'sm' ? 'w-4 h-4' : inputSize === 'md' ? 'w-4 h-4' : 'w-5 h-5'
-              )} aria-hidden="true">
-                {leftIcon}
-              </span>
-            </div>
+        ref={ref}
+        aria-invalid={error ? 'true' : 'false'}
+        aria-describedby={cn(
+          errorId,
+          helperId
+        )}
+        {...props}
+      />
+    );
+
+    const inputWithIcons = leftIcon || rightIcon ? (
+      <div className="relative">
+        {leftIcon && (
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            {leftIcon}
+          </div>
+        )}
+        {rightIcon && (
+          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+            {rightIcon}
+          </div>
+        )}
+        {inputElement}
+      </div>
+    ) : inputElement;
+
+    if (label || error || helperText) {
+      return (
+        <div className="space-y-1">
+          {label && (
+            <label 
+              htmlFor={inputId}
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              {label}
+              {required && <span className="text-red-500 ml-1">*</span>}
+            </label>
           )}
-          <input
-            ref={ref}
-            type={type}
-            id={inputId}
-            className={cn(
-              baseClasses,
-              variants[variant],
-              sizes[inputSize],
-              roundedClasses,
-              stateClasses,
-              paddingClasses,
-              className
-            )}
-            aria-invalid={error ? 'true' : 'false'}
-            aria-describedby={describedBy || undefined}
-            {...props}
-          />
-          {rightIcon && !error && !success && (
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <span className={cn(
-                "text-gray-400",
-                inputSize === 'sm' ? 'w-4 h-4' : inputSize === 'md' ? 'w-4 h-4' : 'w-5 h-5'
-              )} aria-hidden="true">
-                {rightIcon}
-              </span>
-            </div>
-          )}
+          {inputWithIcons}
           {error && (
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <AlertCircle className={cn(
-                "text-red-500",
-                inputSize === 'sm' ? 'w-4 h-4' : inputSize === 'md' ? 'w-4 h-4' : 'w-5 h-5'
-              )} aria-hidden="true" />
-            </div>
+            <p id={errorId} className="text-sm text-red-600 dark:text-red-400" role="alert">
+              {error}
+            </p>
           )}
-          {success && !error && (
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <CheckCircle className={cn(
-                "text-green-500",
-                inputSize === 'sm' ? 'w-4 h-4' : inputSize === 'md' ? 'w-4 h-4' : 'w-5 h-5'
-              )} aria-hidden="true" />
-            </div>
+          {helperText && !error && (
+            <p id={helperId} className="text-sm text-gray-500 dark:text-gray-400">
+              {helperText}
+            </p>
           )}
         </div>
-        {error && (
-          <p id={errorId} className="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
-            {error}
-          </p>
-        )}
-        {helperText && !error && (
-          <p id={helperId} className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {helperText}
-          </p>
-        )}
-      </div>
-    );
+      );
+    }
+
+    return inputWithIcons;
   }
 );
 
 Input.displayName = 'Input';
-
-export { Input };
-export type { InputProps };

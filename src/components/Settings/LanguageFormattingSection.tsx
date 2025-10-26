@@ -20,12 +20,12 @@ export function LanguageFormattingSection({ settings, updateSettings, onSettings
       </div>
     );
   }
-  const handleInputChange = (field: keyof AppSettings['languageFormatting'], value: any) => {
+  const handleInputChange = (field: string, value: any) => {
     updateSettings({
       languageFormatting: {
         ...settings.languageFormatting,
         [field]: value,
-      },
+      } as any,
     });
     onSettingsChange();
   };
@@ -103,14 +103,14 @@ export function LanguageFormattingSection({ settings, updateSettings, onSettings
                 Rounding Examples:
               </h4>
               <div className="space-y-2">
-                {roundingExamples[settings.languageFormatting.roundingMode].examples.map((example, index) => (
+                {(roundingExamples as any)[settings.languageFormatting.roundingMode]?.examples.map((example: any, index: any) => (
                   <div key={index} className="text-sm text-gray-600 dark:text-gray-400 font-mono">
                     {example}
                   </div>
                 ))}
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                {roundingExamples[settings.languageFormatting.roundingMode].description}
+                {(roundingExamples as any)[settings.languageFormatting.roundingMode]?.description}
               </p>
             </div>
           </div>

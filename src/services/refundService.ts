@@ -1,14 +1,45 @@
 import { database } from './database';
 import { 
-  Return, 
   ReturnLine, 
   SaleWithLines, 
   ReturnValidationResult, 
-  ReturnReason
+  ReturnReason,
+  AppSettings
 } from '../types';
 import { ReceiptPayload } from '../types/receipt';
+import { SettingsIntegrationService } from './settingsIntegration';
 
 export class RefundService {
+  private settingsService = SettingsIntegrationService.getInstance();
+
+  /**
+   * Get current application settings
+   */
+  private getSettings(): Partial<AppSettings> {
+    // This would typically come from a settings store or API
+    // For now, return default values that can be overridden
+    return {
+      company_name: 'Store Name',
+      company_address: 'Store Address',
+      tax_rate: 0,
+      storeInfo: {
+        name: 'Store Name',
+        address: 'Store Address',
+        taxId: 'TAX123',
+        defaultReceiptLanguage: 'en'
+      },
+      languageFormatting: {
+        roundingMode: 'round',
+        kgDecimals: 2
+      },
+      print_settings: {
+        receipt_printer: '80mm',
+        label_printer: '',
+        receipt_template: 'default'
+      }
+    };
+  }
+
   /**
    * Look up a sale by receipt number or barcode
    */
@@ -107,7 +138,7 @@ export class RefundService {
     
     try {
       // Get return ledger for this sale
-      const ledger = await this.getSaleReturnLedger(input.sale.id);
+      const ledger = await this.getSaleReturnLedger(Number(input.sale.id));
       const ledgerMap = new Map(ledger.map(item => [item.sale_line_id, item.returned_qty]));
       
       // Validate each item
@@ -139,13 +170,17 @@ export class RefundService {
 
       return {
         ok: errors.length === 0,
-        errors: errors.length > 0 ? errors : undefined
+        valid: errors.length === 0,
+        errors: errors.length > 0 ? errors : [],
+        warnings: []
       };
     } catch (error) {
       console.error('Error validating return:', error);
       return {
         ok: false,
-        errors: ['Failed to validate return request']
+        valid: false,
+        errors: ['Failed to validate return request'],
+        warnings: []
       };
     }
   }
@@ -247,14 +282,15 @@ export class RefundService {
   /**
    * Format return receipt data for printing
    */
-  async formatReturnReceipt(returnId: number): Promise<ReceiptPayload> {
+  async formatReturnReceipt(returnId: number, isReprint: boolean = false): Promise<ReceiptPayload> {
     try {
       const db = await database;
       
-      // Get return with sale details
+      // Get return with sale details including price tier
       const returnQuery = `
         SELECT 
           r.*, s.datetime as sale_datetime, s.terminal_name as sale_terminal,
+          s.price_tier as original_price_tier,
           u1.name as cashier_name, u2.name as manager_name
         FROM returns r
         LEFT JOIN sales s ON r.sale_id = s.id
@@ -269,10 +305,11 @@ export class RefundService {
         throw new Error('Return not found');
       }
       
-      // Get return lines with product details
+      // Get return lines with product details including unit
       const linesQuery = `
         SELECT 
-          rl.*, p.name as product_name, p.name_si as product_name_si, p.name_ta as product_name_ta
+          rl.*, p.name as product_name, p.name_si as product_name_si, p.name_ta as product_name_ta,
+          p.unit as product_unit
         FROM return_lines rl
         JOIN products p ON rl.product_id = p.id
         WHERE rl.return_id = ?
@@ -285,27 +322,30 @@ export class RefundService {
       const totalRefund = returnData.refund_cash + returnData.refund_card + 
                          returnData.refund_wallet + returnData.refund_store_credit;
       
+      // Get settings for receipt formatting
+      const settings = this.getSettings();
+      
       // Format receipt data
       const receiptData: ReceiptPayload = {
         type: 'return',
         store: {
-          name: 'Store Name', // TODO: Get from settings
-          address: 'Store Address', // TODO: Get from settings
-          taxId: 'TAX123', // TODO: Get from settings
+          name: settings.storeInfo?.name || settings.company_name || 'Store Name',
+          address: settings.storeInfo?.address || settings.company_address || 'Store Address',
+          taxId: settings.storeInfo?.taxId || 'TAX123',
         },
         terminalName: returnData.terminal_name || 'POS-001',
         invoice: {
           id: `RET-${returnId.toString().padStart(6, '0')}`,
           datetime: new Date(returnData.datetime).toISOString(),
-          language: returnData.language,
-          priceTier: 'Retail', // TODO: Get from original sale
-          isReprint: false, // TODO: Add reprint logic
+          language: returnData.language || settings.storeInfo?.defaultReceiptLanguage || 'en',
+          priceTier: returnData.original_price_tier || 'Retail',
+          isReprint: isReprint,
           items: lines.map(line => ({
             sku: `PROD-${line.product_id}`,
             name_en: line.product_name || 'Unknown Product',
             name_si: line.product_name_si,
             name_ta: line.product_name_ta,
-            unit: 'pc', // TODO: Get from product
+            unit: line.product_unit || 'pc',
             qty: line.qty,
             unitPrice: line.unit_price,
             lineDiscount: 0, // Returns typically don't have discounts
@@ -326,12 +366,12 @@ export class RefundService {
           }
         },
         options: {
-          paper: '80mm', // TODO: Get from settings
+          paper: (settings.print_settings?.receipt_printer as '80mm' | 'A4' | '58mm') || '80mm',
           showQRCode: false,
           showBarcode: false,
           openCashDrawerOnCash: false,
-          roundingMode: 'NEAREST_1', // TODO: Get from settings
-          decimalPlacesKg: 2,
+          roundingMode: (settings.languageFormatting?.roundingMode?.toUpperCase() as 'NEAREST_1' | 'NEAREST_0_50' | 'NEAREST_0_10') || 'NEAREST_1',
+          decimalPlacesKg: settings.languageFormatting?.kgDecimals || 2,
           footerText: {
             EN: this.getLocalizedText('THANK_YOU', 'EN'),
             SI: this.getLocalizedText('THANK_YOU', 'SI'),
@@ -343,6 +383,9 @@ export class RefundService {
       return receiptData;
     } catch (error) {
       console.error('Error formatting return receipt:', error);
+      if (error instanceof Error && error.message.includes('not found')) {
+        throw new Error('Return not found');
+      }
       throw new Error('Failed to format return receipt');
     }
   }

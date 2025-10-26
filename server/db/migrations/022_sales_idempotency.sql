@@ -37,3 +37,17 @@ BEGIN
   DELETE FROM sales_idempotency 
   WHERE expires_at < datetime('now', '-1 day');
 END;
+
+
+
+
+
+
+
+
+
+
+
+
+
+

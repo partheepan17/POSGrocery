@@ -1,22 +1,37 @@
 import React, { useEffect, useState } from 'react';
+import { healthCheckService } from '@/services/healthCheckService';
 import { getApiBaseUrl } from '@/utils/api';
-import { pingApi, pingDevices, type HealthResult } from '@/utils/ping';
+import { pingDevices, type HealthResult } from '@/utils/ping';
 
 function HeaderStatus() {
   const base = getApiBaseUrl();
   const [api, setApi] = useState<HealthResult | null>(null);
   const [dev, setDev] = useState<HealthResult | null>(null);
 
-  async function poll() {
-    const [a, d] = await Promise.allSettled([pingApi(base), pingDevices(base)]);
-    if (a.status === 'fulfilled') setApi(a.value);
-    if (d.status === 'fulfilled') setDev(d.value);
+  async function pollDevices() {
+    const d = await pingDevices(base);
+    setDev(d);
   }
 
   useEffect(() => {
-    poll();
-    const id = setInterval(poll, 20000);
-    return () => clearInterval(id);
+    // Subscribe to centralized health check service
+    const unsubscribe = healthCheckService.subscribe((result) => {
+      setApi({
+        ok: result.isOnline,
+        at: result.lastChecked.toISOString(),
+        urlTried: [base + '/api/health'],
+        winner: result.isOnline ? base + '/api/health' : undefined
+      });
+    });
+
+    // Poll devices less frequently (every 5 minutes)
+    pollDevices();
+    const deviceInterval = setInterval(pollDevices, 300000); // 5 minutes
+
+    return () => {
+      unsubscribe();
+      clearInterval(deviceInterval);
+    };
   }, [base]);
 
   const badge = (title: string, res: HealthResult | null) => {

@@ -18,11 +18,11 @@ export async function testSupplierSystem() {
       active: true
     };
 
-    const createdSupplier = await dataService.createSupplier(testSupplier);
+    const createdSupplier = await dataService.createSupplier(testSupplier) as any;
     console.log('✅ Supplier created:', {
-      id: createdSupplier.id,
-      name: createdSupplier.supplier_name,
-      active: createdSupplier.active
+      id: createdSupplier?.id,
+      name: createdSupplier?.supplier_name,
+      active: createdSupplier?.active
     });
 
     // Test Case 2: CSV Import validation
@@ -61,21 +61,21 @@ Good Supplier 2,+94 81 777 6666,good@supplier.com,"Good Street, Galle",VAT777888
     // Test Case 4: Supplier filtering and search
     console.log('\n📋 Test Case 4: Supplier filtering');
     
-    const allSuppliers = await dataService.getSuppliers(false);
-    const activeSuppliers = await dataService.getSuppliers(true);
-    const searchResults = await dataService.getSuppliersWithFilters({ search: 'ABC' });
+    const allSuppliers = await dataService.getSuppliers() as any[];
+    const activeSuppliers = allSuppliers.filter((s: any) => s.active);
+    const searchResults = await dataService.getSuppliersWithFilters({ search: 'ABC' }) as any[];
     
     console.log('✅ Filtering Results:', {
-      total: allSuppliers.length,
+      total: Array.isArray(allSuppliers) ? allSuppliers.length : 0,
       active: activeSuppliers.length,
-      searchResults: searchResults.length
+      searchResults: Array.isArray(searchResults) ? searchResults.length : 0
     });
 
     // Test Case 5: Deactivate supplier
     console.log('\n📋 Test Case 5: Deactivate supplier');
     
     if (createdSupplier) {
-      const updatedSupplier = await dataService.updateSupplier(createdSupplier.id, { active: false });
+      const updatedSupplier = await dataService.updateSupplier(createdSupplier.id, { active: false }) as any;
       console.log('✅ Supplier deactivated:', {
         name: updatedSupplier?.supplier_name,
         active: updatedSupplier?.active
@@ -94,7 +94,7 @@ Good Supplier 2,+94 81 777 6666,good@supplier.com,"Good Street, Galle",VAT777888
       supplierCreated: !!createdSupplier,
       csvImportWorked: importResult.success,
       csvHeadersCorrect: headers === 'supplier_name,phone,email,address,tax_id,active',
-      filteringWorks: searchResults.length >= 0,
+      filteringWorks: Array.isArray(searchResults) && searchResults.length >= 0,
       deactivationWorks: true,
       productCountWorks: typeof productCount === 'number'
     };

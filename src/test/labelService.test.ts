@@ -12,7 +12,7 @@ describe('labelService', () => {
       name_ta: 'Test Product TA',
       barcode: '1234567890123',
       unit: 'pcs',
-      price_retail: 100,
+      price: 100,
       price_wholesale: 90,
       price_credit: 95,
       price_other: 100,
@@ -22,7 +22,9 @@ describe('labelService', () => {
       packedDate,
       expiryDate,
       mrp: null,
-      batchNo: null
+      batchNo: null,
+      product_id: 1,
+      product_name: 'Test Product'
     });
 
     describe('YYYY-MM-DD format', () => {

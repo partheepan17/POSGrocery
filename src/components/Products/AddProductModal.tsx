@@ -161,7 +161,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
     }
 
     try {
-      const newCategory = await dataService.createCategory({ name: trimmedName });
+      const newCategory = await dataService.createCategory({ name: trimmedName }) as any;
       setLocalCategories(prev => [...prev, newCategory]);
       setFormData(prev => ({ ...prev, category_id: newCategory.id.toString() }));
       setNewCategoryData({ name: '' });
@@ -197,7 +197,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
       const newSupplier = await dataService.createSupplier({
         ...newSupplierData,
         active: true
-      });
+      }) as any;
       setLocalSuppliers(prev => [...prev, newSupplier]);
       setFormData(prev => ({ ...prev, preferred_supplier_id: newSupplier.id.toString() }));
       setNewSupplierData({
@@ -259,7 +259,7 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
     }
 
     // Check pricing policy
-    const pricingSettings = settings.pricingSettings;
+    const pricingSettings = settings.pricingPolicies;
     if (pricingSettings?.missingPricePolicy === 'block') {
       const requiredTiers = pricingSettings.requiredTiers || ['retail'];
       
@@ -355,15 +355,15 @@ export function AddProductModal({ categories, suppliers, onClose, onSave, produc
           <div className="flex items-center space-x-2">
             <span className="text-sm font-medium text-blue-900">Missing Price Policy:</span>
             <span className={`px-2 py-1 text-xs rounded-full ${
-              settings.pricingSettings?.missingPricePolicy === 'block' 
+              settings.pricingPolicies?.missingPricePolicy === 'block' 
                 ? 'bg-red-100 text-red-800' 
                 : 'bg-yellow-100 text-yellow-800'
             }`}>
-              {settings.pricingSettings?.missingPricePolicy === 'block' ? 'Block & Require' : 'Warn & Allow'}
+              {settings.pricingPolicies?.missingPricePolicy === 'block' ? 'Block & Require' : 'Warn & Allow'}
             </span>
-            {settings.pricingSettings?.missingPricePolicy === 'block' && (
+            {settings.pricingPolicies?.missingPricePolicy === 'block' && (
               <span className="text-xs text-blue-700">
-                Required tiers: {settings.pricingSettings?.requiredTiers?.join(', ') || 'retail'}
+                Required tiers: {settings.pricingPolicies?.requiredTiers?.join(', ') || 'retail'}
               </span>
             )}
           </div>

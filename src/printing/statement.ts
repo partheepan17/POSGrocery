@@ -16,3 +16,17 @@ export function formatStatement(customerName: string, lines: StatementLine[]) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

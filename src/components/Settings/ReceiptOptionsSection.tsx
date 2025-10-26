@@ -20,12 +20,12 @@ export function ReceiptOptionsSection({ settings, updateSettings, onSettingsChan
       </div>
     );
   }
-  const handleInputChange = (field: keyof AppSettings['receiptOptions'], value: any) => {
+  const handleInputChange = (field: string, value: any) => {
     updateSettings({
       receiptOptions: {
         ...settings.receiptOptions,
         [field]: value,
-      },
+      } as any,
     });
     onSettingsChange();
   };
@@ -56,7 +56,7 @@ export function ReceiptOptionsSection({ settings, updateSettings, onSettingsChan
           <div className="space-y-6">
             {languages.map((lang) => {
               const fieldName = `footerText${lang.code}` as keyof AppSettings['receiptOptions'];
-              const currentValue = settings.receiptOptions[fieldName] as string;
+              const currentValue = (settings.receiptOptions?.[fieldName] as string | undefined) || '';
               
               return (
                 <div key={lang.code}>
@@ -104,7 +104,7 @@ export function ReceiptOptionsSection({ settings, updateSettings, onSettingsChan
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={settings.receiptOptions.showQRCode}
+                  checked={settings.receiptOptions?.showQRCode || false}
                   onChange={(e) => handleInputChange('showQRCode', e.target.checked)}
                   className="sr-only peer"
                 />
@@ -128,7 +128,7 @@ export function ReceiptOptionsSection({ settings, updateSettings, onSettingsChan
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={settings.receiptOptions.showBarcode}
+                  checked={settings.receiptOptions?.showBarcode || false}
                   onChange={(e) => handleInputChange('showBarcode', e.target.checked)}
                   className="sr-only peer"
                 />
@@ -152,7 +152,7 @@ export function ReceiptOptionsSection({ settings, updateSettings, onSettingsChan
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={settings.receiptOptions.showTierBadge}
+                  checked={settings.receiptOptions?.showTierBadge || false}
                   onChange={(e) => handleInputChange('showTierBadge', e.target.checked)}
                   className="sr-only peer"
                 />
@@ -169,7 +169,7 @@ export function ReceiptOptionsSection({ settings, updateSettings, onSettingsChan
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {languages.map((lang) => {
               const fieldName = `footerText${lang.code}` as keyof AppSettings['receiptOptions'];
-              const footerText = settings.receiptOptions[fieldName] as string;
+              const footerText = (settings.receiptOptions?.[fieldName] as string | undefined) || '';
               
               return (
                 <div key={lang.code} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
@@ -205,7 +205,7 @@ export function ReceiptOptionsSection({ settings, updateSettings, onSettingsChan
                       </div>
                       
                       {/* Features */}
-                      {settings.receiptOptions.showTierBadge && (
+                      {settings.receiptOptions?.showTierBadge && (
                         <div className="text-center mb-2">
                           <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
                             Retail
@@ -213,7 +213,7 @@ export function ReceiptOptionsSection({ settings, updateSettings, onSettingsChan
                         </div>
                       )}
                       
-                      {settings.receiptOptions.showQRCode && (
+                      {settings.receiptOptions?.showQRCode && (
                         <div className="text-center mb-2">
                           <div className="w-8 h-8 bg-gray-300 mx-auto rounded flex items-center justify-center">
                             <QrCode className="w-4 h-4 text-gray-600" />
@@ -221,7 +221,7 @@ export function ReceiptOptionsSection({ settings, updateSettings, onSettingsChan
                         </div>
                       )}
                       
-                      {settings.receiptOptions.showBarcode && (
+                      {settings.receiptOptions?.showBarcode && (
                         <div className="text-center mb-2">
                           <div className="h-4 bg-black mx-auto" style={{ width: '80%' }}></div>
                         </div>

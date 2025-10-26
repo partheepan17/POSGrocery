@@ -14,6 +14,7 @@ import { env } from '../config/env';
 import { initializeConcurrency, executeTransactionWithRetry } from '../utils/concurrency';
 import { generateReceiptNumber } from '../utils/receiptNumber';
 import { checkIdempotency, storeIdempotency, validateIdempotencyKey } from '../utils/idempotency';
+import { authenticateToken, requireRole } from '../middleware/auth';
 import { 
   toCents, 
   fromCents, 
@@ -24,6 +25,8 @@ import {
   parseMoneyInput 
 } from '../utils/money';
 import { createPrinterAdapter, DEFAULT_PRINTER_CONFIG, ReceiptData } from '../utils/printerAdapter';
+import { salesService } from '../services/salesService';
+import { getCurrentUTC, addTimezoneInfo } from '../utils/dateUtils';
 
 const router = Router();
 
@@ -55,11 +58,15 @@ const SalesRequestSchema = z.object({
   taxRate: z.number().min(0).max(1).default(0.15),
   cashierId: z.number().int().positive().optional().default(1),
   shiftId: z.number().int().positive().optional(),
+  terminalId: z.number().int().positive().optional(),
+  terminalName: z.string().optional(),
   idempotencyKey: z.string().optional()
 });
 
 // POST /api/sales - Create sale with full production features
 router.post('/api/sales',
+  authenticateToken,
+  requireRole('cashier', 'manager', 'admin'),
   auditPerformance('sales_create'),
   asyncHandler(async (req: Request, res: Response) => {
     const requestLogger = createContextLogger({ operation: 'sales_create', requestId: req.requestId });
@@ -90,6 +97,8 @@ router.post('/api/sales',
         taxRate, 
         cashierId, 
         shiftId,
+        terminalId,
+        terminalName,
         idempotencyKey 
       } = validationResult.data;
       
@@ -198,8 +207,8 @@ router.post('/api/sales',
         const createInvoice = db.prepare(`
           INSERT INTO invoices (
             receipt_no, customer_id, gross, discount, tax, net,
-            cashier_id, language, price_tier, shift_id
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            cashier_id, language, price_tier, shift_id, terminal_id, terminal_name
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         
         const invoiceResult = createInvoice.run(
@@ -212,7 +221,9 @@ router.post('/api/sales',
           cashierId,
           'EN', // language
           'Retail', // price_tier
-          shiftId
+          shiftId,
+          terminalId || null, // terminal_id
+          terminalName || null // terminal_name
         );
         
         const invoiceId = invoiceResult.lastInsertRowid;
@@ -220,8 +231,9 @@ router.post('/api/sales',
         // Create invoice lines
         const createInvoiceLine = db.prepare(`
           INSERT INTO invoice_lines (
-            invoice_id, product_id, qty, unit_price, line_discount, tax, total
-          ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            invoice_id, product_id, qty, unit_price, line_discount, tax, total,
+            unit_cost_cents, cogs_cents, gross_margin_cents
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         
         for (let i = 0; i < itemsInCents.length; i++) {
@@ -236,8 +248,45 @@ router.post('/api/sales',
             fromCents(item.unitPrice),
             fromCents(item.discountAmount || 0),
             fromCents(lineTax),
-            fromCents(lineTotal)
+            fromCents(lineTotal),
+            0, // unit_cost_cents - will be calculated by COGS service
+            0, // cogs_cents - will be calculated by COGS service
+            0  // gross_margin_cents - will be calculated by COGS service
           );
+        }
+        
+        // Process COGS calculation and stock movements
+        try {
+          const cogsResult = await salesService.processSaleWithCOGS(
+            invoiceId,
+            receiptResult.receiptNo,
+            itemsInCents.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              unitPrice: fromCents(item.unitPrice),
+              discountAmount: fromCents(item.discountAmount || 0)
+            })),
+            cashierId
+          );
+          
+          requestLogger.info({ 
+            invoiceId, 
+            cogsCalculations: cogsResult.cogsCalculations.length,
+            stockMovements: cogsResult.stockMovements.length 
+          }, 'COGS calculation completed');
+        } catch (cogsError) {
+          requestLogger.error({ invoiceId, error: cogsError }, 'COGS calculation failed');
+          
+          // Check if it's a stock validation error
+          if (cogsError instanceof Error && cogsError.message.includes('INSUFFICIENT_STOCK')) {
+            return res.status(409).json(createStandardError(
+              'Insufficient stock for one or more items',
+              ERROR_CODES.INSUFFICIENT_STOCK,
+              { details: cogsError.message }
+            ));
+          }
+          
+          // Don't fail the sale if COGS calculation fails for other reasons
         }
         
         // Create invoice payments
@@ -267,6 +316,78 @@ router.post('/api/sales',
           );
         }
         
+        // Send webhook notification for sale committed
+        try {
+          const { webhookService } = await import('../integrations/webhooks');
+          
+          // Get customer details if customerId exists
+          let customer = undefined;
+          if (customerId) {
+            const customerData = db.prepare(`
+              SELECT id, name, phone FROM customers WHERE id = ?
+            `).get(customerId) as { id: number; name: string; phone?: string } | undefined;
+            
+            if (customerData) {
+              customer = {
+                id: customerData.id,
+                name: customerData.name,
+                phone: customerData.phone
+              };
+            }
+          }
+          
+          // Get product details for webhook payload
+          const productDetails = db.prepare(`
+            SELECT p.id, p.sku, p.name_en
+            FROM products p
+            WHERE p.id IN (${itemsInCents.map(() => '?').join(',')})
+          `).all(...itemsInCents.map(item => item.productId)) as Array<{
+            id: number;
+            sku: string;
+            name_en: string;
+          }>;
+          
+          const webhookData = {
+            id: invoiceId,
+            ts: new Date().toISOString(),
+            lines: itemsInCents.map((item, index) => {
+              const product = productDetails.find(p => p.id === item.productId);
+              return {
+                product_id: item.productId,
+                sku: product?.sku || 'UNKNOWN',
+                name: product?.name_en || 'Unknown Product',
+                quantity: item.quantity,
+                unit_price: fromCents(item.unitPrice),
+                line_total: fromCents(totals.lineTotals[index])
+              };
+            }),
+            total: fromCents(totals.total),
+            tax: fromCents(totals.taxAmount),
+            customer,
+            receipt_no: receiptResult.receiptNo,
+            cashier_id: cashierId,
+            terminal_name: terminalName
+          };
+          
+          await webhookService.sendSaleCommitted(webhookData);
+          
+          requestLogger.info({ 
+            invoiceId, 
+            webhookData: { 
+              linesCount: webhookData.lines.length,
+              total: webhookData.total,
+              customer: webhookData.customer?.name || 'none'
+            }
+          }, 'Sale webhook sent');
+          
+        } catch (webhookError) {
+          // Don't fail the sale if webhook fails
+          requestLogger.warn({ 
+            invoiceId, 
+            error: webhookError.message 
+          }, 'Sale webhook failed, but sale was successful');
+        }
+        
         return {
           invoiceId,
           receiptNo: receiptResult.receiptNo,
@@ -280,11 +401,11 @@ router.post('/api/sales',
       
       // Log successful sale
       requestLogger.info('Sale created successfully', {
-        invoiceId: result.invoiceId,
-        receiptNo: result.receiptNo,
+        invoiceId: (result as any).invoiceId,
+        receiptNo: (result as any).receiptNo,
         customerId,
-        itemsCount: result.itemsCount,
-        paymentsCount: result.paymentsCount,
+        itemsCount: (result as any).itemsCount,
+        paymentsCount: (result as any).paymentsCount,
         total: formatMoney(totals.total),
         processingTimeMs: processingTime,
         idempotencyKey: idempotencyKey ? 'provided' : 'none'
@@ -293,16 +414,16 @@ router.post('/api/sales',
       res.status(201).json({
         ok: true,
         sale: {
-          id: result.invoiceId,
-          receiptNo: result.receiptNo,
+          id: (result as any).invoiceId,
+          receiptNo: (result as any).receiptNo,
           customerId,
           gross: fromCents(totals.subtotal),
           discount: fromCents(totals.billDiscountAmount),
           tax: fromCents(totals.taxAmount),
           net: fromCents(totals.total),
-          itemsCount: result.itemsCount,
-          paymentsCount: result.paymentsCount,
-          createdAt: new Date().toISOString()
+          itemsCount: (result as any).itemsCount,
+          paymentsCount: (result as any).paymentsCount,
+          createdAt: getCurrentUTC()
         },
         totals: {
           subtotal: fromCents(totals.subtotal),
@@ -378,7 +499,7 @@ router.get('/api/sales/:id',
       const sale = db.prepare(`
         SELECT 
           i.*,
-          c.name as customer_name
+          c.customer_name as customer_name
         FROM invoices i
         LEFT JOIN customers c ON i.customer_id = c.id
         WHERE i.id = ?
@@ -503,7 +624,7 @@ router.get('/api/sales',
       const sales = db.prepare(`
         SELECT 
           i.*,
-          c.name as customer_name
+          c.customer_name as customer_name
         FROM invoices i
         LEFT JOIN customers c ON i.customer_id = c.id
         ${whereClause}
@@ -522,15 +643,15 @@ router.get('/api/sales',
       });
       
       res.json({
-        ok: true,
-        sales,
-        pagination: {
+        success: true,
+        data: {
+          items: sales
+        },
+        meta: {
           page: pageNum,
           pageSize: pageSizeNum,
           total: countResult.total,
-          totalPages,
-          hasNext: pageNum < totalPages,
-          hasPrev: pageNum > 1
+          pages: totalPages
         },
         requestId: req.requestId
       });
@@ -553,6 +674,8 @@ router.get('/api/sales',
 
 // POST /api/sales/:id/print - Print receipt
 router.post('/api/sales/:id/print',
+  authenticateToken,
+  requireRole('cashier', 'manager', 'admin'),
   asyncHandler(async (req: Request, res: Response) => {
     const requestLogger = createContextLogger({ operation: 'sales_print' });
     const { id } = req.params;
@@ -565,7 +688,7 @@ router.post('/api/sales/:id/print',
       const sale = db.prepare(`
         SELECT 
           i.*,
-          c.name as customer_name,
+          c.customer_name as customer_name,
           u.name as cashier_name
         FROM invoices i
         LEFT JOIN customers c ON i.customer_id = c.id
@@ -708,7 +831,7 @@ router.get('/api/sales/:id/reprint',
       const sale = db.prepare(`
         SELECT 
           i.*,
-          c.name as customer_name,
+          c.customer_name as customer_name,
           u.name as cashier_name
         FROM invoices i
         LEFT JOIN customers c ON i.customer_id = c.id
@@ -829,6 +952,110 @@ router.get('/api/sales/:id/reprint',
       
       res.status(500).json(createStandardError(
         'Failed to reprint receipt',
+        ERROR_CODES.DATABASE_ERROR,
+        { error: error.message },
+        req.requestId
+      ));
+    }
+  })
+);
+
+// GET /api/sales/cogs-report - Get COGS report for date range
+router.get('/api/sales/cogs-report',
+  auditPerformance('sales_cogs_report'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const requestLogger = createContextLogger({ operation: 'sales_cogs_report', requestId: req.requestId });
+    
+    try {
+      const { startDate, endDate } = req.query;
+      
+      if (!startDate || !endDate) {
+        res.status(400).json(createStandardError(
+          'Start date and end date are required',
+          ERROR_CODES.INVALID_INPUT,
+          { startDate, endDate },
+          req.requestId
+        ));
+        return;
+      }
+      
+      const report = await salesService.getCOGSReport(
+        startDate as string,
+        endDate as string
+      );
+      
+      requestLogger.info({ startDate, endDate, lineItemCount: report.lineItems.length }, 'COGS report generated');
+      
+      res.json({
+        ok: true,
+        data: report,
+        requestId: req.requestId
+      });
+      
+    } catch (error: any) {
+      requestLogger.error('Failed to generate COGS report', {
+        error: error.message,
+        requestId: req.requestId
+      });
+      
+      res.status(500).json(createStandardError(
+        'Failed to generate COGS report',
+        ERROR_CODES.DATABASE_ERROR,
+        { error: error.message },
+        req.requestId
+      ));
+    }
+  })
+);
+
+// GET /api/sales/product-profitability/:productId - Get product profitability analysis
+router.get('/api/sales/product-profitability/:productId',
+  auditPerformance('sales_product_profitability'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const requestLogger = createContextLogger({ operation: 'sales_product_profitability', requestId: req.requestId });
+    
+    try {
+      const productId = parseInt(req.params.productId);
+      
+      if (isNaN(productId)) {
+        res.status(400).json(createStandardError(
+          'Invalid product ID',
+          ERROR_CODES.INVALID_INPUT,
+          { productId: req.params.productId },
+          req.requestId
+        ));
+        return;
+      }
+      
+      const profitability = await salesService.getProductProfitability(productId);
+      
+      if (!profitability) {
+        res.status(404).json(createStandardError(
+          'Product not found or no sales data',
+          ERROR_CODES.NOT_FOUND,
+          { productId },
+          req.requestId
+        ));
+        return;
+      }
+      
+      requestLogger.info({ productId }, 'Product profitability retrieved');
+      
+      res.json({
+        ok: true,
+        data: profitability,
+        requestId: req.requestId
+      });
+      
+    } catch (error: any) {
+      requestLogger.error('Failed to get product profitability', {
+        error: error.message,
+        productId: req.params.productId,
+        requestId: req.requestId
+      });
+      
+      res.status(500).json(createStandardError(
+        'Failed to get product profitability',
         ERROR_CODES.DATABASE_ERROR,
         { error: error.message },
         req.requestId

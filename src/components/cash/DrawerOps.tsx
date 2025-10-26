@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { dataService } from '@/services/dataService';
+import { dataService } from '../../services/dataService';
 import { toast } from 'react-hot-toast';
 import { DollarSign, ArrowDownCircle, ArrowUpCircle, ShieldCheck, Calculator } from 'lucide-react';
 
@@ -46,8 +46,8 @@ export default function DrawerOps({ shiftId }: DrawerOpsProps) {
 
   const loadReport = async () => {
     try {
-      const res = await dataService.getXZReport(reportDate, reportType);
-      setReport({ payments: res.payments || [], cash: res.cash || [] });
+      const res = await dataService.getXZReport(shiftId);
+      setReport({ payments: (res.data as any)?.payments || [], cash: (res.data as any)?.cash || [] });
     } catch (e: any) {
       toast.error(e?.message || 'Report failed');
     }

@@ -1,5 +1,5 @@
 import { discountEngine } from '../services/discountEngine';
-import { dataService, DiscountRule, Product } from '../services/dataService';
+import { DiscountRule, Product } from '../services/dataService';
 
 // Mock data for testing
 const mockProducts: Product[] = [
@@ -15,15 +15,15 @@ const mockProducts: Product[] = [
     price_other: 100,
     is_scale_item: false,
     is_active: true,
-    created_at: new Date(),
+    created_at: new Date().toISOString(),
     barcode: undefined,
     name_si: undefined,
     name_ta: undefined,
     tax_code: undefined,
-    cost: undefined,
+    cost: 50,
     reorder_level: undefined,
     preferred_supplier_id: undefined,
-    updated_at: undefined
+    updated_at: new Date().toISOString()
   },
   {
     id: 2,
@@ -37,15 +37,15 @@ const mockProducts: Product[] = [
     price_other: 200,
     is_scale_item: false,
     is_active: true,
-    created_at: new Date(),
+    created_at: new Date().toISOString(),
     barcode: undefined,
     name_si: undefined,
     name_ta: undefined,
     tax_code: undefined,
-    cost: undefined,
+    cost: 50,
     reorder_level: undefined,
     preferred_supplier_id: undefined,
-    updated_at: undefined
+    updated_at: new Date().toISOString()
   }
 ];
 
@@ -54,29 +54,35 @@ const mockRules: DiscountRule[] = [
     id: 1,
     name: 'Sugar Cap 3kg → Rs.10/kg',
     applies_to: 'PRODUCT',
+    level: 'PRODUCT',
     target_id: 1, // Sugar
     type: 'AMOUNT',
     value: 10,
     max_qty_or_weight: 3,
-    active_from: new Date('2024-01-01'),
-    active_to: new Date('2024-12-31'),
+    active_from: '2024-01-01',
+    active_to: '2024-12-31',
     priority: 10,
     reason_required: false,
-    active: true
+    active: true,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z'
   },
   {
     id: 2,
     name: 'Produce 5%',
     applies_to: 'CATEGORY',
+    level: 'GROUP',
     target_id: 2, // Rice category
     type: 'PERCENT',
     value: 5,
     max_qty_or_weight: undefined,
-    active_from: new Date('2024-01-01'),
-    active_to: new Date('2024-12-31'),
+    active_from: '2024-01-01',
+    active_to: '2024-12-31',
     priority: 20,
     reason_required: false,
-    active: true
+    active: true,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z'
   }
 ];
 

@@ -1,0 +1,12 @@
+target_type,target_code,rule_type,value,start,end,active,stack_mode,qty_rule
+product,MILK1L,FIXED_PRICE,800,2025-01-01,,true,EXCLUSIVE,true
+group,Dairy,PERCENT_DISCOUNT,5,2025-01-01,,true,EXCLUSIVE,true
+supplier,Anchor Foods,FIXED_DISCOUNT,30,2025-01-01,,true,ADDITIVE,true
+
+
+
+
+
+
+
+

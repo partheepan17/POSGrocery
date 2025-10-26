@@ -60,7 +60,7 @@ export function DiscountRuleModal({ rule, products, categories, onClose, onSave 
     if (rule) {
       setFormData({
         name: rule.name,
-        applies_to: rule.applies_to,
+        applies_to: (rule.applies_to as 'PRODUCT' | 'CATEGORY') || (rule.level === 'PRODUCT' ? 'PRODUCT' : 'CATEGORY'),
         target_id: rule.target_id.toString(),
         type: rule.type,
         value: rule.value.toString(),
@@ -68,7 +68,7 @@ export function DiscountRuleModal({ rule, products, categories, onClose, onSave 
         active_from: rule.active_from ? new Date(rule.active_from).toISOString().split('T')[0] : '',
         active_to: rule.active_to ? new Date(rule.active_to).toISOString().split('T')[0] : '',
         priority: rule.priority.toString(),
-        reason_required: rule.reason_required,
+        reason_required: rule.reason_required || false,
         active: rule.active
       });
     } else {
@@ -195,7 +195,7 @@ export function DiscountRuleModal({ rule, products, categories, onClose, onSave 
         
         // Check date overlap
         const existingFrom = new Date(existingRule.active_from);
-        const existingTo = new Date(existingRule.active_to);
+        const existingTo = existingRule.active_to ? new Date(existingRule.active_to) : new Date('2099-12-31');
         const newFrom = formData.active_from ? new Date(formData.active_from) : new Date();
         const newTo = formData.active_to ? new Date(formData.active_to) : new Date('2099-12-31');
         
@@ -242,6 +242,7 @@ export function DiscountRuleModal({ rule, products, categories, onClose, onSave 
       const ruleData = {
         name: formData.name.trim(),
         applies_to: formData.applies_to,
+        level: (formData.applies_to === 'PRODUCT' ? 'PRODUCT' : 'GROUP') as 'PRODUCT' | 'GROUP',
         target_id: parseInt(formData.target_id),
         type: formData.type,
         value: parseFloat(formData.value),

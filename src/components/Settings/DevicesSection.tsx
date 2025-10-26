@@ -20,12 +20,12 @@ export function DevicesSection({ settings, updateSettings, onSettingsChange }: D
       </div>
     );
   }
-  const handleInputChange = (field: keyof AppSettings['devices'], value: any) => {
+  const handleInputChange = (field: string, value: any) => {
     updateSettings({
       devices: {
         ...settings.devices,
         [field]: value,
-      },
+      } as any,
     });
     onSettingsChange();
   };

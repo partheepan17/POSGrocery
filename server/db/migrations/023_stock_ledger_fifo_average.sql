@@ -95,3 +95,17 @@ SELECT
     fifo_rank
 FROM v_fifo_lots
 WHERE fifo_rank <= 10; -- Limit to top 10 lots for performance
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -21,3 +21,17 @@ CREATE INDEX IF NOT EXISTS idx_products_sku_lookup ON products(sku, is_active) W
 
 -- 5. Composite index for product search by barcode or SKU
 CREATE INDEX IF NOT EXISTS idx_products_barcode_sku ON products(barcode, sku, is_active) WHERE barcode IS NOT NULL OR sku IS NOT NULL;
+
+
+
+
+
+
+
+
+
+
+
+
+
+

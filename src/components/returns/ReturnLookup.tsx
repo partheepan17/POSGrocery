@@ -169,10 +169,10 @@ export function ReturnLookup({ onInvoiceFound }: ReturnLookupProps) {
         limit: 50
       });
       
-      setInvoices(invoices);
+      setInvoices(invoices?.sales || []);
       setShowInvoiceList(true);
       
-      if (invoices.length === 0) {
+      if (!invoices?.sales || invoices.sales.length === 0) {
         setError('No invoices found for the selected date range');
       }
     } catch (error) {

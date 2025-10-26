@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { shiftService } from '../services/shiftService';
 import { useSettingsStore } from '../store/settingsStore';
-import { Shift, ShiftMovement, ShiftSummary, ShiftMovementType } from '../types';
+import { Shift, ShiftMovement, ShiftSummary } from '../types';
 import { useTranslation } from 'react-i18next';
 
 export default function ShiftSession() {
@@ -37,7 +37,7 @@ export default function ShiftSession() {
   const [saving, setSaving] = useState(false);
   
   // Movement form
-  const [movementType, setMovementType] = useState<ShiftMovementType>('CASH_IN');
+  const [movementType, setMovementType] = useState<string>('CASH_IN');
   const [movementAmount, setMovementAmount] = useState('');
   const [movementReason, setMovementReason] = useState('');
   
@@ -77,9 +77,11 @@ export default function ShiftSession() {
       setSaving(true);
       await shiftService.addMovement({
         shift_id: shift.id!,
-        type: movementType,
+        type: movementType as any,
         amount: parseFloat(movementAmount),
-        reason: movementReason || null
+        reason: movementReason || undefined,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       });
       
       // Reset form
@@ -181,7 +183,7 @@ export default function ShiftSession() {
     }
   };
 
-  const getMovementTypeLabel = (type: ShiftMovementType) => {
+  const getMovementTypeLabel = (type: string) => {
     switch (type) {
       case 'CASH_IN': return 'Cash In';
       case 'CASH_OUT': return 'Cash Out';
@@ -279,12 +281,6 @@ export default function ShiftSession() {
                 </div>
               )}
               
-              {shift.note && (
-                <div>
-                  <FormLabel>Note</FormLabel>
-                  <p className="text-sm text-gray-600">{shift.note}</p>
-                </div>
-              )}
             </CardContent>
           </Card>
 
@@ -303,7 +299,7 @@ export default function ShiftSession() {
                         <FormLabel>Type</FormLabel>
                         <Select
                           value={movementType}
-                          onChange={(value: string) => setMovementType(value as ShiftMovementType)}
+                          onChange={(value: string) => setMovementType(value)}
                           options={[
                             { value: 'CASH_IN', label: 'Cash In' },
                             { value: 'CASH_OUT', label: 'Cash Out' },
@@ -465,7 +461,7 @@ export default function ShiftSession() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Opening Cash:</span>
-                    <span>{formatCurrency(summary.cashDrawer.opening)}</span>
+                    <span>{formatCurrency(summary.cashDrawer?.opening || 0)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Cash Sales:</span>
@@ -473,42 +469,42 @@ export default function ShiftSession() {
                   </div>
                   <div className="flex justify-between">
                     <span>Cash In:</span>
-                    <span className="text-green-600">+{formatCurrency(summary.cashDrawer.cashIn)}</span>
+                    <span className="text-green-600">+{formatCurrency(summary.cashDrawer?.cashIn || 0)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Cash Out:</span>
-                    <span className="text-red-600">-{formatCurrency(summary.cashDrawer.cashOut)}</span>
+                    <span className="text-red-600">-{formatCurrency(summary.cashDrawer?.cashOut || 0)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Drops:</span>
-                    <span className="text-red-600">-{formatCurrency(summary.cashDrawer.drops)}</span>
+                    <span className="text-red-600">-{formatCurrency(summary.cashDrawer?.drops || 0)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Petty Cash:</span>
-                    <span className="text-red-600">-{formatCurrency(summary.cashDrawer.petty)}</span>
+                    <span className="text-red-600">-{formatCurrency(summary.cashDrawer?.petty || 0)}</span>
                   </div>
                 </div>
                 
                 <div className="border-t pt-3">
                   <div className="flex justify-between font-semibold">
                     <span>Expected Cash:</span>
-                    <span>{formatCurrency(summary.cashDrawer.expectedCash)}</span>
+                    <span>{formatCurrency(summary.cashDrawer?.expectedCash || 0)}</span>
                   </div>
                   
-                  {shift.status === 'CLOSED' && summary.cashDrawer.declaredCash !== null && (
+                  {shift.status === 'CLOSED' && summary.cashDrawer?.declaredCash !== null && (
                     <>
                       <div className="flex justify-between">
                         <span>Declared Cash:</span>
-                        <span>{formatCurrency(summary.cashDrawer.declaredCash || 0)}</span>
+                        <span>{formatCurrency(summary.cashDrawer?.declaredCash || 0)}</span>
                       </div>
                       <div className={`flex justify-between font-bold ${
-                        (summary.cashDrawer.variance || 0) === 0 ? 'text-green-600' : 
-                        (summary.cashDrawer.variance || 0) > 0 ? 'text-blue-600' : 'text-red-600'
+                        (summary.cashDrawer?.variance || 0) === 0 ? 'text-green-600' : 
+                        (summary.cashDrawer?.variance || 0) > 0 ? 'text-blue-600' : 'text-red-600'
                       }`}>
                         <span>Variance:</span>
                         <span>
-                          {(summary.cashDrawer.variance || 0) >= 0 ? '+' : ''}
-                          {formatCurrency(summary.cashDrawer.variance || 0)}
+                          {(summary.cashDrawer?.variance || 0) >= 0 ? '+' : ''}
+                          {formatCurrency(summary.cashDrawer?.variance || 0)}
                         </span>
                       </div>
                     </>

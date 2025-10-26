@@ -3,6 +3,10 @@ import { getDatabase } from '../db';
 import { asyncHandler } from '../middleware/error';
 import { createError, ErrorContext, AppError } from '../types/errors';
 import { createRequestLogger } from '../utils/logger';
+import { checkProductDependencies, canHardDeleteProduct } from '../utils/constraintChecker';
+import { rbacService } from '../utils/rbac';
+import { authenticateToken, requireRole } from '../middleware/auth';
+import { cacheService } from '../services/cache';
 
 export const catalogRouter = Router();
 
@@ -85,14 +89,15 @@ catalogRouter.get('/api/categories', asyncHandler(async (req, res) => {
     }, 'Categories fetched successfully');
     
     res.json({ 
-      categories,
+      success: true,
+      data: {
+        items: categories
+      },
       meta: {
         page: pageNum,
         pageSize: pageSizeNum,
         total,
-        totalPages,
-        hasNext: pageNum < totalPages,
-        hasPrev: pageNum > 1
+        pages: totalPages
       }
     });
   } catch (error: any) {
@@ -222,14 +227,15 @@ catalogRouter.get('/api/suppliers', asyncHandler(async (req, res) => {
     }, 'Suppliers fetched successfully');
     
     res.json({ 
-      suppliers,
+      success: true,
+      data: {
+        items: suppliers
+      },
       meta: {
         page: pageNum,
         pageSize: pageSizeNum,
         total,
-        totalPages,
-        hasNext: pageNum < totalPages,
-        hasPrev: pageNum > 1
+        pages: totalPages
       }
     });
   } catch (error: any) {
@@ -285,6 +291,15 @@ catalogRouter.get('/api/products', asyncHandler(async (req, res) => {
   const requestLogger = createRequestLogger(req);
   
   try {
+    // Check cache first
+    const cacheKey = req.originalUrl;
+    const cacheResult = await cacheService.get(cacheKey, { keyPrefix: 'products' });
+    
+    if (cacheResult.hit && cacheResult.data) {
+      requestLogger.debug('Cache hit for products list');
+      return res.json(cacheResult.data);
+    }
+    
     const db = getDatabase();
     
     // Parse and validate query parameters
@@ -422,16 +437,16 @@ catalogRouter.get('/api/products', asyncHandler(async (req, res) => {
       status
     }, 'Products list completed');
     
-    res.json({
-      ok: true,
-      products,
+    const response = {
+      success: true,
+      data: {
+        items: products
+      },
       meta: {
         page,
         pageSize,
         total,
-        pages: totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1
+        pages: totalPages
       },
       filters: {
         search,
@@ -441,7 +456,15 @@ catalogRouter.get('/api/products', asyncHandler(async (req, res) => {
         sortOrder,
         scaleItemsOnly
       }
+    };
+    
+    // Cache the response for 60 seconds
+    await cacheService.set(cacheKey, response, { 
+      keyPrefix: 'products',
+      ttl: 60 
     });
+    
+    res.json(response);
   } catch (error: any) {
     console.error('Failed to list products:', error);
     
@@ -603,7 +626,7 @@ catalogRouter.get('/api/products/barcode/:code', asyncHandler(async (req, res) =
 }));
 
 // POST /api/products
-catalogRouter.post('/api/products', asyncHandler(async (req, res) => {
+catalogRouter.post('/api/products', authenticateToken, requireRole('cashier', 'manager', 'admin'), asyncHandler(async (req, res) => {
   // Accept BOTH current UI names and legacy API names
     const { 
     // legacy
@@ -664,6 +687,10 @@ catalogRouter.post('/api/products', asyncHandler(async (req, res) => {
       LEFT JOIN suppliers s ON p.preferred_supplier_id = s.id
       WHERE p.id = ?
     `).get(info.lastInsertRowid);
+    
+    // Invalidate products cache after creating a new product
+    await cacheService.invalidateProducts();
+    
     return res.status(201).json({ ok:true, product });
   } catch (e:any) {
     if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
@@ -679,7 +706,7 @@ catalogRouter.post('/api/products', asyncHandler(async (req, res) => {
 }));
 
 // PUT /api/products/:id
-catalogRouter.put('/api/products/:id', asyncHandler(async (req, res) => {
+catalogRouter.put('/api/products/:id', authenticateToken, requireRole('cashier', 'manager', 'admin'), asyncHandler(async (req, res) => {
   const requestLogger = createRequestLogger(req);
   
   try {
@@ -797,6 +824,10 @@ catalogRouter.put('/api/products/:id', asyncHandler(async (req, res) => {
     `).get(productId);
     
     requestLogger.info({ productId, name: canonicalName, sku }, 'Product updated successfully');
+    
+    // Invalidate products cache after updating a product
+    await cacheService.invalidateProducts();
+    
     res.json({ ok: true, product });
   } catch (error: any) {
     console.error('Update product failed:', error);
@@ -814,80 +845,93 @@ catalogRouter.put('/api/products/:id', asyncHandler(async (req, res) => {
   }
 }));
 
-// DELETE /api/products/:id
-catalogRouter.delete('/api/products/:id', asyncHandler(async (req, res) => {
+// DELETE /api/products/:id - Soft delete by default, hard delete for admin only
+catalogRouter.delete('/api/products/:id', authenticateToken, asyncHandler(async (req, res) => {
   const requestLogger = createRequestLogger(req);
   
   try {
     const productId = parseInt(req.params.id);
+    const hardDelete = req.query.hard === 'true';
     
     if (isNaN(productId)) {
       return res.status(400).json({ ok: false, message: 'Invalid product ID' });
     }
     
-    requestLogger.debug({ productId }, 'Deleting product');
+    requestLogger.debug({ productId, hardDelete }, 'Deleting product');
     const db = getDatabase();
     
     // Check if product exists
-    const existingProduct = db.prepare('SELECT id, name_en as name, sku FROM products WHERE id = ?').get(productId) as { id: number; name: string; sku: string } | undefined;
+    const existingProduct = db.prepare('SELECT id, name_en as name, sku, is_active FROM products WHERE id = ?').get(productId) as { id: number; name: string; sku: string; is_active: number } | undefined;
     if (!existingProduct) {
       return res.status(404).json({ ok: false, message: 'Product not found' });
     }
     
-    // Check for foreign key references
-    const references = [];
-    
-    // Check invoice_lines
-    const invoiceLines = db.prepare('SELECT COUNT(*) as count FROM invoice_lines WHERE product_id = ?').get(productId) as { count: number };
-    if (invoiceLines.count > 0) {
-      references.push(`${invoiceLines.count} invoice line(s)`);
-    }
-    
-    // Check quick_sales_lines
-    const quickSalesLines = db.prepare('SELECT COUNT(*) as count FROM quick_sales_lines WHERE product_id = ?').get(productId) as { count: number };
-    if (quickSalesLines.count > 0) {
-      references.push(`${quickSalesLines.count} quick sales line(s)`);
-    }
-    
-    // Check stock_movements
-    const stockMovements = db.prepare('SELECT COUNT(*) as count FROM stock_movements WHERE product_id = ?').get(productId) as { count: number };
-    if (stockMovements.count > 0) {
-      references.push(`${stockMovements.count} stock movement(s)`);
-    }
-    
-    // If product has references, perform soft delete
-    if (references.length > 0) {
-      requestLogger.info({ productId, references }, 'Product has references, performing soft delete');
-      
-      // Soft delete (set is_active to false)
-      db.prepare('UPDATE products SET is_active = 0, updated_at = datetime("now") WHERE id = ?').run(productId);
-      
-      requestLogger.info({ productId, name: existingProduct.name }, 'Product soft deleted successfully');
+    // If already inactive and not hard delete, return success
+    if (!existingProduct.is_active && !hardDelete) {
       return res.json({ 
         ok: true, 
-        message: 'Product deactivated successfully (has references in sales/stock)',
-        softDelete: true,
-        references: references
+        message: 'Product is already deactivated',
+        softDelete: true
       });
     }
     
-    // No references - perform hard delete
-    requestLogger.info({ productId }, 'Product has no references, performing hard delete');
+    // Check for hard delete authorization
+    if (hardDelete) {
+      // Check if user has admin or manager role for hard delete
+      if (!req.user) {
+        return res.status(401).json({ ok: false, message: 'Authentication required for hard delete' });
+      }
+      
+      if (!['admin', 'manager'].includes(req.user.role)) {
+        return res.status(403).json({ 
+          ok: false, 
+          message: 'Admin or Manager role required for hard delete',
+          userRole: req.user.role
+        });
+      }
+      
+      // Check if product has dependencies
+      const constraintCheck = checkProductDependencies(productId);
+      if (constraintCheck.hasDependencies) {
+        return res.status(409).json({ 
+          ok: false, 
+          message: 'Cannot hard delete product: it has dependencies',
+          dependencies: constraintCheck.dependencies,
+          totalCount: constraintCheck.totalCount
+        });
+      }
+      
+      // Perform hard delete (admin/manager only, no dependencies)
+      requestLogger.info({ productId, adminUser: req.user.username }, 'Admin/Manager performing hard delete');
+      
+      db.prepare('DELETE FROM products WHERE id = ?').run(productId);
+      
+      requestLogger.info({ productId, name: existingProduct.name }, 'Product hard deleted successfully');
+      
+      // Invalidate products cache after hard delete
+      await cacheService.invalidateProducts();
+      
+      return res.json({ 
+        ok: true, 
+        message: 'Product permanently deleted',
+        softDelete: false
+      });
+    }
     
-    // Temporarily disable foreign key checks for hard delete
-    db.pragma('foreign_keys = OFF');
+    // Default: Soft delete (set is_active to 0)
+    requestLogger.info({ productId }, 'Performing soft delete');
     
-    // Hard delete
-    db.prepare('DELETE FROM products WHERE id = ?').run(productId);
+    db.prepare('UPDATE products SET is_active = 0, updated_at = datetime("now") WHERE id = ?').run(productId);
     
-    // Re-enable foreign key checks
-    db.pragma('foreign_keys = ON');
+    requestLogger.info({ productId, name: existingProduct.name }, 'Product soft deleted successfully');
     
-    requestLogger.info({ productId, name: existingProduct.name }, 'Product hard deleted successfully');
+    // Invalidate products cache after soft delete
+    await cacheService.invalidateProducts();
+    
     res.json({ 
       ok: true, 
-      message: 'Product deleted successfully',
-      softDelete: false
+      message: 'Product deactivated successfully',
+      softDelete: true
     });
   } catch (error: any) {
     console.error('Delete product failed:', error);
@@ -941,7 +985,7 @@ catalogRouter.get('/api/customers', asyncHandler(async (req, res) => {
 }));
 
 // POST /api/customers
-catalogRouter.post('/api/customers', asyncHandler(async (req, res) => {
+catalogRouter.post('/api/customers', authenticateToken, requireRole('cashier', 'manager', 'admin'), asyncHandler(async (req, res) => {
   const requestLogger = createRequestLogger(req);
   
   try {
@@ -985,7 +1029,7 @@ catalogRouter.post('/api/customers', asyncHandler(async (req, res) => {
 }));
 
 // POST /api/categories
-catalogRouter.post('/api/categories', asyncHandler(async (req, res) => {
+catalogRouter.post('/api/categories', authenticateToken, requireRole('manager', 'admin'), asyncHandler(async (req, res) => {
   const requestLogger = createRequestLogger(req);
   
   try {
@@ -1050,7 +1094,7 @@ catalogRouter.post('/api/categories', asyncHandler(async (req, res) => {
 }));
 
 // PATCH /api/categories/:id - Update category
-catalogRouter.patch('/api/categories/:id', asyncHandler(async (req, res) => {
+catalogRouter.patch('/api/categories/:id', authenticateToken, requireRole('manager', 'admin'), asyncHandler(async (req, res) => {
   const requestLogger = createRequestLogger(req);
   
   try {
@@ -1141,7 +1185,7 @@ catalogRouter.patch('/api/categories/:id', asyncHandler(async (req, res) => {
 }));
 
 // DELETE /api/categories/:id - Soft delete category
-catalogRouter.delete('/api/categories/:id', asyncHandler(async (req, res) => {
+catalogRouter.delete('/api/categories/:id', authenticateToken, requireRole('manager', 'admin'), asyncHandler(async (req, res) => {
   const requestLogger = createRequestLogger(req);
   
   try {
@@ -1211,7 +1255,7 @@ catalogRouter.delete('/api/categories/:id', asyncHandler(async (req, res) => {
 }));
 
 // POST /api/suppliers
-catalogRouter.post('/api/suppliers', asyncHandler(async (req, res) => {
+catalogRouter.post('/api/suppliers', authenticateToken, requireRole('manager', 'admin'), asyncHandler(async (req, res) => {
   const requestLogger = createRequestLogger(req);
   
   try {
@@ -1314,7 +1358,7 @@ catalogRouter.post('/api/suppliers', asyncHandler(async (req, res) => {
 }));
 
 // PATCH /api/suppliers/:id - Update supplier
-catalogRouter.patch('/api/suppliers/:id', asyncHandler(async (req, res) => {
+catalogRouter.patch('/api/suppliers/:id', authenticateToken, requireRole('manager', 'admin'), asyncHandler(async (req, res) => {
   const requestLogger = createRequestLogger(req);
   
   try {
@@ -1448,7 +1492,7 @@ catalogRouter.patch('/api/suppliers/:id', asyncHandler(async (req, res) => {
 }));
 
 // DELETE /api/suppliers/:id - Soft delete supplier
-catalogRouter.delete('/api/suppliers/:id', asyncHandler(async (req, res) => {
+catalogRouter.delete('/api/suppliers/:id', authenticateToken, requireRole('manager', 'admin'), asyncHandler(async (req, res) => {
   const requestLogger = createRequestLogger(req);
   
   try {

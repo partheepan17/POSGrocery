@@ -1,7 +1,6 @@
-import { LabelPreset, LabelItem, LabelJob, LabelBatch, LabelSource } from '@/types';
-import { dataService, Product } from '@/services/dataService';
+import { LabelPreset, LabelItem, LabelJob, LabelSource } from '@/types';
+import { dataService } from '@/services/dataService';
 import { grnService } from '@/services/grnService';
-import { useAppStore } from '@/store/appStore';
 
 export interface GenerateLabelOptions {
   source: LabelSource;
@@ -35,19 +34,44 @@ export function validateLabelItemDates(
       case 'YYYY-MM-DD':
         // ISO format - preferred
         parsedDate = new Date(dateStr);
+        // Check if the date is valid and matches the input string
+        if (parsedDate && !isNaN(parsedDate.getTime())) {
+          const isoString = parsedDate.toISOString().split('T')[0];
+          if (isoString !== dateStr) {
+            return null; // Invalid date like 2023-02-29
+          }
+        }
         break;
-      case 'DD/MM/YYYY':
+      case 'DD/MM/YYYY': {
         const [day, month, year] = dateStr.split('/');
         if (day && month && year) {
-          parsedDate = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+          const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          parsedDate = new Date(isoDate);
+          // Check if the date is valid and matches the input
+          if (parsedDate && !isNaN(parsedDate.getTime())) {
+            const isoString = parsedDate.toISOString().split('T')[0];
+            if (isoString !== isoDate) {
+              return null; // Invalid date
+            }
+          }
         }
         break;
-      case 'MM/DD/YYYY':
+      }
+      case 'MM/DD/YYYY': {
         const [monthUS, dayUS, yearUS] = dateStr.split('/');
         if (monthUS && dayUS && yearUS) {
-          parsedDate = new Date(`${yearUS}-${monthUS.padStart(2, '0')}-${dayUS.padStart(2, '0')}`);
+          const isoDate = `${yearUS}-${monthUS.padStart(2, '0')}-${dayUS.padStart(2, '0')}`;
+          parsedDate = new Date(isoDate);
+          // Check if the date is valid and matches the input
+          if (parsedDate && !isNaN(parsedDate.getTime())) {
+            const isoString = parsedDate.toISOString().split('T')[0];
+            if (isoString !== isoDate) {
+              return null; // Invalid date
+            }
+          }
         }
         break;
+      }
     }
     
     return parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : null;
@@ -57,7 +81,7 @@ export function validateLabelItemDates(
   if (item.packedDate) {
     const packedDate = parseDate(item.packedDate);
     if (!packedDate) {
-      errors.push(`Invalid packed date format. Expected ${fmt}: ${item.packedDate}`);
+      errors.push(`Invalid packed date format. Expected ${fmt}`);
     }
   }
   
@@ -65,7 +89,7 @@ export function validateLabelItemDates(
   if (item.expiryDate) {
     const expiryDate = parseDate(item.expiryDate);
     if (!expiryDate) {
-      errors.push(`Invalid expiry date format. Expected ${fmt}: ${item.expiryDate}`);
+      errors.push(`Invalid expiry date format. Expected ${fmt}`);
     }
   }
   
@@ -115,9 +139,9 @@ export class LabelService {
   /**
    * Get a specific preset by ID
    */
-  async getPreset(id: string): Promise<LabelPreset | null> {
+  async getPreset(id: number): Promise<LabelPreset | null> {
     const presets = await this.listPresets();
-    return presets.find(p => p.id === id) || null;
+    return presets.find(p => String(p.id) === String(id)) || null;
   }
 
   /**
@@ -145,10 +169,10 @@ export class LabelService {
   /**
    * Delete a label preset
    */
-  async deletePreset(id: string): Promise<void> {
+  async deletePreset(id: number): Promise<void> {
     try {
       const presets = await this.listPresets();
-      const filteredPresets = presets.filter(p => p.id !== id);
+      const filteredPresets = presets.filter(p => String(p.id) !== String(id));
       localStorage.setItem('label_presets', JSON.stringify(filteredPresets));
       console.log('✅ Label preset deleted:', id);
     } catch (error) {
@@ -166,10 +190,10 @@ export class LabelService {
     try {
       switch (source) {
         case 'products':
-          return await this.generateFromProducts(options.productIds || [], preset, overrides);
+          return await this.generateFromProducts((options.productIds || []).map(id => Number(id)), preset, overrides);
         
         case 'grn':
-          return await this.generateFromGRN(options.grnId || '', preset, overrides);
+          return await this.generateFromGRN(Number(options.grnId || '0'), preset, overrides);
         
         case 'csv':
           return this.generateFromCSV(options.csvData || [], preset, overrides);
@@ -187,20 +211,22 @@ export class LabelService {
    * Generate labels from selected products
    */
   private async generateFromProducts(
-    productIds: string[], 
+    productIds: number[], 
     preset: LabelPreset, 
     overrides: GenerateLabelOptions['overrides'] = {}
   ): Promise<LabelItem[]> {
     const products = await dataService.getProducts();
-    const categories = await dataService.getCategories();
+    const categories = await dataService.getCategories() as any[];
     
-    const selectedProducts = products.filter(p => productIds.includes(p.id.toString()));
+    const selectedProducts = products.filter(p => productIds.includes(p.id));
     
     return selectedProducts.map(product => {
       const category = categories.find(c => c.id === product.category_id);
       
       return {
         id: `${product.id}-${Date.now()}`,
+        product_id: product.id,
+        product_name: product.name_en,
         sku: product.sku,
         barcode: product.barcode,
         name_en: product.name_en,
@@ -208,13 +234,14 @@ export class LabelService {
         name_ta: product.name_ta,
         category: category?.name,
         unit: product.unit,
+        price: product.price_retail || 0,
         price_retail: product.price_retail,
         price_wholesale: product.price_wholesale,
         price_credit: product.price_credit,
         price_other: product.price_other,
-        qty: overrides.qty || preset.defaults.qty,
-        price_tier: overrides.priceTier || preset.fields.price.source,
-        language: overrides.language || preset.defaults.language,
+        qty: overrides.qty || 1,
+        price_tier: overrides.priceTier || 'retail',
+        language: overrides.language || 'EN',
         // New fields - initially null, can be set by user
         packedDate: null,
         expiryDate: null,
@@ -228,13 +255,13 @@ export class LabelService {
    * Generate labels from GRN lines
    */
   private async generateFromGRN(
-    grnId: string, 
+    grnId: number, 
     preset: LabelPreset, 
     overrides: GenerateLabelOptions['overrides'] = {}
   ): Promise<LabelItem[]> {
     try {
       // Get GRN details and lines from GRN service
-      const grnData = await grnService.getGRN(parseInt(grnId));
+      const grnData = await grnService.getGRN(grnId);
       const grn = grnData.header;
       const lines = grnData.lines;
       
@@ -242,13 +269,15 @@ export class LabelService {
         throw new Error('GRN not found');
       }
 
-      const categories = await dataService.getCategories();
+      const categories = await dataService.getCategories() as any[];
       
       return lines.map((line: any) => {
         const category = categories.find(c => c.id === line.product_category_id);
         
         return {
           id: `grn-${grnId}-${line.product_id}-${Date.now()}`,
+          product_id: line.product_id,
+          product_name: line.product_name,
           sku: line.product_sku,
           barcode: line.product_barcode,
           name_en: line.product_name,
@@ -256,13 +285,14 @@ export class LabelService {
           name_ta: line.product_name_ta,
           category: category?.name,
           unit: line.product_unit,
+          price: line.product_price_retail || 0,
           price_retail: line.product_price_retail || 0,
           price_wholesale: line.product_price_wholesale || 0,
           price_credit: line.product_price_credit || 0,
           price_other: line.product_price_other || 0,
           qty: overrides.qty !== undefined ? overrides.qty : line.qty, // Default to received qty
-          price_tier: overrides.priceTier || preset.fields.price.source,
-          language: overrides.language || preset.defaults.language,
+          price_tier: overrides.priceTier || 'retail',
+          language: overrides.language || 'EN',
           // New fields from GRN data if available
           packedDate: line.packed_date || null,
           expiryDate: line.expiry_date || null,
@@ -287,9 +317,9 @@ export class LabelService {
     return csvData.map(item => ({
       ...item,
       id: `csv-${item.sku}-${Date.now()}`,
-      qty: overrides.qty !== undefined ? overrides.qty : (item.qty || preset.defaults.qty),
-      price_tier: overrides.priceTier || item.price_tier || preset.fields.price.source,
-      language: overrides.language || item.language || preset.defaults.language,
+      qty: overrides.qty !== undefined ? overrides.qty : (item.qty || 1),
+      price_tier: overrides.priceTier || item.price_tier || 'retail',
+      language: overrides.language || item.language || 'EN',
     }));
   }
 
@@ -306,13 +336,17 @@ export class LabelService {
     try {
       const job: LabelJob = {
         id: `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: new Date(),
-        preset_name: preset.name,
+        name: preset.name,
         source,
-        items_count: items.reduce((sum, item) => sum + item.qty, 0),
-        printed_by: printedBy,
-        terminal,
-        items: items.slice(0, 10) // Store first 10 items for preview
+        source_id: 0,
+        preset_id: Number(preset.id),
+        status: 'PENDING',
+        total_items: items.reduce((sum, item) => sum + (item.qty || 1), 0),
+        processed_items: 0,
+        created_by: 1,
+        items_count: items.reduce((sum, item) => sum + (item.qty || 1), 0),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       // Get existing jobs
@@ -354,22 +388,22 @@ export class LabelService {
       // Convert timestamp strings back to Date objects
       jobs = jobs.map(job => ({
         ...job,
-        timestamp: new Date(job.timestamp)
+        created_at: job.created_at
       }));
       
       // Apply filters
       if (filters) {
         if (filters.fromDate) {
-          jobs = jobs.filter(job => job.timestamp >= filters.fromDate!);
+          jobs = jobs.filter(job => new Date(job.created_at || '') >= filters.fromDate!);
         }
         if (filters.toDate) {
-          jobs = jobs.filter(job => job.timestamp <= filters.toDate!);
+          jobs = jobs.filter(job => new Date(job.created_at || '') <= filters.toDate!);
         }
         if (filters.source) {
           jobs = jobs.filter(job => job.source === filters.source);
         }
         if (filters.preset) {
-          jobs = jobs.filter(job => job.preset_name.toLowerCase().includes(filters.preset!.toLowerCase()));
+          jobs = jobs.filter(job => job.name.toLowerCase().includes(filters.preset!.toLowerCase()));
         }
         if (filters.limit) {
           jobs = jobs.slice(0, filters.limit);
@@ -389,92 +423,66 @@ export class LabelService {
   private getDefaultPresets(): LabelPreset[] {
     return [
       {
-        id: 'product-50x30',
+        id: '1',
         name: '50x30 Product Label',
+        template: 'product',
+        width: 50,
+        height: 30,
+        is_default: true,
+        active: true,
         type: 'product',
         paper: 'THERMAL',
-        size: { width_mm: 50, height_mm: 30 },
+        size: { width: 50, height: 30, width_mm: 50, height_mm: 30 },
         barcode: {
+          enabled: true,
+          type: 'barcode',
+          position: 'bottom',
           symbology: 'EAN13',
-          source: 'barcode',
-          show_text: true
+          source: 'barcode'
         },
-        fields: {
-          line1: 'name_en',
-          line2: 'sku',
-          price: {
-            enabled: true,
-            source: 'retail',
-            currency: 'LKR',
-            show_label: true
-          },
-          // New fields for extended functionality
-          languageMode: 'preset',
-          showPackedDate: false,
-          showExpiryDate: false,
-          showMRP: false,
-          showBatch: false,
-          dateFormat: 'YYYY-MM-DD',
-          mrpLabel: 'MRP',
-          batchLabel: 'Batch',
-          packedLabel: 'Packed',
-          expiryLabel: 'Expiry'
-        },
+        fields: [
+          { name: 'name_en', enabled: true, label: 'Product Name' },
+          { name: 'sku', enabled: true, label: 'SKU' },
+          { name: 'price', enabled: true, label: 'Price', source: 'retail', show_label: true }
+        ],
         style: {
           font_scale: 1.0,
           bold_name: true,
           align: 'center',
           show_store_logo: false,
           sectionOrder: ['name', 'barcode', 'price', 'mrp', 'batch', 'dates']
-        },
-        defaults: {
-          qty: 1,
-          language: 'EN'
         }
       },
       {
-        id: 'shelf-70x38',
+        id: '2',
         name: '70x38 Shelf Label',
+        template: 'shelf',
+        width: 70,
+        height: 38,
+        is_default: true,
+        active: true,
         type: 'shelf',
         paper: 'THERMAL',
-        size: { width_mm: 70, height_mm: 38 },
+        size: { width: 70, height: 38, width_mm: 70, height_mm: 38 },
         barcode: {
+          enabled: true,
+          type: 'barcode',
+          position: 'bottom',
           symbology: 'CODE128',
           source: 'sku',
           show_text: true
         },
-        fields: {
-          line1: 'name_en',
-          line2: 'category',
-          price: {
-            enabled: true,
-            source: 'retail',
-            currency: 'LKR',
-            show_label: true
-          },
-          weight_hint: true,
-          // New fields for extended functionality
-          languageMode: 'preset',
-          showPackedDate: false,
-          showExpiryDate: false,
-          showMRP: false,
-          showBatch: false,
-          dateFormat: 'YYYY-MM-DD',
-          mrpLabel: 'MRP',
-          batchLabel: 'Batch',
-          packedLabel: 'Packed',
-          expiryLabel: 'Expiry'
-        },
+        fields: [
+          { name: 'name_en', enabled: true, label: 'Product Name' },
+          { name: 'category', enabled: true, label: 'Category' },
+          { name: 'price', enabled: true, label: 'Price', source: 'retail', show_label: true }
+        ],
         style: {
           font_scale: 1.2,
           bold_name: true,
           align: 'left',
           show_store_logo: true,
           sectionOrder: ['name', 'barcode', 'price', 'mrp', 'batch', 'dates']
-        },
-        defaults: {
-          qty: 1,
-          language: 'EN'
         }
       },
       {
@@ -482,16 +490,25 @@ export class LabelService {
         name: 'A4 Product Grid (3x7)',
         type: 'product',
         paper: 'A4',
-        size: { width_mm: 70, height_mm: 37 },
+        template: 'grid',
+        width: 70,
+        height: 37,
+        is_default: false,
+        active: true,
+        size: { width: 70, height: 37, width_mm: 70, height_mm: 37 },
         a4: {
           rows: 7,
           cols: 3,
+          margin: 5,
           page_width_mm: 210,
           page_height_mm: 297,
           margin_mm: 5,
           gutter_mm: 2
         },
         barcode: {
+          enabled: true,
+          type: 'barcode',
+          position: 'bottom',
           symbology: 'EAN13',
           source: 'barcode',
           show_text: true
@@ -522,10 +539,6 @@ export class LabelService {
           align: 'center',
           show_store_logo: false,
           sectionOrder: ['name', 'barcode', 'price', 'mrp', 'batch', 'dates']
-        },
-        defaults: {
-          qty: 1,
-          language: 'EN'
         }
       },
       {
@@ -533,16 +546,25 @@ export class LabelService {
         name: 'A4 Shelf Grid (5x13)',
         type: 'shelf',
         paper: 'A4',
-        size: { width_mm: 38, height_mm: 21 },
+        template: 'grid',
+        width: 38,
+        height: 21,
+        is_default: false,
+        active: true,
+        size: { width: 38, height: 21, width_mm: 38, height_mm: 21 },
         a4: {
           rows: 13,
           cols: 5,
+          margin: 3,
           page_width_mm: 210,
           page_height_mm: 297,
           margin_mm: 8,
           gutter_mm: 1
         },
         barcode: {
+          enabled: true,
+          type: 'barcode',
+          position: 'bottom',
           symbology: 'CODE128',
           source: 'sku',
           show_text: false
@@ -561,10 +583,6 @@ export class LabelService {
           bold_name: false,
           align: 'center',
           show_store_logo: false
-        },
-        defaults: {
-          qty: 1,
-          language: 'EN'
         }
       }
     ];
@@ -577,7 +595,8 @@ export class LabelService {
     valid: LabelItem[];
     invalid: { item: LabelItem; error: string }[];
   }> {
-    const products = await dataService.getProducts();
+    const productsResult = await dataService.getProducts();
+    const products = productsResult as any[];
     const valid: LabelItem[] = [];
     const invalid: { item: LabelItem; error: string }[] = [];
 

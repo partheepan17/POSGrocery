@@ -16,6 +16,15 @@ export class SettingsValidationService {
   static validateStoreInfo(storeInfo: AppSettings['storeInfo']): ValidationError[] {
     const errors: ValidationError[] = [];
 
+    if (!storeInfo) {
+      errors.push({
+        field: 'storeInfo',
+        message: 'Store information is required',
+        section: 'storeInfo'
+      });
+      return errors;
+    }
+
     if (!storeInfo.name?.trim()) {
       errors.push({
         field: 'name',
@@ -46,9 +55,18 @@ export class SettingsValidationService {
   static validateBackupSettings(backupSettings: AppSettings['backupSettings']): ValidationError[] {
     const errors: ValidationError[] = [];
 
+    if (!backupSettings) {
+      errors.push({
+        field: 'backupSettings',
+        message: 'Backup settings are required',
+        section: 'backupSettings'
+      });
+      return errors;
+    }
+
     // Validate daily time format
     const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (!timeRegex.test(backupSettings.schedule.dailyTime)) {
+    if (backupSettings.schedule?.dailyTime && !timeRegex.test(backupSettings.schedule.dailyTime)) {
       errors.push({
         field: 'dailyTime',
         message: 'Invalid time format. Use HH:MM format (e.g., 22:30)',
@@ -57,7 +75,7 @@ export class SettingsValidationService {
     }
 
     // Validate retention values
-    if (backupSettings.retention.keepDaily < 1 || backupSettings.retention.keepDaily > 365) {
+    if (backupSettings.retention?.keepDaily && (backupSettings.retention.keepDaily < 1 || backupSettings.retention.keepDaily > 365)) {
       errors.push({
         field: 'keepDaily',
         message: 'Daily retention must be between 1 and 365 days',
@@ -65,7 +83,7 @@ export class SettingsValidationService {
       });
     }
 
-    if (backupSettings.retention.keepConfigChange < 1 || backupSettings.retention.keepConfigChange > 100) {
+    if (backupSettings.retention?.keepConfigChange && (backupSettings.retention.keepConfigChange < 1 || backupSettings.retention.keepConfigChange > 100)) {
       errors.push({
         field: 'keepConfigChange',
         message: 'Config-change retention must be between 1 and 100 backups',
@@ -79,7 +97,7 @@ export class SettingsValidationService {
       const credentials = backupSettings.credentials || {};
 
       for (const cred of requiredCredentials) {
-        if (!credentials[cred]?.trim()) {
+        if (!credentials[cred as keyof typeof credentials]?.trim()) {
           errors.push({
             field: cred,
             message: `${cred} is required for ${backupSettings.provider} provider`,
@@ -95,7 +113,16 @@ export class SettingsValidationService {
   static validatePricingPolicies(pricingPolicies: AppSettings['pricingPolicies']): ValidationError[] {
     const errors: ValidationError[] = [];
 
-    if (pricingPolicies.requiredTiers.length === 0) {
+    if (!pricingPolicies) {
+      errors.push({
+        field: 'pricingPolicies',
+        message: 'Pricing policies are required',
+        section: 'pricingPolicies'
+      });
+      return errors;
+    }
+
+    if (pricingPolicies.requiredTiers?.length === 0) {
       errors.push({
         field: 'requiredTiers',
         message: 'At least one price tier must be required',
@@ -109,7 +136,16 @@ export class SettingsValidationService {
   static validateLanguageFormatting(languageFormatting: AppSettings['languageFormatting']): ValidationError[] {
     const errors: ValidationError[] = [];
 
-    if (languageFormatting.kgDecimals < 2 || languageFormatting.kgDecimals > 3) {
+    if (!languageFormatting) {
+      errors.push({
+        field: 'languageFormatting',
+        message: 'Language formatting settings are required',
+        section: 'languageFormatting'
+      });
+      return errors;
+    }
+
+    if (languageFormatting.kgDecimals && (languageFormatting.kgDecimals < 2 || languageFormatting.kgDecimals > 3)) {
       errors.push({
         field: 'kgDecimals',
         message: 'Weight decimals must be between 2 and 3',
@@ -131,7 +167,7 @@ export class SettingsValidationService {
     errors.push(...this.validateLanguageFormatting(settings.languageFormatting));
 
     // Add warnings for potential issues
-    if (settings.storeInfo.logoUrl && !this.isValidUrl(settings.storeInfo.logoUrl)) {
+    if (settings.storeInfo?.logoUrl && !this.isValidUrl(settings.storeInfo.logoUrl)) {
       warnings.push({
         field: 'logoUrl',
         message: 'Logo URL may not be valid',
@@ -139,7 +175,7 @@ export class SettingsValidationService {
       });
     }
 
-    if (settings.backupSettings.provider === 'local' && settings.backupSettings.schedule.onSettingsChange) {
+    if (settings.backupSettings?.provider === 'local' && settings.backupSettings.schedule?.onSettingsChange) {
       warnings.push({
         field: 'onSettingsChange',
         message: 'Settings-change backups may not be reliable with local storage',

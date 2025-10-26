@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Wifi, WifiOff, Clock, CheckCircle, XCircle, AlertTriangle, RotateCcw, Trash2, Eye } from 'lucide-react';
-import { Button } from './ui/Button';
-import { Badge } from './ui/Badge';
-import { Card, CardContent, CardHeader } from './ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { useOfflineQueue, useOfflineQueueOperations } from '@/hooks/useOfflineQueue';
 
 interface OfflineQueueStatusProps {
@@ -130,21 +130,21 @@ export function OfflineQueueStatus({ className }: OfflineQueueStatusProps) {
                       className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded text-xs"
                     >
                       <div className="flex items-center gap-2">
-                        {operation.status === 'pending' && <Clock className="w-3 h-3 text-yellow-500" />}
-                        {operation.status === 'processing' && <AlertTriangle className="w-3 h-3 text-blue-500" />}
-                        {operation.status === 'completed' && <CheckCircle className="w-3 h-3 text-green-500" />}
-                        {operation.status === 'failed' && <XCircle className="w-3 h-3 text-red-500" />}
+                        {(operation as any).status === 'pending' && <Clock className="w-3 h-3 text-yellow-500" />}
+                        {(operation as any).status === 'processing' && <AlertTriangle className="w-3 h-3 text-blue-500" />}
+                        {(operation as any).status === 'completed' && <CheckCircle className="w-3 h-3 text-green-500" />}
+                        {(operation as any).status === 'failed' && <XCircle className="w-3 h-3 text-red-500" />}
                         
                         <span className="font-medium">
-                          {operation.type}:{operation.action}
+                          {(operation as any).type}:{(operation as any).action}
                         </span>
                         <Badge variant="outline" className="text-xs">
-                          {operation.priority}
+                          {(operation as any).priority}
                         </Badge>
                       </div>
                       
                       <div className="flex items-center gap-1">
-                        {operation.status === 'failed' && (
+                        {(operation as any).status === 'failed' && (
                           <Button
                             variant="ghost"
                             size="sm"

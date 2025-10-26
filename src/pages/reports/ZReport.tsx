@@ -8,7 +8,7 @@ export default function ZReportPage() {
   const [cash, setCash] = useState<{ type: string; total: number }[]>([]);
   const [reportType, setReportType] = useState<'X' | 'Z'>('Z');
 
-  const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8250';
+  const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL || `${window.location.protocol}//${window.location.host}`;
 
   const load = async () => {
     setLoading(true);

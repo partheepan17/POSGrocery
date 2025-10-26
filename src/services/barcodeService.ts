@@ -1,5 +1,4 @@
-import { Product } from '@/types/product';
-import { getApiBaseUrl } from '@/utils/api';
+import { Product } from '@/types';
 
 export interface BarcodeSearchResult {
   product: Product | null;
@@ -7,6 +6,8 @@ export interface BarcodeSearchResult {
   lookupType: 'barcode' | 'sku' | 'none';
   duration: number;
   cacheHit: boolean;
+  success?: boolean;
+  error?: string;
 }
 
 export interface BarcodeSearchOptions {
@@ -16,6 +17,7 @@ export interface BarcodeSearchOptions {
 }
 
 class BarcodeService {
+  private baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8250';
   private cache = new Map<string, BarcodeSearchResult>();
   private pendingRequests = new Map<string, Promise<BarcodeSearchResult>>();
   private debounceTimeouts = new Map<string, NodeJS.Timeout>();
@@ -121,6 +123,30 @@ class BarcodeService {
     };
   }
 
+  /**
+   * Encode EAN13 barcode
+   */
+  encodeEAN13(data: string): string {
+    // Simple EAN13 encoding - in a real implementation, you'd use a proper barcode library
+    return `EAN13:${data}`;
+  }
+
+  /**
+   * Encode Code128 barcode
+   */
+  encodeCode128(data: string): string {
+    // Simple Code128 encoding - in a real implementation, you'd use a proper barcode library
+    return `CODE128:${data}`;
+  }
+
+  /**
+   * Convert SVG to data URL
+   */
+  svgToDataUrl(svg: string): string {
+    const encoded = encodeURIComponent(svg);
+    return `data:image/svg+xml;charset=utf-8,${encoded}`;
+  }
+
   private validateBarcode(code: string): boolean {
     if (!code || code.length < 3 || code.length > 50) {
       return false;
@@ -148,17 +174,31 @@ class BarcodeService {
         const result = await this.makeApiRequest(code, timeout, fallbackToSku);
         const duration = Date.now() - startTime;
         
-        return {
-          ...result,
-          duration
-        };
+        // If we got a successful result (even if product not found), return it
+        if (result.success !== false) {
+          return {
+            ...result,
+            duration
+          };
+        }
+        
+        // If product not found, don't retry
+        if (result.error === 'Product not found') {
+          return {
+            ...result,
+            duration
+          };
+        }
+        
+        // For other errors, continue to retry
+        lastError = new Error(result.error || 'Unknown error');
+        
+        // Wait before retry (exponential backoff)
+        if (attempt < retryAttempts) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 100));
+        }
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('Unknown error');
-        
-        // Don't retry on client errors (4xx)
-        if (error instanceof Error && error.message.includes('4')) {
-          break;
-        }
         
         // Wait before retry (exponential backoff)
         if (attempt < retryAttempts) {
@@ -173,19 +213,20 @@ class BarcodeService {
       found: false,
       lookupType: 'none',
       duration,
-      cacheHit: false
+      cacheHit: false,
+      success: false,
+      error: lastError?.message || 'Scan failed'
     };
   }
 
   private async makeApiRequest(code: string, timeout: number, fallbackToSku: boolean = true): Promise<BarcodeSearchResult> {
-    const apiBaseUrl = getApiBaseUrl();
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
       const url = fallbackToSku 
-        ? `${apiBaseUrl}/api/products/barcode/${encodeURIComponent(code)}?fallback=sku`
-        : `${apiBaseUrl}/api/products/barcode/${encodeURIComponent(code)}`;
+        ? `${this.baseUrl}/api/products/barcode/${encodeURIComponent(code)}?fallback=sku`
+        : `${this.baseUrl}/api/products/barcode/${encodeURIComponent(code)}`;
         
       const response = await fetch(url, {
         signal: controller.signal,
@@ -203,7 +244,8 @@ class BarcodeService {
           found: !!data.product,
           lookupType: data.product ? (data.product.barcode === code ? 'barcode' : 'sku') : 'none',
           duration: 0, // Will be set by caller
-          cacheHit: false
+          cacheHit: false,
+          success: true
         };
       } else if (response.status === 404) {
         return {
@@ -211,15 +253,59 @@ class BarcodeService {
           found: false,
           lookupType: 'none',
           duration: 0,
-          cacheHit: false
+          cacheHit: false,
+          success: false,
+          error: 'Product not found'
         };
       } else {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+        return {
+          product: null,
+          found: false,
+          lookupType: 'none',
+          duration: 0,
+          cacheHit: false,
+          success: false,
+          error: errorData.message || `HTTP ${response.status}: ${response.statusText}`
+        };
       }
     } catch (error) {
       clearTimeout(timeoutId);
-      throw error;
+      
+      // Handle network errors and timeouts
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          return {
+            product: null,
+            found: false,
+            lookupType: 'none',
+            duration: 0,
+            cacheHit: false,
+            success: false,
+            error: 'Scan failed - Request timeout'
+          };
+        }
+        
+        return {
+          product: null,
+          found: false,
+          lookupType: 'none',
+          duration: 0,
+          cacheHit: false,
+          success: false,
+          error: 'Scan failed - Network error'
+        };
+      }
+      
+      return {
+        product: null,
+        found: false,
+        lookupType: 'none',
+        duration: 0,
+        cacheHit: false,
+        success: false,
+        error: 'Scan failed'
+      };
     }
   }
 
@@ -243,10 +329,8 @@ class BarcodeService {
       reorder_level: apiProduct.reorder_level,
       preferred_supplier_id: apiProduct.preferred_supplier_id,
       is_active: apiProduct.is_active,
-      created_at: new Date(apiProduct.created_at || Date.now()),
-      updated_at: apiProduct.updated_at ? new Date(apiProduct.updated_at) : undefined,
-      category_name: apiProduct.category_name,
-      supplier_name: apiProduct.supplier_name
+      created_at: new Date(apiProduct.created_at || Date.now()).toISOString(),
+      updated_at: apiProduct.updated_at ? new Date(apiProduct.updated_at).toISOString() : new Date().toISOString()
     };
   }
 }

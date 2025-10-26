@@ -44,8 +44,8 @@ export function Sales() {
     startNewSale();
     updateTime();
     
-    const timeInterval = setInterval(updateTime, 1000);
-    const onlineInterval = setInterval(() => setIsOnline(navigator.onLine), 5000);
+    const timeInterval = setInterval(updateTime, 10000); // 10 seconds instead of 1 second
+    const onlineInterval = setInterval(() => setIsOnline(navigator.onLine), 300000); // 5 minutes instead of 30 seconds
     
     return () => {
       clearInterval(timeInterval);
@@ -85,7 +85,7 @@ export function Sales() {
   const loadCustomers = async () => {
     try {
       const customerList = await dataService.getCustomers();
-      setCustomers(customerList);
+      setCustomers(customerList || []);
     } catch (error) {
       console.error('Failed to load customers:', error);
     }
@@ -115,7 +115,7 @@ export function Sales() {
     }
 
     try {
-      const results = await dataService.searchProducts(term);
+      const results = await (dataService as any).searchProducts(term);
       setSearchResults(results);
     } catch (error) {
       console.error('Search failed:', error);
@@ -176,7 +176,7 @@ export function Sales() {
               // Price override
               await posService.addLine({
                 sale_id: currentSale.id,
-                product_id: product.id,
+                product_id: (product as any).id,
                 qty: scaleResult.qty,
                 unit_price: scaleResult.line_total / scaleResult.qty
               });
@@ -184,20 +184,20 @@ export function Sales() {
               // Weight
               await posService.addLine({
                 sale_id: currentSale.id,
-                product_id: product.id,
+                product_id: (product as any).id,
                 qty: scaleResult.qty
               });
             }
             
             updateCartDisplay();
-            toast.success(`Added ${product.name_en} (${scaleResult.qty}kg)`);
+            toast.success(`Added ${(product as any).name_en} (${scaleResult.qty}kg)`);
             return;
           }
         }
       }
 
       if (product) {
-        await handleAddProduct(product, 1);
+        await handleAddProduct(product as any, 1);
       } else {
         toast.error('Product not found');
       }
@@ -370,7 +370,7 @@ export function Sales() {
             name_en: item.product.name_en,
             name_si: item.product.name_si,
             name_ta: item.product.name_ta,
-            unit: item.product.unit,
+            unit: item.product.unit || 'pcs',
             qty: item.qty,
             unitPrice: item.unit_price,
             lineDiscount: item.line_discount,
@@ -438,7 +438,7 @@ export function Sales() {
             name_en: item.product.name_en,
             name_si: item.product.name_si,
             name_ta: item.product.name_ta,
-            unit: item.product.unit,
+            unit: item.product.unit || 'pcs',
             qty: item.qty,
             unitPrice: item.unit_price,
             lineDiscount: item.line_discount,

@@ -12,7 +12,7 @@ export default function MoversReport() {
     setLoading(true); setError(null);
     try {
       const data = await dataService.getMovers({ window: windowDays, type });
-      setRows(data);
+      setRows(data as any);
     } catch (e: any) { setError(e?.message || 'Failed'); } finally { setLoading(false); }
   };
 
@@ -76,6 +76,20 @@ export default function MoversReport() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

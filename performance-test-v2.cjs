@@ -114,3 +114,17 @@ console.log('   - Query performance: <1ms');
 console.log('   - Triggers add minimal overhead');
 
 db.close();
+
+
+
+
+
+
+
+
+
+
+
+
+
+

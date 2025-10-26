@@ -300,6 +300,78 @@ router.post('/api/purchasing/grn',
             totalValue: totalValue / 100
           });
           
+          // Send webhook notification for GRN created
+          try {
+            const { webhookService } = await import('../integrations/webhooks');
+            
+            // Get supplier details
+            const supplierData = db.prepare(`
+              SELECT id, supplier_name, contact_person, phone, email
+              FROM suppliers WHERE id = ?
+            `).get(supplier_id) as { 
+              id: number; 
+              supplier_name: string; 
+              contact_person?: string; 
+              phone?: string; 
+              email?: string; 
+            } | undefined;
+            
+            // Get product details for webhook payload
+            const productDetails = db.prepare(`
+              SELECT p.id, p.sku, p.name_en
+              FROM products p
+              WHERE p.id IN (${normalizedLines.map(() => '?').join(',')})
+            `).all(...normalizedLines.map(line => line.product_id)) as Array<{
+              id: number;
+              sku: string;
+              name_en: string;
+            }>;
+            
+            const webhookData = {
+              id: grnId,
+              supplier: {
+                id: supplier_id,
+                name: supplierData?.supplier_name || 'Unknown Supplier',
+                contact: supplierData?.contact_person || supplierData?.phone || supplierData?.email
+              },
+              lines: normalizedLines.map(line => {
+                const product = productDetails.find(p => p.id === line.product_id);
+                return {
+                  product_id: line.product_id,
+                  sku: product?.sku || 'UNKNOWN',
+                  name: product?.name_en || 'Unknown Product',
+                  quantity: line.quantity_received,
+                  unit_cost: line.cost_cents / 100,
+                  line_total: line.line_total_cents / 100,
+                  batch_no: line.batch_number,
+                  expiry_date: line.expiry_date
+                };
+              }),
+              total_cost: totalValue / 100,
+              grn_no: grnNumber,
+              received_by: (req as any).user?.id || null,
+              received_at: new Date().toISOString()
+            };
+            
+            await webhookService.sendGRNCreated(webhookData);
+            
+            requestLogger.info({ 
+              grnId, 
+              webhookData: { 
+                linesCount: webhookData.lines.length,
+                totalCost: webhookData.total_cost,
+                supplier: webhookData.supplier.name
+              }
+            }, 'GRN webhook sent');
+            
+          } catch (webhookError) {
+            // Don't fail the GRN creation if webhook fails
+            requestLogger.warn({ 
+              grnId, 
+              error: webhookError.message 
+            }, 'GRN webhook failed, but GRN was created successfully');
+          }
+          
           res.status(201).json({
             ok: true,
             grn: {
@@ -425,13 +497,15 @@ router.get('/api/purchasing/grn',
       });
       
       res.json({
-        ok: true,
-        grns,
-        pagination: {
+        success: true,
+        data: {
+          items: grns
+        },
+        meta: {
           page,
           pageSize,
           total: totalCount.count,
-          totalPages: Math.ceil(totalCount.count / pageSize)
+          pages: Math.ceil(totalCount.count / pageSize)
         }
       });
       

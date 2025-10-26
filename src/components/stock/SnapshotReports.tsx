@@ -224,11 +224,14 @@ export function SnapshotReports() {
               <span>Snapshot Reports & Analytics</span>
             </CardTitle>
             <div className="flex items-center space-x-2">
-              <Dropdown>
-                <Button variant="outline" size="sm">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  {selectedDate || 'Select Date'}
-                </Button>
+              <Dropdown
+                trigger={
+                  <Button variant="outline" size="sm">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    {selectedDate || 'Select Date'}
+                  </Button>
+                }
+              >
                 <DropdownMenu>
                   {availableDates.map(date => (
                     <DropdownItem

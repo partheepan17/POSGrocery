@@ -16,7 +16,9 @@ export async function pingApi(base: string): Promise<HealthResult> {
       if (r.ok) {
         return { ok: true, urlTried: tried, winner: url, at: new Date().toISOString() };
       }
-    } catch {}
+    } catch {
+      // ignore errors
+    }
   }
   return { ok: false, urlTried: tried, at: new Date().toISOString() };
 }
@@ -28,7 +30,9 @@ export async function pingDevices(base: string): Promise<HealthResult> {
   try {
     const r = await fetch(url, { cache: 'no-store' });
     if (r.ok) return { ok: true, urlTried: [url], winner: url, at: new Date().toISOString() };
-  } catch {}
+  } catch {
+    // Ignore network errors
+  }
   return { ok: false, urlTried: [url], at: new Date().toISOString() };
 }
 

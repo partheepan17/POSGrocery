@@ -3,7 +3,7 @@ import { X, Upload, Download, AlertTriangle, Check, FileText, Eye } from 'lucide
 import { Product } from '@/services/dataService';
 import { csvService } from '@/services/csvService';
 import { useAppStore } from '@/store/appStore';
-import { downloadTemplate, getTemplateConfig } from '@/utils/templateDownloader';
+import { downloadTemplate as downloadTemplateUtil, getTemplateConfig } from '@/utils/templateDownloader';
 
 interface CSVImportModalProps {
   isOpen: boolean;
@@ -93,8 +93,8 @@ export function CSVImportModal({ isOpen, onClose, onImportComplete }: CSVImportM
       // Validate and transform prices
       const prices: Record<string, number> = {};
       const priceFields = ['price_retail', 'price_wholesale', 'price_credit', 'price_other'];
-      const policy = settings.pricingSettings.missingPricePolicy;
-      const requiredTiers = settings.pricingSettings.requiredTiers;
+      const policy = settings.pricingPolicies?.missingPricePolicy || 'block';
+      const requiredTiers = settings.pricingPolicies?.requiredTiers || [];
       
       priceFields.forEach(field => {
         const value = row[field];
@@ -231,7 +231,7 @@ export function CSVImportModal({ isOpen, onClose, onImportComplete }: CSVImportM
       is_scale_item: false,
       is_active: true,
       created_at: new Date()
-    } as Product;
+    } as unknown as Product;
   };
 
   const updateProductPrices = async (productId: number, prices: Record<string, number>) => {
@@ -321,7 +321,7 @@ export function CSVImportModal({ isOpen, onClose, onImportComplete }: CSVImportM
                     </div>
                   </div>
                   <button
-                    onClick={() => downloadTemplate(getTemplateConfig('pricing'))}
+                    onClick={() => downloadTemplateUtil(getTemplateConfig('pricing'))}
                     className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     <Download className="w-4 h-4 mr-2" />
@@ -350,9 +350,9 @@ export function CSVImportModal({ isOpen, onClose, onImportComplete }: CSVImportM
                       <li>• All prices must be numbers ≥ 0</li>
                       <li>• Empty prices will be set to 0</li>
                       <li>• SKU must exist in the system</li>
-                      <li>• Missing {settings.pricingSettings.requiredTiers.join(', ')} price(s) will be {settings.pricingSettings.missingPricePolicy === 'block' ? 'blocked' : 'warned'}</li>
-                      {settings.pricingSettings.autoCreateCategories && <li>• Unknown categories will be auto-created</li>}
-                      {settings.pricingSettings.autoCreateSuppliers && <li>• Unknown suppliers will be auto-created</li>}
+                      <li>• Missing {(settings.pricingPolicies?.requiredTiers || []).join(', ')} price(s) will be {settings.pricingPolicies?.missingPricePolicy === 'block' ? 'blocked' : 'warned'}</li>
+                      {settings.pricingPolicies?.autoCreateCategories && <li>• Unknown categories will be auto-created</li>}
+                      {settings.pricingPolicies?.autoCreateSuppliers && <li>• Unknown suppliers will be auto-created</li>}
                     </ul>
                   </div>
                 </div>

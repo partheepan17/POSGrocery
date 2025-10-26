@@ -1,8 +1,8 @@
 // src/components/LanguageSwitcher.tsx
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from './ui/Button';
-import { Dropdown, DropdownMenu, DropdownItem } from './ui/Dropdown';
+import { Button } from '@/components/ui/Button';
+import { Dropdown, DropdownMenu, DropdownItem } from '@/components/ui/Dropdown';
 import { Globe, Check } from 'lucide-react';
 
 const languages = [

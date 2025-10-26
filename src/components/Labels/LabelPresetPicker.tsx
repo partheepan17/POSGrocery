@@ -54,7 +54,7 @@ export function LabelPresetPicker({
     
     if (confirm(`Are you sure you want to delete "${preset.name}"?`)) {
       try {
-        await labelService.deletePreset(preset.id);
+        await labelService.deletePreset(Number(preset.id));
         await loadPresets();
         
         // Select another preset if the deleted one was selected
@@ -97,7 +97,7 @@ export function LabelPresetPicker({
             <div>
               <div className="font-medium text-gray-900">{selectedPreset.name}</div>
               <div className="text-sm text-gray-500">
-                {selectedPreset.size.width_mm}×{selectedPreset.size.height_mm}mm • {selectedPreset.paper}
+                {selectedPreset.size?.width || 0}×{selectedPreset.size?.height || 0}mm • {selectedPreset.paper}
               </div>
             </div>
           ) : (
@@ -141,13 +141,13 @@ export function LabelPresetPicker({
               <div className="flex-1">
                 <div className="font-medium text-gray-900">{preset.name}</div>
                 <div className="text-sm text-gray-500">
-                  {preset.size.width_mm}×{preset.size.height_mm}mm • {preset.paper}
+                  {preset.size?.width || 0}×{preset.size?.height || 0}mm • {preset.paper}
                   {preset.paper === 'A4' && preset.a4 && (
                     <span> • {preset.a4.rows}×{preset.a4.cols} grid</span>
                   )}
                 </div>
                 <div className="text-xs text-gray-400 mt-1">
-                  {preset.barcode.symbology} • {preset.fields.price.source} price
+                  {preset.barcode?.type || 'N/A'} • {Array.isArray(preset.fields) ? preset.fields.find(f => f.name === 'price')?.label || 'N/A' : 'N/A'} price
                 </div>
               </div>
               

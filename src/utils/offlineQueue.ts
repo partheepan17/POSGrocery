@@ -1,4 +1,21 @@
 // Offline queue using IndexedDB for durability
+
+// Type declaration for RequestInit
+type RequestInit = {
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+  mode?: string;
+  credentials?: string;
+  cache?: string;
+  redirect?: string;
+  referrer?: string;
+  referrerPolicy?: string;
+  integrity?: string;
+  keepalive?: boolean;
+  signal?: AbortSignal;
+};
+
 interface QueuedRequest {
   id: string;
   url: string;
@@ -256,7 +273,23 @@ export async function fetchWithOffline(
 ): Promise<Response> {
   if (navigator.onLine) {
     try {
-      return await fetch(url, options);
+      // Create a properly typed RequestInit object
+      const fetchOptions: RequestInit = {
+        method: options.method,
+        headers: options.headers,
+        body: options.body,
+        mode: options.mode,
+        credentials: options.credentials,
+        cache: options.cache as any,
+        redirect: options.redirect,
+        referrer: options.referrer,
+        referrerPolicy: options.referrerPolicy,
+        integrity: options.integrity,
+        keepalive: options.keepalive,
+        signal: options.signal,
+      };
+      
+      return await fetch(url, fetchOptions as any);
     } catch (error) {
       // Network error, queue the request
       await offlineQueue.queueRequest({
@@ -296,5 +329,19 @@ export async function fetchWithOffline(
     });
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

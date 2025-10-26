@@ -5,3 +5,17 @@ ALTER TABLE invoices ADD COLUMN meta TEXT;
 CREATE INDEX IF NOT EXISTS idx_invoices_meta ON invoices(meta);
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

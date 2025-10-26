@@ -33,3 +33,17 @@ CREATE INDEX IF NOT EXISTS idx_products_category_active ON products(category_id,
 -- Full-text search index (if supported)
 -- Note: SQLite FTS requires a separate virtual table, which is complex to implement
 -- The LIKE queries with the above indexes should be sufficient for most use cases
+
+
+
+
+
+
+
+
+
+
+
+
+
+

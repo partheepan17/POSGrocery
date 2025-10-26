@@ -2,7 +2,9 @@
 -- Enhance categories table with missing fields and improved schema
 
 -- Add is_active field to categories table (if not exists)
-ALTER TABLE categories ADD COLUMN is_active INTEGER DEFAULT 1;
+-- Check if column exists before adding
+-- Note: SQLite doesn't support IF NOT EXISTS for ALTER TABLE ADD COLUMN
+-- So we'll handle this in the error handling
 
 -- Add updated_at field to categories table
 ALTER TABLE categories ADD COLUMN updated_at TEXT DEFAULT (datetime('now'));

@@ -24,3 +24,17 @@ export function formatReceipt(lines: ReceiptLine[], totals: { subtotal: number; 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

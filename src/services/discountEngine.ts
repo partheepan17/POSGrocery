@@ -20,6 +20,10 @@ export interface AppliedRule {
   rule_name: string;
   discount_amount: number;
   remaining_cap?: number;
+  level?: 'PRODUCT' | 'GROUP' | 'SUPPLIER';
+  type?: 'PERCENT' | 'AMOUNT';
+  value?: number;
+  reason?: 'priority' | 'stack' | 'capped';
 }
 
 export interface DiscountEngineSettings {
@@ -141,43 +145,123 @@ export class DiscountEngine {
       return this.calculateTotals(lines, currentSettings);
     }
 
-    // Clone lines to avoid mutation
-    // IMPORTANT: Ensure retail_price is set for discount calculations
-    const updatedLines = lines.map(line => ({ 
-      ...line, 
+    // Prepare lines
+    const updatedLines = lines.map(line => ({
+      ...line,
       qty: Number(line.qty),
       line_discount: 0,
       applied_rules: [],
-      // Ensure we have retail price for discount calculations
       retail_price: line.retail_price || line.product.price_retail
     }));
 
     const appliedRules: AppliedRule[] = [];
     const warnings: string[] = [];
-    const ruleCapTracker: RuleCapTracker = {};
 
-    // Initialize cap tracker only for legacy-cap mode (threshold = 0)
-    rules.forEach(rule => {
-      if (!rule.max_qty_or_weight || rule.max_qty_or_weight <= 0) {
-        ruleCapTracker[rule.id] = {
-          rule,
-          usedQuantity: 0,
-          remainingQuantity: Infinity
+    const globalQuantityRule = dataService.getGlobalQuantityRuleEnabled();
+
+    // Compute per-line matches and apply according to stack mode and priority
+    for (const line of updatedLines) {
+      // Gather matches by level
+      const matches = this.findMatchingRulesForLine(rules, line);
+      if (matches.length === 0) continue;
+
+      // Determine if additive or exclusive applies
+      // If any matched rule has ADDITIVE, stack; else exclusive by default
+      const anyAdditive = matches.some(r => (r.stack_mode || 'EXCLUSIVE') === 'ADDITIVE');
+
+      let selected: DiscountRule[] = [];
+      if (anyAdditive) {
+        selected = matches.slice();
+      } else {
+        // Exclusive: pick highest priority by level then by rule.priority asc
+        const levelRank = (r: DiscountRule) => {
+          const lvl = (r.level || (r.applies_to === 'CATEGORY' ? 'GROUP' : 'PRODUCT')) as any;
+          if (lvl === 'PRODUCT') return 1;
+          if (lvl === 'GROUP' || lvl === 'CATEGORY') return 2;
+          if (lvl === 'SUPPLIER') return 3;
+          return 99;
         };
+        const best = matches
+          .sort((a, b) => levelRank(a) - levelRank(b) || (a.priority - b.priority))[0];
+        if (best) selected = [best];
       }
-    });
 
-    // Apply rules in priority order
-    for (const rule of rules) {
-      const ruleResult = this.applyRuleToLines({
-        rule,
-        lines: updatedLines,
-        capTracker: ruleCapTracker,
-        settings: currentSettings
-      });
+      // Quantity rule toggle: if additive and any contributing rule has it Off, disable legacy behavior for the line
+      const allQtyRuleOn = selected.every(r => r.apply_quantity_rule !== false);
+      const quantityRuleOn = globalQuantityRule && allQtyRuleOn;
 
-      appliedRules.push(...ruleResult.appliedRules);
-      warnings.push(...ruleResult.warnings);
+      // Compute discount amounts, cap to line subtotal
+      const lineSubtotal = line.unit_price * line.qty;
+      let sumDiscount = 0;
+      for (const r of selected) {
+        let amount = 0;
+        try {
+          amount = this.computeRuleDiscountForLine(r, line, quantityRuleOn, currentSettings);
+        } catch (err) {
+          try {
+            const auditModule = await import('@/services/auditService');
+            await auditModule.auditService.log({
+              action: 'discounts.calc_failed',
+              entity: 'discount_rule',
+              entityId: r.id,
+              payload: {
+                lineId: line.id,
+                productId: line.product_id,
+                reason: 'compute_error',
+                error: err instanceof Error ? err.message : 'unknown',
+                channel: undefined,
+                ts: new Date().toISOString()
+              }
+            } as any);
+          } catch {}
+          continue;
+        }
+        if (amount <= 0) continue;
+        const remainingCap = Math.max(0, lineSubtotal - sumDiscount);
+        const appliedAmount = Math.min(amount, remainingCap);
+        if (appliedAmount > 0) {
+          sumDiscount += appliedAmount;
+          const applied: AppliedRule = {
+            rule_id: r.id,
+            rule_name: r.name,
+            discount_amount: this.roundAmount(appliedAmount, currentSettings),
+            level: (r.level || (r.applies_to === 'CATEGORY' ? 'GROUP' : 'PRODUCT')) as any,
+            type: r.type,
+            value: r.value,
+            reason: appliedAmount < amount ? 'capped' : (anyAdditive ? 'stack' : 'priority')
+          };
+          (line.applied_rules as AppliedRule[]).push(applied);
+          appliedRules.push(applied);
+          if (appliedAmount < amount) {
+            // Log capped event
+            try {
+              const auditModule = await import('@/services/auditService');
+              await auditModule.auditService.log({
+                action: 'discounts.calc_capped',
+                entity: 'discount_line',
+                entityId: String(line.id),
+                payload: {
+                  lineId: line.id,
+                  productId: line.product_id,
+                  subtotal: lineSubtotal,
+                  intended: amount,
+                  applied: appliedAmount,
+                  channel: undefined,
+                  ts: new Date().toISOString()
+                }
+              } as any);
+            } catch {}
+            warnings.push(`Capped at subtotal on ${line.product.sku}`);
+          }
+        }
+        if (sumDiscount >= lineSubtotal) {
+          warnings.push(`Discount capped at line total for product ${line.product.sku}`);
+          break;
+        }
+      }
+
+      line.line_discount = this.roundAmount(sumDiscount, currentSettings);
+      line.total = this.roundAmount(line.unit_price * line.qty - line.line_discount + line.tax, currentSettings);
     }
 
     return {
@@ -191,105 +275,38 @@ export class DiscountEngine {
   /**
    * Apply a single rule to cart lines
    */
-  private applyRuleToLines(params: {
-    rule: DiscountRule;
-    lines: CartLine[];
-    capTracker: RuleCapTracker;
-    settings: DiscountEngineSettings;
-  }): { appliedRules: AppliedRule[]; warnings: string[] } {
-    const { rule, lines, capTracker, settings } = params;
-    const appliedRules: AppliedRule[] = [];
-    const warnings: string[] = [];
+  private findMatchingRulesForLine(rules: DiscountRule[], line: CartLine): DiscountRule[] {
+    const productId = Number(line.product_id);
+    const groupId = Number((line.product as any).category_id);
+    const supplierId = Number((line.product as any).preferred_supplier_id);
+    return rules.filter(r => {
+      const level = (r.level || (r.applies_to === 'CATEGORY' ? 'GROUP' : 'PRODUCT')) as any;
+      if (level === 'PRODUCT') return Number(r.target_id) === productId;
+      if (level === 'GROUP' || r.applies_to === 'CATEGORY') return Number(r.target_id) === groupId;
+      if (level === 'SUPPLIER') return supplierId && Number(r.target_id) === supplierId;
+      return false;
+    });
+  }
 
-    // Find matching lines
-    const matchingLines = lines.filter(line => this.doesRuleApplyToLine(rule, line));
-    
-    if (matchingLines.length === 0) {
-      return { appliedRules, warnings };
-    }
+  private computeRuleDiscountForLine(
+    rule: DiscountRule,
+    line: CartLine,
+    quantityRuleOn: boolean,
+    settings: DiscountEngineSettings
+  ): number {
+    const qty = Number(line.qty);
+    if (qty <= 0) return 0;
+    const retailPrice = Number(line.retail_price);
+    const perUnit = rule.type === 'AMOUNT' ? Number(rule.value) : (retailPrice * (Number(rule.value) / 100));
+    const grossMax = retailPrice * qty;
 
-    let totalDiscountApplied = 0;
-    let remainingCap = capTracker[rule.id]?.remainingQuantity ?? Infinity;
+    // If rule defines a min threshold using max_qty_or_weight, treat as threshold to unlock full-qty discount
+    const threshold = Number(rule.max_qty_or_weight || 0);
+    const eligibleQty = threshold > 0 ? (qty >= threshold ? qty : 0) : qty;
 
-    // Apply discount to each matching line
-    for (const line of matchingLines) {
-      if (remainingCap <= 0) {
-        warnings.push(`Cap reached for rule "${rule.name}"`);
-        break;
-      }
-
-      // Calculate how much quantity we can discount for this line
-      const minQtyThreshold = Number(rule.max_qty_or_weight || 0);
-      let applicableQty = 0;
-      if (minQtyThreshold > 0) {
-        // New behavior: apply discount to ALL quantity only if threshold reached
-        if (line.qty >= minQtyThreshold) {
-          applicableQty = line.qty;
-        } else {
-          applicableQty = 0;
-        }
-      } else {
-        // Legacy/cap behavior (no threshold configured)
-        applicableQty = Math.min(Number(line.qty), remainingCap);
-      }
-      
-      if (applicableQty <= 0) {
-        continue;
-      }
-
-      // Calculate discount amount based on RETAIL PRICE only
-      let discountPerUnit = 0;
-      const retailPrice = line.retail_price;
-      
-      if (rule.type === 'AMOUNT') {
-        discountPerUnit = rule.value;
-      } else if (rule.type === 'PERCENT') {
-        // IMPORTANT: Discount percentage is calculated on retail price, not current unit price
-        discountPerUnit = retailPrice * (rule.value / 100);
-      }
-
-      // Calculate total discount for this line (capped by applicable quantity)
-      // Use retail price for discount calculation, but preserve current unit price for display
-      const lineDiscount = Math.min(
-        discountPerUnit * applicableQty,
-        retailPrice * applicableQty // Can't discount more than the retail price total
-      );
-
-      // Round the discount
-      const roundedDiscount = this.roundAmount(lineDiscount, settings);
-
-      // Apply the discount
-      if (roundedDiscount > 0) {
-        line.line_discount += roundedDiscount;
-        line.applied_rules = line.applied_rules || [];
-        
-        const appliedRule: AppliedRule = {
-          rule_id: rule.id,
-          rule_name: rule.name,
-          discount_amount: roundedDiscount,
-          remaining_cap: capTracker[rule.id] ? remainingCap - applicableQty : undefined
-        };
-        
-        line.applied_rules.push(appliedRule);
-        appliedRules.push(appliedRule);
-        totalDiscountApplied += roundedDiscount;
-
-        // Update cap tracker
-        if (capTracker[rule.id] && minQtyThreshold === 0) {
-          capTracker[rule.id].usedQuantity += applicableQty;
-          capTracker[rule.id].remainingQuantity -= applicableQty;
-          remainingCap = capTracker[rule.id].remainingQuantity;
-        }
-
-        // Recalculate line total
-        line.total = this.roundAmount(
-          (line.unit_price * line.qty) - line.line_discount + line.tax,
-          settings
-        );
-      }
-    }
-
-    return { appliedRules, warnings };
+    let amount = perUnit * eligibleQty;
+    amount = Math.min(amount, grossMax);
+    return this.roundAmount(amount, settings);
   }
 
   /**

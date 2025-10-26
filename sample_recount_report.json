@@ -1,0 +1,194 @@
+{
+  "summary": {
+    "total_products": 1250,
+    "products_with_drift": 23,
+    "total_drift_value": 45,
+    "tolerance_threshold": 1,
+    "recount_date": "2024-01-15T01:30:45.123Z",
+    "processing_time_ms": 2847
+  },
+  "drifts": [
+    {
+      "product_id": 101,
+      "sku": "MILK-001",
+      "name_en": "Fresh Milk 1L",
+      "name_si": "තැනුම් කිරි 1L",
+      "name_ta": "புதிய பால் 1L",
+      "unit": "pcs",
+      "category_name": "Dairy",
+      "cached_quantity": 15,
+      "computed_quantity": 12,
+      "difference": -3,
+      "tolerance_exceeded": true,
+      "last_movement_date": "2024-01-14T16:30:00.000Z",
+      "movement_count": 8,
+      "suggested_adjustment": {
+        "quantity": -3,
+        "reason": "Stock Missing - Negative Adjustment",
+        "notes": "Missing stock detected during recount. Cached: 15, Computed: 12. Product: Fresh Milk 1L (MILK-001)"
+      }
+    },
+    {
+      "product_id": 205,
+      "sku": "BREAD-001",
+      "name_en": "White Bread Loaf",
+      "name_si": "සුදු පාන් රෝටිය",
+      "name_ta": "வெள்ளை ரொட்டி",
+      "unit": "pcs",
+      "category_name": "Bakery",
+      "cached_quantity": 8,
+      "computed_quantity": 11,
+      "difference": 3,
+      "tolerance_exceeded": true,
+      "last_movement_date": "2024-01-15T00:45:00.000Z",
+      "movement_count": 12,
+      "suggested_adjustment": {
+        "quantity": 3,
+        "reason": "Stock Found - Positive Adjustment",
+        "notes": "Found additional stock during recount. Cached: 8, Computed: 11. Product: White Bread Loaf (BREAD-001)"
+      }
+    },
+    {
+      "product_id": 342,
+      "sku": "RICE-001",
+      "name_en": "Basmati Rice 5kg",
+      "name_si": "බස්මති බත් 5kg",
+      "name_ta": "பாஸ்மதி அரிசி 5kg",
+      "unit": "bags",
+      "category_name": "Grains",
+      "cached_quantity": 0,
+      "computed_quantity": 0,
+      "difference": 0,
+      "tolerance_exceeded": false,
+      "last_movement_date": "2024-01-10T14:20:00.000Z",
+      "movement_count": 3,
+      "suggested_adjustment": {
+        "quantity": 0,
+        "reason": "Inventory Drift Correction",
+        "notes": "Shadow recount detected drift: cached=0, computed=0. Product: Basmati Rice 5kg (RICE-001)"
+      }
+    },
+    {
+      "product_id": 456,
+      "sku": "CHOC-001",
+      "name_en": "Dark Chocolate Bar",
+      "name_si": "කළු චොකලට් බාර්",
+      "name_ta": "கருப்பு சாக்லேட் பார்",
+      "unit": "pcs",
+      "category_name": "Confectionery",
+      "cached_quantity": 25,
+      "computed_quantity": 22,
+      "difference": -3,
+      "tolerance_exceeded": true,
+      "last_movement_date": "2024-01-14T20:15:00.000Z",
+      "movement_count": 15,
+      "suggested_adjustment": {
+        "quantity": -3,
+        "reason": "Stock Missing - Negative Adjustment",
+        "notes": "Missing stock detected during recount. Cached: 25, Computed: 22. Product: Dark Chocolate Bar (CHOC-001)"
+      }
+    },
+    {
+      "product_id": 789,
+      "sku": "SOAP-001",
+      "name_en": "Liquid Soap 500ml",
+      "name_si": "දියර සබන් 500ml",
+      "name_ta": "திரவ சோப்பு 500ml",
+      "unit": "bottles",
+      "category_name": "Personal Care",
+      "cached_quantity": 5,
+      "computed_quantity": 8,
+      "difference": 3,
+      "tolerance_exceeded": true,
+      "last_movement_date": "2024-01-15T01:00:00.000Z",
+      "movement_count": 6,
+      "suggested_adjustment": {
+        "quantity": 3,
+        "reason": "Stock Found - Positive Adjustment",
+        "notes": "Found additional stock during recount. Cached: 5, Computed: 8. Product: Liquid Soap 500ml (SOAP-001)"
+      }
+    }
+  ],
+  "adjustments": {
+    "total_adjustments": 23,
+    "total_quantity_adjustment": -15,
+    "products_requiring_review": 8
+  },
+  "alerts": {
+    "high_drift_products": [
+      {
+        "product_id": 101,
+        "sku": "MILK-001",
+        "name_en": "Fresh Milk 1L",
+        "name_si": "තැනුම් කිරි 1L",
+        "name_ta": "புதிய பால் 1L",
+        "unit": "pcs",
+        "category_name": "Dairy",
+        "cached_quantity": 15,
+        "computed_quantity": 12,
+        "difference": -3,
+        "tolerance_exceeded": true,
+        "last_movement_date": "2024-01-14T16:30:00.000Z",
+        "movement_count": 8,
+        "suggested_adjustment": {
+          "quantity": -3,
+          "reason": "Stock Missing - Negative Adjustment",
+          "notes": "Missing stock detected during recount. Cached: 15, Computed: 12. Product: Fresh Milk 1L (MILK-001)"
+        }
+      },
+      {
+        "product_id": 205,
+        "sku": "BREAD-001",
+        "name_en": "White Bread Loaf",
+        "name_si": "සුදු පාන් රෝටිය",
+        "name_ta": "வெள்ளை ரொட்டி",
+        "unit": "pcs",
+        "category_name": "Bakery",
+        "cached_quantity": 8,
+        "computed_quantity": 11,
+        "difference": 3,
+        "tolerance_exceeded": true,
+        "last_movement_date": "2024-01-15T00:45:00.000Z",
+        "movement_count": 12,
+        "suggested_adjustment": {
+          "quantity": 3,
+          "reason": "Stock Found - Positive Adjustment",
+          "notes": "Found additional stock during recount. Cached: 8, Computed: 11. Product: White Bread Loaf (BREAD-001)"
+        }
+      }
+    ],
+    "zero_stock_products": [
+      {
+        "product_id": 342,
+        "sku": "RICE-001",
+        "name_en": "Basmati Rice 5kg",
+        "name_si": "බස්මති බත් 5kg",
+        "name_ta": "பாஸ்மதி அரிசி 5kg",
+        "unit": "bags",
+        "category_name": "Grains",
+        "cached_quantity": 0,
+        "computed_quantity": 0,
+        "difference": 0,
+        "tolerance_exceeded": false,
+        "last_movement_date": "2024-01-10T14:20:00.000Z",
+        "movement_count": 3,
+        "suggested_adjustment": {
+          "quantity": 0,
+          "reason": "Inventory Drift Correction",
+          "notes": "Shadow recount detected drift: cached=0, computed=0. Product: Basmati Rice 5kg (RICE-001)"
+        }
+      }
+    ],
+    "negative_stock_products": []
+  }
+}
+
+
+
+
+
+
+
+
+
+

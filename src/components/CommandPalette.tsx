@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Command, ArrowRight, X } from 'lucide-react';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
-import { Badge } from './ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
 
 interface CommandAction {
   id: string;
@@ -211,6 +211,10 @@ export function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProp
     </div>
   );
 }
+
+
+
+
 
 
 

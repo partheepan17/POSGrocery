@@ -1,250 +1,228 @@
 import { Router } from 'express';
-import { asyncHandler } from '../middleware/error';
+import { asyncHandler } from '../utils/asyncHandler';
+import { createRequestLogger } from '../utils/structuredLogger';
 import { createError, ErrorContext, AppError } from '../types/errors';
-import { createRequestLogger } from '../utils/logger';
-import { writeAuditLog, createAuditContext } from '../utils/audit';
-import { AuditAction, EntityType, DiscountOverrideData } from '../types/audit';
-import { getDatabase } from '../db';
 
-export const discountRouter = Router();
+const discountRouter = Router();
 
-// POST /api/discounts/override - Apply manager discount override
-discountRouter.post('/api/discounts/override', asyncHandler(async (req, res) => {
+// GET /api/discount-rules - Get discount rules
+discountRouter.get('/api/discount-rules', asyncHandler(async (req, res) => {
   const requestLogger = createRequestLogger(req);
-  const auditContext = createAuditContext(req);
   
   try {
-    const { productId, discountAmount, discountPercentage, reason, managerPin } = req.body;
+    const { getDatabase } = await import('../db');
+    const db = getDatabase();
     
-    requestLogger.debug({ 
-      productId, 
-      discountAmount, 
-      discountPercentage,
-      hasReason: !!reason,
-      hasManagerPin: !!managerPin
-    }, 'Processing discount override request');
+    const activeOnly = req.query.active === 'true';
+    
+    let query = `
+      SELECT 
+        id, name, applies_to, level, target_id, type, value, 
+        channel, stack_mode, apply_quantity_rule, max_qty_or_weight,
+        active, active_from, active_to, created_at, updated_at
+      FROM discount_rules
+    `;
+    
+    if (activeOnly) {
+      query += ' WHERE active = 1 AND (active_from IS NULL OR active_from <= datetime("now")) AND (active_to IS NULL OR active_to >= datetime("now"))';
+    }
+    
+    query += ' ORDER BY created_at DESC';
+    
+    const rules = db.prepare(query).all();
+    
+    requestLogger.info({ 
+      ruleCount: rules.length,
+      activeOnly 
+    }, 'Discount rules retrieved');
+    
+    res.json({ rules });
+  } catch (error: any) {
+    const context = {
+      requestId: req.requestId,
+      operation: 'GET_DISCOUNT_RULES',
+      resource: '/api/discount-rules'
+    };
+    
+    throw createError.databaseError('Failed to retrieve discount rules', error, context);
+  }
+}));
+
+// POST /api/discount-rules - Create discount rule
+discountRouter.post('/api/discount-rules', asyncHandler(async (req, res) => {
+  const requestLogger = createRequestLogger(req);
+  
+  try {
+    const { getDatabase } = await import('../db');
+    const db = getDatabase();
+    
+    const {
+      name,
+      applies_to = 'PRODUCT',
+      level = 'PRODUCT',
+      target_id,
+      type = 'PERCENT',
+      value,
+      channel = 'BOTH',
+      stack_mode = 'EXCLUSIVE',
+      apply_quantity_rule = true,
+      max_qty_or_weight,
+      active = true,
+      active_from,
+      active_to
+    } = req.body;
     
     // Validate required fields
-    if (!productId || (!discountAmount && !discountPercentage)) {
-      throw createError.invalidInput('Product ID and discount amount/percentage are required');
+    if (!name || !target_id || value === undefined) {
+      throw createError.invalidInput('Missing required fields: name, target_id, value');
     }
     
-    if (!reason || reason.trim().length === 0) {
-      throw createError.invalidInput('Reason for discount override is required');
-    }
-    
-    if (!managerPin) {
-      throw createError.invalidInput('Manager PIN is required for discount override');
-    }
-    
-    // TODO: Verify manager PIN (this would be implemented with proper auth system)
-    // For now, we'll simulate PIN verification
-    const isPinValid = await verifyManagerPin(managerPin, auditContext.actorId);
-    if (!isPinValid) {
-      // Log failed PIN verification
-      await writeAuditLog(
-        AuditAction.PIN_VERIFY_FAIL,
-        {
-          userId: auditContext.actorId || 'unknown',
-          userName: 'Manager',
-          verificationResult: false,
-          attemptCount: 1,
-          lockoutTriggered: false
-        },
-        auditContext
-      );
-      
-      throw createError.unauthorized('Invalid manager PIN');
-    }
-    
-    // Log successful PIN verification
-    await writeAuditLog(
-      AuditAction.PIN_VERIFY_SUCCESS,
-      {
-        userId: auditContext.actorId || 'unknown',
-        userName: 'Manager',
-        verificationResult: true
-      },
-      auditContext
+    const result = db.prepare(`
+      INSERT INTO discount_rules (
+        name, applies_to, level, target_id, type, value, channel, 
+        stack_mode, apply_quantity_rule, max_qty_or_weight, 
+        active, active_from, active_to, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    `).run(
+      name, applies_to, level, target_id, type, value, channel,
+      stack_mode, apply_quantity_rule, max_qty_or_weight,
+      active, active_from, active_to
     );
     
-    // Get product details
-    const db = getDatabase();
-    const product = db.prepare(`
-      SELECT id, name_en, price_retail 
-      FROM products 
-      WHERE id = ? AND is_active = 1
-    `).get(productId);
+    requestLogger.info({ 
+      ruleId: result.lastInsertRowid,
+      name,
+      type,
+      value
+    }, 'Discount rule created');
     
-    if (!product) {
-      throw createError.notFound('Product', {
-        requestId: req.requestId,
-        operation: 'DISCOUNT_OVERRIDE',
-        resource: '/api/discounts/override',
-        metadata: { productId }
-      });
-    }
-    
-    const originalPrice = (product as any).price_retail;
-    let finalPrice: number;
-    let actualDiscountAmount: number;
-    
-    // Calculate final price based on discount type
-    if (discountAmount) {
-      finalPrice = Math.max(0, originalPrice - discountAmount);
-      actualDiscountAmount = discountAmount;
-    } else if (discountPercentage) {
-      const discountValue = (originalPrice * discountPercentage) / 100;
-      finalPrice = Math.max(0, originalPrice - discountValue);
-      actualDiscountAmount = discountValue;
-    } else {
-      throw createError.invalidInput('Either discount amount or percentage must be provided');
-    }
-    
-    // Apply discount (in a real system, this would update the order/cart)
-    const discountData: DiscountOverrideData = {
-      productId: (product as any).id,
-      productName: (product as any).name_en,
-      originalPrice,
-      discountedPrice: finalPrice,
-      discountAmount: actualDiscountAmount,
-      discountPercentage: discountPercentage || (actualDiscountAmount / originalPrice) * 100,
-      reason,
-      managerId: auditContext.actorId || 'unknown'
-    };
-    
-    // Log discount override
-    await writeAuditLog(
-      AuditAction.DISCOUNT_OVERRIDE,
-      discountData,
-      auditContext,
-      EntityType.PRODUCT,
-      productId
-    );
-    
-    requestLogger.info({
-      productId,
-      originalPrice,
-      finalPrice,
-      discountAmount: actualDiscountAmount,
-      reason
-    }, 'Discount override applied successfully');
-    
-    res.json({
-      success: true,
-      product: {
-        id: (product as any).id,
-        name: (product as any).name_en,
-        originalPrice,
-        discountedPrice: finalPrice,
-        discountAmount: actualDiscountAmount,
-        discountPercentage: discountPercentage || (actualDiscountAmount / originalPrice) * 100
-      },
-      reason,
-      appliedBy: auditContext.actorId
+    res.status(201).json({ 
+      success: true, 
+      rule: { 
+        id: result.lastInsertRowid, 
+        ...req.body 
+      } 
     });
-    
-  } catch (error) {
-    // Re-throw AppError instances without wrapping
-    if (error instanceof AppError) {
+  } catch (error: any) {
+    if (error instanceof Error && error.message.includes('Missing required fields')) {
       throw error;
     }
     
-    const context: ErrorContext = {
+    const context = {
       requestId: req.requestId,
-      operation: 'DISCOUNT_OVERRIDE',
-      resource: '/api/discounts/override',
-      metadata: { productId: req.body.productId }
+      operation: 'CREATE_DISCOUNT_RULE',
+      resource: '/api/discount-rules'
     };
     
-    throw createError.internal('Failed to process discount override', error, context);
+    throw createError.databaseError('Failed to create discount rule', error, context);
   }
 }));
 
-// POST /api/discounts/remove - Remove applied discount
-discountRouter.post('/api/discounts/remove', asyncHandler(async (req, res) => {
+// PUT /api/discount-rules/:id - Update discount rule
+discountRouter.put('/api/discount-rules/:id', asyncHandler(async (req, res) => {
   const requestLogger = createRequestLogger(req);
-  const auditContext = createAuditContext(req);
   
   try {
-    const { productId, reason } = req.body;
-    
-    requestLogger.debug({ productId, reason }, 'Processing discount removal request');
-    
-    if (!productId) {
-      throw createError.invalidInput('Product ID is required');
-    }
-    
-    // Get product details
+    const { getDatabase } = await import('../db');
     const db = getDatabase();
-    const product = db.prepare(`
-      SELECT id, name_en, price_retail 
-      FROM products 
-      WHERE id = ? AND is_active = 1
-    `).get(productId);
     
-    if (!product) {
-      throw createError.notFound('Product', {
-        requestId: req.requestId,
-        operation: 'DISCOUNT_REMOVE',
-        resource: '/api/discounts/remove',
-        metadata: { productId }
-      });
+    const ruleId = parseInt(req.params.id);
+    if (isNaN(ruleId)) {
+      throw createError.invalidInput('Invalid rule ID');
     }
     
-    // Log discount removal
-    await writeAuditLog(
-      AuditAction.DISCOUNT_REMOVED,
-      {
-        productId: (product as any).id,
-        productName: (product as any).name_en,
-        originalPrice: (product as any).price_retail,
-        reason: reason || 'Discount removed by user'
-      },
-      auditContext,
-      EntityType.PRODUCT,
-      productId
+    const {
+      name, applies_to, level, target_id, type, value, channel,
+      stack_mode, apply_quantity_rule, max_qty_or_weight,
+      active, active_from, active_to
+    } = req.body;
+    
+    const result = db.prepare(`
+      UPDATE discount_rules SET
+        name = COALESCE(?, name),
+        applies_to = COALESCE(?, applies_to),
+        level = COALESCE(?, level),
+        target_id = COALESCE(?, target_id),
+        type = COALESCE(?, type),
+        value = COALESCE(?, value),
+        channel = COALESCE(?, channel),
+        stack_mode = COALESCE(?, stack_mode),
+        apply_quantity_rule = COALESCE(?, apply_quantity_rule),
+        max_qty_or_weight = COALESCE(?, max_qty_or_weight),
+        active = COALESCE(?, active),
+        active_from = COALESCE(?, active_from),
+        active_to = COALESCE(?, active_to),
+        updated_at = datetime('now')
+      WHERE id = ?
+    `).run(
+      name, applies_to, level, target_id, type, value, channel,
+      stack_mode, apply_quantity_rule, max_qty_or_weight,
+      active, active_from, active_to, ruleId
     );
     
-    requestLogger.info({
-      productId,
-      reason
-    }, 'Discount removed successfully');
+    if (result.changes === 0) {
+      throw createError.notFound('Discount rule not found');
+    }
     
-    res.json({
-      success: true,
-      product: {
-        id: (product as any).id,
-        name: (product as any).name_en,
-        price: (product as any).price_retail
-      },
-      reason: reason || 'Discount removed'
-    });
+    requestLogger.info({ 
+      ruleId,
+      changes: result.changes
+    }, 'Discount rule updated');
     
-  } catch (error) {
-    if (error instanceof AppError) {
+    res.json({ success: true, changes: result.changes });
+  } catch (error: any) {
+    if (error instanceof Error && (error.message.includes('Invalid rule ID') || error.message.includes('not found'))) {
       throw error;
     }
     
-    const context: ErrorContext = {
+    const context = {
       requestId: req.requestId,
-      operation: 'DISCOUNT_REMOVE',
-      resource: '/api/discounts/remove',
-      metadata: { productId: req.body.productId }
+      operation: 'UPDATE_DISCOUNT_RULE',
+      resource: `/api/discount-rules/${req.params.id}`
     };
     
-    throw createError.internal('Failed to remove discount', error, context);
+    throw createError.databaseError('Failed to update discount rule', error, context);
   }
 }));
 
-// Simulate manager PIN verification (in real system, this would use proper auth)
-async function verifyManagerPin(pin: string, userId?: string): Promise<boolean> {
-  // In a real system, this would:
-  // 1. Hash the provided PIN
-  // 2. Compare with stored hash in database
-  // 3. Check for lockout conditions
-  // 4. Update attempt counters
+// DELETE /api/discount-rules/:id - Delete discount rule
+discountRouter.delete('/api/discount-rules/:id', asyncHandler(async (req, res) => {
+  const requestLogger = createRequestLogger(req);
   
-  // For demo purposes, accept any 4-digit PIN
-  return /^\d{4}$/.test(pin);
-}
+  try {
+    const { getDatabase } = await import('../db');
+    const db = getDatabase();
+    
+    const ruleId = parseInt(req.params.id);
+    if (isNaN(ruleId)) {
+      throw createError.invalidInput('Invalid rule ID');
+    }
+    
+    const result = db.prepare('DELETE FROM discount_rules WHERE id = ?').run(ruleId);
+    
+    if (result.changes === 0) {
+      throw createError.notFound('Discount rule not found');
+    }
+    
+    requestLogger.info({ 
+      ruleId,
+      changes: result.changes
+    }, 'Discount rule deleted');
+    
+    res.json({ success: true, changes: result.changes });
+  } catch (error: any) {
+    if (error instanceof Error && (error.message.includes('Invalid rule ID') || error.message.includes('not found'))) {
+      throw error;
+    }
+    
+    const context = {
+      requestId: req.requestId,
+      operation: 'DELETE_DISCOUNT_RULE',
+      resource: `/api/discount-rules/${req.params.id}`
+    };
+    
+    throw createError.databaseError('Failed to delete discount rule', error, context);
+  }
+}));
+
+export default discountRouter;

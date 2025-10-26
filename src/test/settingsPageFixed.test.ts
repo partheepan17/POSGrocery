@@ -25,7 +25,7 @@ export function testSettingsPageFixed() {
 
     settingsComponents.forEach(async (componentName) => {
       try {
-        const module = await import(`../components/Settings/${componentName}`);
+        // const _module = await import(`../components/Settings/${componentName}`);
         console.log(`✅ ${componentName} imported successfully with safety checks`);
       } catch (error) {
         console.error(`❌ Failed to import ${componentName}:`, error);

@@ -1,134 +1,171 @@
 /**
- * Centralized keyboard shortcuts management
+ * Keyboard Manager
+ * Handles global keyboard shortcuts and navigation
  */
 
 export interface KeyboardShortcut {
   key: string;
-  ctrl?: boolean;
-  alt?: boolean;
-  shift?: boolean;
+  ctrlKey?: boolean;
+  altKey?: boolean;
+  shiftKey?: boolean;
   action: () => void;
-  description: string;
+  description?: string;
 }
 
 export class KeyboardManager {
   private shortcuts: Map<string, KeyboardShortcut> = new Map();
-  private isEnabled = true;
+  private isEnabled: boolean = true;
 
-  constructor() {
-    this.bindGlobalHandler();
-  }
-
-  /**
-   * Register a keyboard shortcut
-   */
   register(shortcut: KeyboardShortcut): void {
-    const key = this.getKeyString(shortcut);
+    const key = this.generateKey(shortcut);
     this.shortcuts.set(key, shortcut);
   }
 
-  /**
-   * Unregister a keyboard shortcut
-   */
-  unregister(key: string, ctrl = false, alt = false, shift = false): void {
-    const keyString = this.getKeyString({ key, ctrl, alt, shift });
-    this.shortcuts.delete(keyString);
+  unregister(shortcut: KeyboardShortcut): void {
+    const key = this.generateKey(shortcut);
+    this.shortcuts.delete(key);
   }
 
-  /**
-   * Enable/disable all shortcuts
-   */
-  setEnabled(enabled: boolean): void {
-    this.isEnabled = enabled;
+  enable(): void {
+    this.isEnabled = true;
   }
 
-  /**
-   * Get key string for mapping
-   */
-  private getKeyString(shortcut: Omit<KeyboardShortcut, 'action' | 'description'>): string {
-    const parts: string[] = [];
-    if (shortcut.ctrl) parts.push('ctrl');
-    if (shortcut.alt) parts.push('alt');
-    if (shortcut.shift) parts.push('shift');
-    parts.push(shortcut.key.toLowerCase());
-    return parts.join('+');
+  disable(): void {
+    this.isEnabled = false;
   }
 
-  /**
-   * Handle keyboard events
-   */
+  private generateKey(shortcut: KeyboardShortcut): string {
+    const modifiers = [];
+    if (shortcut.ctrlKey) modifiers.push('ctrl');
+    if (shortcut.altKey) modifiers.push('alt');
+    if (shortcut.shiftKey) modifiers.push('shift');
+    
+    return `${modifiers.join('+')}+${shortcut.key}`.toLowerCase();
+  }
+
   private handleKeyDown = (event: KeyboardEvent): void => {
     if (!this.isEnabled) return;
 
-    // Don't trigger shortcuts when typing in inputs
-    const target = event.target as HTMLElement;
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') {
+    // Don't trigger shortcuts when typing in input fields
+    if (event.target instanceof HTMLInputElement || 
+        event.target instanceof HTMLTextAreaElement ||
+        event.target instanceof HTMLSelectElement) {
       return;
     }
 
-    const keyString = this.getKeyString({
+    const key = this.generateKey({
       key: event.key,
-      ctrl: event.ctrlKey,
-      alt: event.altKey,
-      shift: event.shiftKey
+      ctrlKey: event.ctrlKey,
+      altKey: event.altKey,
+      shiftKey: event.shiftKey,
+      action: () => {},
     });
 
-    const shortcut = this.shortcuts.get(keyString);
+    const shortcut = this.shortcuts.get(key);
     if (shortcut) {
       event.preventDefault();
-      event.stopPropagation();
       shortcut.action();
     }
   };
 
-  /**
-   * Bind global keyboard handler
-   */
-  private bindGlobalHandler(): void {
+  initialize(): void {
     document.addEventListener('keydown', this.handleKeyDown);
   }
 
-  /**
-   * Cleanup
-   */
   destroy(): void {
     document.removeEventListener('keydown', this.handleKeyDown);
     this.shortcuts.clear();
   }
 }
 
-// Global keyboard manager instance
+// Singleton instance
 export const keyboardManager = new KeyboardManager();
 
-// Predefined shortcuts for POS system
+// Initialize on module load
+if (typeof window !== 'undefined') {
+  keyboardManager.initialize();
+}
+
+// POS-specific shortcuts
 export const POS_SHORTCUTS = {
-  // Navigation
-  SALES: { key: '1', ctrl: true, description: 'Go to Sales' },
-  PRODUCTS: { key: '2', ctrl: true, description: 'Go to Products' },
-  PRICE_MANAGEMENT: { key: '3', ctrl: true, description: 'Go to Price Management' },
-  SUPPLIERS: { key: '4', ctrl: true, description: 'Go to Suppliers' },
-  CUSTOMERS: { key: '5', ctrl: true, description: 'Go to Customers' },
-  DISCOUNTS: { key: '6', ctrl: true, description: 'Go to Discounts' },
-  SHIFTS: { key: 'S', ctrl: true, shift: true, description: 'Go to Shifts' },
-
-  // Sales operations
-  HELD_SALES: { key: 'F2', description: 'Open Held Sales' },
-  HOLD_SALE: { key: 'F5', description: 'Hold Current Sale' },
-  RESUME_HOLD: { key: 'F6', description: 'Resume Held Sale' },
-  CASH_PAYMENT: { key: 'F7', description: 'Cash Payment' },
-  CARD_PAYMENT: { key: 'F8', description: 'Card Payment' },
-  RETURNS: { key: 'F9', description: 'Go to Returns' },
-  CREDIT_PAYMENT: { key: 'F10', description: 'Credit Payment' },
-  START_RETURN: { key: 'F11', description: 'Start Return' },
-  SHIFT_REPORTS: { key: 'F12', description: 'Shift Reports' },
-
-  // Quick tender
-  EXACT_AMOUNT: { key: '1', alt: true, description: 'Exact Amount' },
-  TENDER_500: { key: '2', alt: true, description: 'Tender 500' },
-  TENDER_1000: { key: '3', alt: true, description: 'Tender 1000' },
-
-  // Other
-  PRINT_RECEIPT: { key: 'P', ctrl: true, description: 'Print Receipt' },
-  LOGOUT: { key: 'L', ctrl: true, description: 'Logout' }
-} as const;
-
+  SALES: {
+    key: '1',
+    ctrlKey: true,
+    description: 'Go to Sales',
+  },
+  PRODUCTS: {
+    key: '2',
+    ctrlKey: true,
+    description: 'Go to Products',
+  },
+  CUSTOMERS: {
+    key: '3',
+    ctrlKey: true,
+    description: 'Go to Customers',
+  },
+  SUPPLIERS: {
+    key: '4',
+    ctrlKey: true,
+    description: 'Go to Suppliers',
+  },
+  PRICE_MANAGEMENT: {
+    key: '5',
+    ctrlKey: true,
+    description: 'Go to Price Management',
+  },
+  DISCOUNTS: {
+    key: '6',
+    ctrlKey: true,
+    description: 'Go to Discounts',
+  },
+  INVENTORY: {
+    key: '7',
+    ctrlKey: true,
+    description: 'Go to Inventory',
+  },
+  REPORTS: {
+    key: '8',
+    ctrlKey: true,
+    description: 'Go to Reports',
+  },
+  SETTINGS: {
+    key: '9',
+    ctrlKey: true,
+    description: 'Go to Settings',
+  },
+  HELD_SALES: {
+    key: 'h',
+    ctrlKey: true,
+    description: 'View Held Sales',
+  },
+  SHIFTS: {
+    key: 's',
+    ctrlKey: true,
+    description: 'Go to Shifts',
+  },
+  GRN: {
+    key: 'g',
+    ctrlKey: true,
+    description: 'Go to GRN',
+  },
+  USERS: {
+    key: 'u',
+    ctrlKey: true,
+    description: 'Go to Users',
+  },
+  AUDIT: {
+    key: 'a',
+    ctrlKey: true,
+    description: 'Go to Audit',
+  },
+  HEALTH: {
+    key: 'h',
+    ctrlKey: true,
+    description: 'Go to Health Check',
+  },
+  ABOUT: {
+    key: 'i',
+    ctrlKey: true,
+    description: 'Go to About',
+  },
+};

@@ -32,3 +32,4 @@ if (fs.existsSync(migrationsDir)) {
 } else {
   console.log('✗ No migrations directory found');
 }
+

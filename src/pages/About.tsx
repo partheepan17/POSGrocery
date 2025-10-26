@@ -47,17 +47,17 @@ export default function About() {
 
   const copySystemInfo = async () => {
     const systemInfo = {
-      productName: licenseInfo?.productName || 'viRtual POS',
+      productName: 'viRtual POS',
       version: '1.0.0',
       buildType: 'Production',
-      licenseStatus: licenseInfo?.locked ? 'Locked' : 'Unlocked',
-      licensee: licenseInfo?.licensee || 'Virtual Software Pvt Ltd',
+      licenseStatus: licenseInfo?.active ? 'Active' : 'Inactive',
+      licensee: licenseInfo?.company_name || 'Virtual Software Pvt Ltd',
       framework: 'React + TypeScript + Vite',
       database: 'SQLite + better-sqlite3',
       uiLibrary: 'Tailwind CSS + Lucide Icons',
       buildTool: 'Vite 4.5.0',
       environment: import.meta.env.MODE || 'production',
-      nodeVersion: process.version || 'Unknown',
+      nodeVersion: (globalThis as any).process?.version || 'Unknown',
       timestamp: new Date().toISOString()
     };
 
@@ -169,7 +169,7 @@ Generated: ${systemInfo.timestamp}`;
                   <div className="flex justify-between items-center py-4" style={{ borderBottom: '1px solid var(--border)' }}>
                     <span className="font-semibold text-lg" style={{ color: 'var(--muted)' }}>Product Name:</span>
                     <p className="text-xl font-bold" style={{ color: 'var(--text)' }}>
-                      {licenseInfo?.productName || 'viRtual POS'}
+                      {'viRtual POS'}
                     </p>
                   </div>
                   
@@ -195,14 +195,14 @@ Generated: ${systemInfo.timestamp}`;
                   <div className="flex justify-between items-center py-4">
                     <span className="font-semibold text-lg" style={{ color: 'var(--muted)' }}>License Status:</span>
                     <Badge 
-                      variant={licenseInfo?.locked ? "destructive" : "default"} 
+                      variant={licenseInfo?.active ? "default" : "destructive"} 
                       className="text-sm font-semibold px-3 py-1"
                       style={{ 
-                        backgroundColor: licenseInfo?.locked ? 'var(--destructive)' : 'var(--success)',
-                        color: licenseInfo?.locked ? 'var(--destructive-foreground)' : 'var(--success-foreground)'
+                        backgroundColor: licenseInfo?.active ? 'var(--success)' : 'var(--destructive)',
+                        color: licenseInfo?.active ? 'var(--success-foreground)' : 'var(--destructive-foreground)'
                       }}
                     >
-                      {licenseInfo?.locked ? "Locked" : "Unlocked"}
+                      {licenseInfo?.active ? "Active" : "Inactive"}
                     </Badge>
                   </div>
                 </div>
@@ -237,21 +237,21 @@ Generated: ${systemInfo.timestamp}`;
                   <div>
                     <span className="font-semibold text-lg" style={{ color: 'var(--muted)' }}>Licensed to:</span>
                     <p className="text-xl font-bold mt-2" style={{ color: 'var(--text)' }}>
-                      {licenseInfo?.licensee || 'Virtual Software Pvt Ltd'}
+                      {licenseInfo?.company_name || 'Virtual Software Pvt Ltd'}
                     </p>
                   </div>
                   
                   <div>
                     <span className="font-semibold text-lg" style={{ color: 'var(--muted)' }}>Full Company Name:</span>
                     <p className="mt-2 break-words text-lg" style={{ color: 'var(--text)' }}>
-                      {licenseInfo?.fullName || 'Visual Interface Resource Technology Unified Analytics Labs'}
+                      {licenseInfo?.company_name || 'Visual Interface Resource Technology Unified Analytics Labs'}
                     </p>
                   </div>
 
                   <div>
                     <span className="font-semibold text-lg" style={{ color: 'var(--muted)' }}>License Issued:</span>
                     <p className="mt-2 text-lg" style={{ color: 'var(--text)' }}>
-                      {licenseInfo?.issuedAt ? new Date(licenseInfo.issuedAt).toLocaleDateString() : 'Not available'}
+                      {licenseInfo?.valid_until ? new Date(licenseInfo.valid_until).toLocaleDateString() : 'Not available'}
                     </p>
                   </div>
 
@@ -260,7 +260,7 @@ Generated: ${systemInfo.timestamp}`;
                     <div className="flex items-center gap-3 mt-2">
                       <Lock className="h-5 w-5" style={{ color: 'var(--muted)' }} />
                       <span className="text-lg" style={{ color: 'var(--text)' }}>
-                        {licenseInfo?.locked ? 'Settings are locked' : 'Settings are unlocked'}
+                        {licenseInfo?.active ? 'Settings are unlocked' : 'Settings are locked'}
                       </span>
                     </div>
                   </div>
@@ -352,7 +352,7 @@ Generated: ${systemInfo.timestamp}`;
                     
                     <div className="flex justify-between items-center py-4" style={{ borderBottom: '1px solid var(--border)' }}>
                       <span className="font-semibold text-lg" style={{ color: 'var(--muted)' }}>Tax ID:</span>
-                      <p className="text-lg" style={{ color: 'var(--text)' }}>{companyProfile.taxId || 'Not set'}</p>
+                      <p className="text-lg" style={{ color: 'var(--text)' }}>{companyProfile.tax_id || 'Not set'}</p>
                     </div>
                     
                     <div className="py-4" style={{ borderBottom: '1px solid var(--border)' }}>
@@ -362,17 +362,17 @@ Generated: ${systemInfo.timestamp}`;
                     
                     <div className="flex justify-between items-center py-4" style={{ borderBottom: '1px solid var(--border)' }}>
                       <span className="font-semibold text-lg" style={{ color: 'var(--muted)' }}>Contact Email:</span>
-                      <p className="text-lg" style={{ color: 'var(--text)' }}>{companyProfile.contactEmail || 'Not set'}</p>
+                      <p className="text-lg" style={{ color: 'var(--text)' }}>{companyProfile.email || 'Not set'}</p>
                     </div>
                     
                     <div className="flex justify-between items-center py-4" style={{ borderBottom: '1px solid var(--border)' }}>
                       <span className="font-semibold text-lg" style={{ color: 'var(--muted)' }}>Contact Phone:</span>
-                      <p className="text-lg" style={{ color: 'var(--text)' }}>{companyProfile.contactPhone || 'Not set'}</p>
+                      <p className="text-lg" style={{ color: 'var(--text)' }}>{companyProfile.phone || 'Not set'}</p>
                     </div>
                     
                     <div className="flex justify-between items-center py-4">
                       <span className="font-semibold text-lg" style={{ color: 'var(--muted)' }}>Last Updated:</span>
-                      <p className="text-lg" style={{ color: 'var(--text)' }}>{new Date(companyProfile.updatedAt).toLocaleString()}</p>
+                      <p className="text-lg" style={{ color: 'var(--text)' }}>{'Not available'}</p>
                     </div>
                   </div>
                 </CardContent>

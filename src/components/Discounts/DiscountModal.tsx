@@ -66,15 +66,15 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
     if (rule && rule.id) {
       setFormData({
         name: rule.name,
-        applies_to: rule.applies_to,
+        applies_to: (rule.applies_to as 'PRODUCT' | 'CATEGORY') || (rule.level === 'PRODUCT' ? 'PRODUCT' : 'CATEGORY'),
         target_id: rule.target_id,
         type: rule.type,
         value: rule.value,
         max_qty_or_weight: rule.max_qty_or_weight,
         active_from: new Date(rule.active_from).toISOString().split('T')[0],
-        active_to: new Date(rule.active_to).toISOString().split('T')[0],
+        active_to: rule.active_to ? new Date(rule.active_to).toISOString().split('T')[0] : '',
         priority: rule.priority,
-        reason_required: rule.reason_required,
+        reason_required: rule.reason_required || false,
         active: rule.active
       });
     }
@@ -95,7 +95,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
           active_from: new Date(formData.active_from),
           active_to: new Date(formData.active_to)
         });
-        setConflictingRules(conflicts);
+        setConflictingRules(conflicts.data as DiscountRule[] || []);
       } catch (error) {
         console.error('Error checking conflicts:', error);
       }
@@ -165,15 +165,18 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
       const ruleData: Omit<DiscountRule, 'id'> = {
         name: formData.name.trim(),
         applies_to: formData.applies_to,
+        level: (formData.applies_to === 'PRODUCT' ? 'PRODUCT' : 'GROUP') as 'PRODUCT' | 'GROUP',
         target_id: formData.target_id,
         type: formData.type,
         value: formData.value,
         max_qty_or_weight: formData.max_qty_or_weight,
-        active_from: new Date(formData.active_from),
-        active_to: new Date(formData.active_to),
+        active_from: new Date(formData.active_from).toISOString(),
+        active_to: formData.active_to ? new Date(formData.active_to).toISOString() : undefined,
         priority: formData.priority,
         reason_required: formData.reason_required,
-        active: formData.active
+        active: formData.active,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       if (rule?.id) {
@@ -214,15 +217,18 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
         id: rule?.id || 999999,
         name: formData.name,
         applies_to: formData.applies_to,
+        level: (formData.applies_to === 'PRODUCT' ? 'PRODUCT' : 'GROUP') as 'PRODUCT' | 'GROUP',
         target_id: formData.target_id,
         type: formData.type,
         value: formData.value,
         max_qty_or_weight: formData.max_qty_or_weight,
-        active_from: new Date(formData.active_from),
-        active_to: new Date(formData.active_to),
+        active_from: new Date(formData.active_from).toISOString(),
+        active_to: formData.active_to ? new Date(formData.active_to).toISOString() : undefined,
         priority: formData.priority,
         reason_required: formData.reason_required,
-        active: formData.active
+        active: formData.active,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       const mockLines = [{
@@ -507,7 +513,7 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
                           {conflict.name} (Priority: {conflict.priority})
                         </span>
                         <span className="text-xs">
-                          {getTargetName(conflict.applies_to, conflict.target_id)}
+                          {getTargetName(conflict.applies_to || (conflict.level === 'PRODUCT' ? 'PRODUCT' : 'CATEGORY'), conflict.target_id)}
                         </span>
                       </li>
                     ))}
@@ -588,15 +594,18 @@ export function DiscountModal({ rule, products, categories, onClose, onSave }: D
               const ruleData: Omit<DiscountRule, 'id'> = {
                 name: formData.name.trim(),
                 applies_to: formData.applies_to,
+                level: (formData.applies_to === 'PRODUCT' ? 'PRODUCT' : 'GROUP') as 'PRODUCT' | 'GROUP',
                 target_id: formData.target_id,
                 type: formData.type,
                 value: formData.value,
                 max_qty_or_weight: formData.max_qty_or_weight,
-                active_from: new Date(formData.active_from),
-                active_to: new Date(formData.active_to),
+                active_from: new Date(formData.active_from).toISOString(),
+                active_to: formData.active_to ? new Date(formData.active_to).toISOString() : undefined,
                 priority: formData.priority,
                 reason_required: formData.reason_required,
-                active: formData.active
+                active: formData.active,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
               };
 
               if (rule?.id) {

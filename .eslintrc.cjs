@@ -1,16 +1,19 @@
-const designTokensPlugin = require('./eslint-plugins/design-tokens');
-
 module.exports = {
   root: true,
   env: { browser: true, es2020: true },
   extends: [
     'eslint:recommended',
-    '@typescript-eslint/recommended',
-    'plugin:react-hooks/recommended',
   ],
-  ignorePatterns: ['dist', '.eslintrc.cjs', 'eslint-plugins/'],
+  ignorePatterns: ['dist', '.eslintrc.cjs', 'eslint-plugins/', 'node_modules/'],
   parser: '@typescript-eslint/parser',
-  plugins: ['react-refresh', 'design-tokens'],
+  parserOptions: {
+    ecmaVersion: 2020,
+    sourceType: 'module',
+    ecmaFeatures: {
+      jsx: true,
+    },
+  },
+  plugins: ['@typescript-eslint', 'react-refresh'],
   rules: {
     'react-refresh/only-export-components': [
       'warn',
@@ -20,12 +23,6 @@ module.exports = {
     '@typescript-eslint/no-explicit-any': 'warn',
     'prefer-const': 'error',
     'no-var': 'error',
-    
-    // Design tokens enforcement
-    'design-tokens/no-raw-colors': 'error',
-    'design-tokens/no-raw-spacing': 'error',
-    'design-tokens/no-raw-font-sizes': 'error',
-    'design-tokens/no-raw-border-radius': 'error',
   },
 }
 

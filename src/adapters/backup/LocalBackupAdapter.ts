@@ -44,7 +44,7 @@ export class LocalBackupAdapter extends BaseBackupAdapter {
       // Test write permissions by creating a test file
       const testFile = join(folderPath, 'test_write_permissions.tmp');
       try {
-        require('fs').writeFileSync(testFile, 'test');
+        (globalThis as any).require('fs').writeFileSync(testFile, 'test');
         unlinkSync(testFile);
       } catch (error) {
         return {
@@ -231,10 +231,10 @@ export class LocalBackupAdapter extends BaseBackupAdapter {
       }
 
       // In Node.js environment, try to open with system default
-      const { exec } = require('child_process');
-      const command = process.platform === 'win32' 
+      const { exec } = (globalThis as any).require('child_process');
+      const command = (globalThis as any).process.platform === 'win32' 
         ? `explorer "${folderPath}"`
-        : process.platform === 'darwin'
+        : (globalThis as any).process.platform === 'darwin'
         ? `open "${folderPath}"`
         : `xdg-open "${folderPath}"`;
       
