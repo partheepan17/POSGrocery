@@ -333,7 +333,18 @@ export interface LabelPreset {
     bold_name: boolean;
     align: 'left' | 'center' | 'right';
     show_store_logo: boolean;
-    sectionOrder?: Array<'name' | 'barcode' | 'price' | 'mrp' | 'batch' | 'dates'>; // stacking
+    sectionOrder?: Array<
+      | 'store'
+      | 'name_en'
+      | 'name_si'
+      | 'name_ta'
+      | 'barcode'
+      | 'price'
+      | 'mrp'
+      | 'batch'
+      | 'dates'
+      | 'desc'
+    >; // stacking
   };
   defaults: {
     qty: number;
@@ -364,6 +375,8 @@ export interface LabelItem {
   expiryDate?: string | null;  // ISO yyyy-mm-dd
   mrp?: number | null;         // printed "MRP"
   batchNo?: string | null;
+  // Optional short description to show on label (max 50 chars)
+  description?: string | null;
 }
 
 export interface LabelJob {

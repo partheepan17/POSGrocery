@@ -1687,7 +1687,7 @@ export class CSVService {
     const headers = [
       'sku', 'barcode', 'name_en', 'name_si', 'name_ta', 'category', 'unit',
       'price_retail', 'price_wholesale', 'price_credit', 'price_other',
-      'qty', 'price_tier', 'language', 'packed_date', 'expiry_date', 'mrp', 'batch_no'
+      'qty', 'price_tier', 'language', 'packed_date', 'expiry_date', 'mrp', 'batch_no', 'description'
     ];
 
     const csvRows = [headers.join(',')];
@@ -1711,7 +1711,8 @@ export class CSVService {
         item.packedDate || '',
         item.expiryDate || '',
         item.mrp?.toString() || '',
-        item.batchNo || ''
+        item.batchNo || '',
+        (item.description || '')
       ];
       csvRows.push(row.join(','));
     });
@@ -1882,7 +1883,7 @@ export class CSVService {
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
       const acceptedHeaders = [
         'barcode', 'sku', 'qty', 'price_tier', 'language', 
-        'custom_line1', 'custom_line2', 'packed_date', 'expiry_date', 'mrp', 'batch_no'
+        'custom_line1', 'custom_line2', 'packed_date', 'expiry_date', 'mrp', 'batch_no', 'description'
       ];
 
       // Validate at least one identifier is present
@@ -1924,6 +1925,7 @@ export class CSVService {
           const expiryDate = row.expiry_date || null;
           const mrp = row.mrp ? parseFloat(row.mrp) : null;
           const batchNo = row.batch_no || null;
+          const description = row.description || undefined;
 
           // Validate price tier
           if (!['retail', 'wholesale', 'credit', 'other'].includes(priceTier)) {
@@ -2054,7 +2056,8 @@ export class CSVService {
             packedDate,
             expiryDate,
             mrp,
-            batchNo
+            batchNo,
+            description: description ? (description.length > 50 ? description.slice(0, 49) + '…' : description) : undefined
           };
 
           items.push(labelItem);
